@@ -20,3 +20,23 @@
 # Go workspace file
 go.work
 go.work.sum
+
+.vscode/
+.idea/
+.run/
+zk-multiple-kafka-multiple/
+*.out
+*.res
+*.lsif
+*.prof
+coverage.tmp.xml
+coverage.xml
+cover.html
+cover.out
+
+/example/worker/worker
+/example/consumer/consumer
+/example/sandbox
+
+testdata/fuzz
+

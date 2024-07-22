@@ -1,4 +1,4 @@
-package zstreams
+package zkafka
 
 import (
 	"testing"
@@ -15,8 +15,8 @@ func TestGetFakeMessage(t *testing.T) {
 		Key:   "key",
 		value: []byte("\"value\""),
 	}
-	require.Equal(t, expectedMessage.Key, msg.Key, "Expected generated zstreams.Message to use key from arg")
-	require.Equal(t, string(expectedMessage.value), string(msg.value), "Expected generated zstreams.Message to use value from arg")
+	require.Equal(t, expectedMessage.Key, msg.Key, "Expected generated zkafka.Message to use key from arg")
+	require.Equal(t, string(expectedMessage.value), string(msg.value), "Expected generated zkafka.Message to use value from arg")
 }
 
 func TestGetFakeMessageFromRaw(t *testing.T) {
@@ -30,8 +30,8 @@ func TestGetFakeMessageFromRaw(t *testing.T) {
 		Key:   "key",
 		value: []byte("\"value\""),
 	}
-	require.Equal(t, expectedMessage.Key, msg.Key, "Expected generated zstreams.Message to use key from arg")
-	require.Equal(t, string(expectedMessage.value), string(msg.value), "Expected generated zstreams.Message to use value from arg")
+	require.Equal(t, expectedMessage.Key, msg.Key, "Expected generated zkafka.Message to use key from arg")
+	require.Equal(t, string(expectedMessage.value), string(msg.value), "Expected generated zkafka.Message to use value from arg")
 }
 
 func TestGetFakeMessage_WhenMarshallError(t *testing.T) {
@@ -42,6 +42,6 @@ func TestGetFakeMessage_WhenMarshallError(t *testing.T) {
 		Key:   "key",
 		value: nil,
 	}
-	require.Equal(t, expectedMessage.Key, msg.Key, "Expected generated zstreams.Message to use key from arg")
-	require.Equal(t, string(expectedMessage.value), string(msg.value), "Expected generated zstreams.Message to use value from arg")
+	require.Equal(t, expectedMessage.Key, msg.Key, "Expected generated zkafka.Message to use key from arg")
+	require.Equal(t, string(expectedMessage.value), string(msg.value), "Expected generated zkafka.Message to use value from arg")
 }

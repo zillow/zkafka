@@ -1,4 +1,4 @@
-package zstreams
+package zkafka
 
 //go:generate mockgen -package mock_confluent -destination=./mocks/confluent/kafka_producer.go . KafkaProducer
 
@@ -173,7 +173,7 @@ func (w *KWriter) startSpan(ctx context.Context, msg *kafka.Message) spanWrapper
 		trace.WithSpanKind(trace.SpanKindProducer),
 	}
 
-	operationName := "zstreams.write"
+	operationName := "zkafka.write"
 	ctx, span := w.tracer.Start(ctx, operationName, opts...)
 
 	// Inject the current span into the original message, so it can be used to

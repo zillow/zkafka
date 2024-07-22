@@ -1,4 +1,4 @@
-package zstreams
+package zkafka
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/stretchr/testify/require"
-	mock_confluent "gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4/mocks/confluent"
+	mock_confluent "github.com/zillow/zkafka/mocks/confluent"
 
 	"github.com/golang/mock/gomock"
 	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"

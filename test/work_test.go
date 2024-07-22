@@ -15,9 +15,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/zillow/zkafka"
+	zkafka_mocks "github.com/zillow/zkafka/mocks"
 	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4"
-	zstreams_mocks "gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4/mocks"
 
 	"github.com/golang/mock/gomock"
 )
@@ -34,18 +34,18 @@ func TestWork_Run_FailsWithLogsWhenFailedToGetReader(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams_mocks.NewMockLogger(ctrl)
+	l := zkafka_mocks.NewMockLogger(ctrl)
 	l.EXPECT().Warnw(gomock.Any(), "Kafka worker read message failed", "error", gomock.Any(), "topics", gomock.Any()).MinTimes(1)
 	l.EXPECT().Warnw(gomock.Any(), "Kafka topic processing circuit open", "topics", gomock.Any()).AnyTimes()
 
-	cp := zstreams_mocks.NewMockClientProvider(ctrl)
+	cp := zkafka_mocks.NewMockClientProvider(ctrl)
 	cp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("no kafka client reader created")).MinTimes(1)
 
-	kwf := zstreams.NewWorkFactory(cp, zstreams.WithLogger(l))
+	kwf := zkafka.NewWorkFactory(cp, zkafka.WithLogger(l))
 	fanoutCount := atomic.Int64{}
-	w := kwf.Create(zstreams.ConsumerTopicConfig{Topic: topicName},
+	w := kwf.Create(zkafka.ConsumerTopicConfig{Topic: topicName},
 		&fakeProcessor{},
-		zstreams.WithLifecycleHooks(zstreams.LifecycleHooks{PostFanout: func(ctx context.Context) {
+		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 			fanoutCount.Add(1)
 		}}))
 
@@ -74,18 +74,18 @@ func TestWork_Run_FailsWithLogsWhenGotNilReader(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams_mocks.NewMockLogger(ctrl)
+	l := zkafka_mocks.NewMockLogger(ctrl)
 	l.EXPECT().Warnw(gomock.Any(), "Kafka worker read message failed", "error", gomock.Any(), "topics", gomock.Any()).Times(1)
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	kwf := zstreams.NewWorkFactory(kcp, zstreams.WithLogger(l))
-	w := kwf.Create(zstreams.ConsumerTopicConfig{Topic: topicName}, &fakeProcessor{},
-		zstreams.WithLifecycleHooks(zstreams.LifecycleHooks{PostFanout: func(ctx context.Context) {
+	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
+	w := kwf.Create(zkafka.ConsumerTopicConfig{Topic: topicName}, &fakeProcessor{},
+		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 			cancel()
 		}}))
 
@@ -99,21 +99,21 @@ func TestWork_Run_FailsWithLogsForReadError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams_mocks.NewMockLogger(ctrl)
+	l := zkafka_mocks.NewMockLogger(ctrl)
 
 	l.EXPECT().Warnw(gomock.Any(), "Kafka worker read message failed", "error", gomock.Any(), "topics", gomock.Any()).MinTimes(1)
 
-	r := zstreams_mocks.NewMockReader(ctrl)
+	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Times(1).Return(nil, errors.New("error occurred during read"))
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	kwf := zstreams.NewWorkFactory(kcp, zstreams.WithLogger(l))
-	w := kwf.Create(zstreams.ConsumerTopicConfig{Topic: topicName}, &fakeProcessor{},
-		zstreams.WithLifecycleHooks(zstreams.LifecycleHooks{PostFanout: func(ctx context.Context) {
+	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
+	w := kwf.Create(zkafka.ConsumerTopicConfig{Topic: topicName}, &fakeProcessor{},
+		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 			cancel()
 		}}))
 
@@ -127,23 +127,23 @@ func TestWork_Run_CircuitBreakerOpensOnReadError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
-	r := zstreams_mocks.NewMockReader(ctrl)
+	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(nil, errors.New("error occurred during read"))
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
 
-	kwf := zstreams.NewWorkFactory(kcp, zstreams.WithLogger(l))
+	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 
 	cnt := atomic.Int64{}
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{Topic: topicName},
+		zkafka.ConsumerTopicConfig{Topic: topicName},
 		&fakeProcessor{},
-		zstreams.CircuitBreakAfter(1), // Circuit breaks after 1 error.
-		zstreams.CircuitBreakFor(50*time.Millisecond),
-		zstreams.WithLifecycleHooks(zstreams.LifecycleHooks{PostFanout: func(ctx context.Context) {
+		zkafka.CircuitBreakAfter(1), // Circuit breaks after 1 error.
+		zkafka.CircuitBreakFor(50*time.Millisecond),
+		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 			l.Warnw(ctx, "Fanout callback called")
 			cnt.Add(1)
 		}}))
@@ -174,29 +174,29 @@ func TestWork_Run_CircuitBreaksOnProcessError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
-	msg := zstreams.GetFakeMessage("1", nil, &zfmt.JSONFormatter{}, NoopOnDone)
-	r := zstreams_mocks.NewMockReader(ctrl)
+	msg := zkafka.GetFakeMessage("1", nil, &zfmt.JSONFormatter{}, NoopOnDone)
+	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).AnyTimes().Return(r, nil)
 
 	kproc := &fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			return errors.New("KafkaError.Process error")
 		},
 	}
 
 	cnt := atomic.Int64{}
-	kwf := zstreams.NewWorkFactory(kcp, zstreams.WithLogger(l))
+	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{Topic: topicName},
+		zkafka.ConsumerTopicConfig{Topic: topicName},
 		kproc,
-		zstreams.CircuitBreakAfter(1), // Circuit breaks after 1 error.
-		zstreams.CircuitBreakFor(50*time.Millisecond),
-		zstreams.WithOnDone(func(ctx context.Context, message *zstreams.Message, err error) {
+		zkafka.CircuitBreakAfter(1), // Circuit breaks after 1 error.
+		zkafka.CircuitBreakFor(50*time.Millisecond),
+		zkafka.WithOnDone(func(ctx context.Context, message *zkafka.Message, err error) {
 			cnt.Add(1)
 		}),
 	)
@@ -227,19 +227,19 @@ func TestWork_Run_DoNotSkipCircuitBreak(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
-	failureMessage := zstreams.GetFakeMessage("1", nil, &zfmt.JSONFormatter{}, NoopOnDone)
-	r := zstreams_mocks.NewMockReader(ctrl)
+	failureMessage := zkafka.GetFakeMessage("1", nil, &zfmt.JSONFormatter{}, NoopOnDone)
+	r := zkafka_mocks.NewMockReader(ctrl)
 
 	r.EXPECT().Read(gomock.Any()).Return(failureMessage, nil).AnyTimes()
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).AnyTimes().Return(r, nil)
 
 	kproc := &fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
-			return zstreams.ProcessError{
+		process: func(ctx context.Context, message *zkafka.Message) error {
+			return zkafka.ProcessError{
 				Err:                 errors.New("kafka.ProcessError"),
 				DisableCircuitBreak: false,
 			}
@@ -247,13 +247,13 @@ func TestWork_Run_DoNotSkipCircuitBreak(t *testing.T) {
 	}
 
 	cnt := atomic.Int64{}
-	kwf := zstreams.NewWorkFactory(kcp, zstreams.WithLogger(l))
+	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{Topic: topicName},
+		zkafka.ConsumerTopicConfig{Topic: topicName},
 		kproc,
-		zstreams.CircuitBreakAfter(1), // Circuit breaks after 1 error.
-		zstreams.CircuitBreakFor(50*time.Millisecond),
-		zstreams.WithOnDone(func(ctx context.Context, _ *zstreams.Message, _ error) {
+		zkafka.CircuitBreakAfter(1), // Circuit breaks after 1 error.
+		zkafka.CircuitBreakFor(50*time.Millisecond),
+		zkafka.WithOnDone(func(ctx context.Context, _ *zkafka.Message, _ error) {
 			cnt.Add(1)
 		}),
 	)
@@ -284,19 +284,19 @@ func TestWork_Run_DoSkipCircuitBreak(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
-	failureMessage := zstreams.GetFakeMessage("1", nil, &zfmt.JSONFormatter{}, NoopOnDone)
-	r := zstreams_mocks.NewMockReader(ctrl)
+	failureMessage := zkafka.GetFakeMessage("1", nil, &zfmt.JSONFormatter{}, NoopOnDone)
+	r := zkafka_mocks.NewMockReader(ctrl)
 
 	r.EXPECT().Read(gomock.Any()).Return(failureMessage, nil).AnyTimes()
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).AnyTimes().Return(r, nil)
 
 	kproc := fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
-			return zstreams.ProcessError{
+		process: func(ctx context.Context, message *zkafka.Message) error {
+			return zkafka.ProcessError{
 				Err:                 errors.New("kafka.ProcessError"),
 				DisableCircuitBreak: true,
 			}
@@ -304,13 +304,13 @@ func TestWork_Run_DoSkipCircuitBreak(t *testing.T) {
 	}
 
 	cnt := atomic.Int64{}
-	kwf := zstreams.NewWorkFactory(kcp, zstreams.WithLogger(l))
+	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{Topic: topicName},
+		zkafka.ConsumerTopicConfig{Topic: topicName},
 		&kproc,
-		zstreams.CircuitBreakAfter(1), // Circuit breaks after 1 error.
-		zstreams.CircuitBreakFor(50*time.Millisecond),
-		zstreams.WithOnDone(func(ctx context.Context, _ *zstreams.Message, _ error) {
+		zkafka.CircuitBreakAfter(1), // Circuit breaks after 1 error.
+		zkafka.CircuitBreakFor(50*time.Millisecond),
+		zkafka.WithOnDone(func(ctx context.Context, _ *zkafka.Message, _ error) {
 			cnt.Add(1)
 		}),
 	)
@@ -342,29 +342,29 @@ func TestWork_Run_CircuitBreaksOnProcessPanicInsideProcessorGoRoutine(t *testing
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
-	msg := zstreams.GetFakeMessage("1", nil, &zfmt.JSONFormatter{}, NoopOnDone)
-	r := zstreams_mocks.NewMockReader(ctrl)
+	msg := zkafka.GetFakeMessage("1", nil, &zfmt.JSONFormatter{}, NoopOnDone)
+	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).AnyTimes().Return(r, nil)
 
 	kproc := &fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			panic("fake a panic occurring on process")
 		},
 	}
 
 	cnt := atomic.Int64{}
-	kwf := zstreams.NewWorkFactory(kcp, zstreams.WithLogger(l))
+	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{Topic: topicName},
+		zkafka.ConsumerTopicConfig{Topic: topicName},
 		kproc,
-		zstreams.CircuitBreakAfter(1), // Circuit breaks after 1 error.
-		zstreams.CircuitBreakFor(50*time.Millisecond),
-		zstreams.WithOnDone(func(ctx context.Context, _ *zstreams.Message, _ error) {
+		zkafka.CircuitBreakAfter(1), // Circuit breaks after 1 error.
+		zkafka.CircuitBreakFor(50*time.Millisecond),
+		zkafka.WithOnDone(func(ctx context.Context, _ *zkafka.Message, _ error) {
 			cnt.Add(1)
 		}),
 	)
@@ -399,7 +399,7 @@ func TestWork_Run_DisabledCircuitBreakerContinueReadError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams_mocks.NewMockLogger(ctrl)
+	l := zkafka_mocks.NewMockLogger(ctrl)
 
 	processingCount := 4
 	l.EXPECT().Errorw(gomock.Any(), "Kafka topic single message processing failed", "error", gomock.Any(), "kmsg", gomock.Any()).AnyTimes()
@@ -408,20 +408,20 @@ func TestWork_Run_DisabledCircuitBreakerContinueReadError(t *testing.T) {
 	l.EXPECT().Warnw(gomock.Any(), "Kafka topic processing circuit open", "topics", gomock.Any()).Times(0)
 	l.EXPECT().Debugw(gomock.Any(), "Kafka topic message received", "offset", gomock.Any(), "partition", gomock.Any(), "topic", gomock.Any(), "groupID", gomock.Any()).AnyTimes()
 
-	r := zstreams_mocks.NewMockReader(ctrl)
+	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).MinTimes(4).Return(nil, errors.New("error occurred on read"))
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
 
-	kwf := zstreams.NewWorkFactory(kcp, zstreams.WithLogger(l))
+	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 
 	cnt := atomic.Int64{}
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{Topic: topicName},
+		zkafka.ConsumerTopicConfig{Topic: topicName},
 		&fakeProcessor{},
-		zstreams.DisableCircuitBreaker(),
-		zstreams.WithLifecycleHooks(zstreams.LifecycleHooks{PostFanout: func(ctx context.Context) {
+		zkafka.DisableCircuitBreaker(),
+		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 			cnt.Add(1)
 		}}),
 	)
@@ -452,25 +452,25 @@ func TestWork_Run_SpedUpIsFaster(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockReader := zstreams_mocks.NewMockReader(ctrl)
+	mockReader := zkafka_mocks.NewMockReader(ctrl)
 
-	mockReader.EXPECT().Read(gomock.Any()).DoAndReturn(func(ctx context.Context) (*zstreams.Message, error) {
-		return zstreams.GetFakeMessage(uuid.NewString(), nil, &zfmt.JSONFormatter{}, NoopOnDone), nil
+	mockReader.EXPECT().Read(gomock.Any()).DoAndReturn(func(ctx context.Context) (*zkafka.Message, error) {
+		return zkafka.GetFakeMessage(uuid.NewString(), nil, &zfmt.JSONFormatter{}, NoopOnDone), nil
 	}).AnyTimes()
 	mockReader.EXPECT().Close().Return(nil).AnyTimes()
 
-	mockClientProvider := zstreams_mocks.NewMockClientProvider(ctrl)
+	mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
 	mockClientProvider.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(2).Return(mockReader, nil)
 
-	kwf := zstreams.NewWorkFactory(mockClientProvider, zstreams.WithLogger(zstreams.NoopLogger{}))
+	kwf := zkafka.NewWorkFactory(mockClientProvider, zkafka.WithLogger(zkafka.NoopLogger{}))
 	slow := fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			time.Sleep(time.Millisecond * 10)
 			return nil
 		},
 	}
 	fast := fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			time.Sleep(time.Millisecond * 10)
 			return nil
 		},
@@ -478,7 +478,7 @@ func TestWork_Run_SpedUpIsFaster(t *testing.T) {
 
 	func() {
 		workerSlow := kwf.Create(
-			zstreams.ConsumerTopicConfig{Topic: topicName},
+			zkafka.ConsumerTopicConfig{Topic: topicName},
 			&slow,
 		)
 
@@ -492,9 +492,9 @@ func TestWork_Run_SpedUpIsFaster(t *testing.T) {
 	// We'll let it process over the same amount of time (defined by timeout in context)
 	func() {
 		workerSpedUp := kwf.Create(
-			zstreams.ConsumerTopicConfig{Topic: topicName},
+			zkafka.ConsumerTopicConfig{Topic: topicName},
 			&fast,
-			zstreams.Speedup(10),
+			zkafka.Speedup(10),
 		)
 
 		ctx, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
@@ -527,29 +527,29 @@ func TestKafkaWork_ProcessorReturnsErrorIsLoggedAsWarning(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	//
-	l := zstreams_mocks.NewMockLogger(ctrl)
+	l := zkafka_mocks.NewMockLogger(ctrl)
 	l.EXPECT().Warnw(gomock.Any(), "Kafka topic processing circuit open", "topics", gomock.Any()).AnyTimes()
 	l.EXPECT().Warnw(gomock.Any(), "Kafka topic single message processing failed", "error", gomock.Any(), "kmsg", gomock.Any()).MinTimes(1)
 	l.EXPECT().Warnw(gomock.Any(), "Outside context canceled", "kmsg", gomock.Any(), "error", gomock.Any()).AnyTimes()
 	l.EXPECT().Debugw(gomock.Any(), "Kafka topic message received", "offset", gomock.Any(), "partition", gomock.Any(), "topic", gomock.Any(), "groupID", gomock.Any()).AnyTimes()
 
-	msg := zstreams.GetFakeMessage("key", "val", &zfmt.JSONFormatter{}, NoopOnDone)
-	mockReader := zstreams_mocks.NewMockReader(ctrl)
+	msg := zkafka.GetFakeMessage("key", "val", &zfmt.JSONFormatter{}, NoopOnDone)
+	mockReader := zkafka_mocks.NewMockReader(ctrl)
 	mockReader.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
-	mockClientProvider := zstreams_mocks.NewMockClientProvider(ctrl)
+	mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
 	mockClientProvider.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(mockReader, nil)
 
 	processor := fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			return errors.New("error for testcase TestKafkaWork_ProcessorReturnsErrorIsLoggedAsWarning")
 		},
 	}
-	wf := zstreams.NewWorkFactory(mockClientProvider, zstreams.WithLogger(l))
+	wf := zkafka.NewWorkFactory(mockClientProvider, zkafka.WithLogger(l))
 	count := atomic.Int64{}
 	work := wf.Create(
-		zstreams.ConsumerTopicConfig{Topic: topicName},
+		zkafka.ConsumerTopicConfig{Topic: topicName},
 		&processor,
-		zstreams.WithOnDone(func(ctx context.Context, message *zstreams.Message, err error) {
+		zkafka.WithOnDone(func(ctx context.Context, message *zkafka.Message, err error) {
 			count.Add(1)
 		}))
 
@@ -575,30 +575,30 @@ func TestKafkaWork_ProcessorTimeoutCausesContextCancellation(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
-	msg := zstreams.GetFakeMessage("key", "val", &zfmt.JSONFormatter{}, NoopOnDone)
-	mockReader := zstreams_mocks.NewMockReader(ctrl)
+	msg := zkafka.GetFakeMessage("key", "val", &zfmt.JSONFormatter{}, NoopOnDone)
+	mockReader := zkafka_mocks.NewMockReader(ctrl)
 	mockReader.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
 
-	mockClientProvider := zstreams_mocks.NewMockClientProvider(ctrl)
+	mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
 	mockClientProvider.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(mockReader, nil)
 
-	wf := zstreams.NewWorkFactory(mockClientProvider, zstreams.WithLogger(l))
+	wf := zkafka.NewWorkFactory(mockClientProvider, zkafka.WithLogger(l))
 
 	processor := fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			<-ctx.Done()
 			return ctx.Err()
 		},
 	}
 	count := atomic.Int64{}
 	work := wf.Create(
-		zstreams.ConsumerTopicConfig{
+		zkafka.ConsumerTopicConfig{
 			Topic:                topicName,
 			ProcessTimeoutMillis: ptr(1)},
 		&processor,
-		zstreams.WithOnDone(func(ctx context.Context, message *zstreams.Message, err error) {
+		zkafka.WithOnDone(func(ctx context.Context, message *zkafka.Message, err error) {
 			count.Add(1)
 		}),
 	)
@@ -623,9 +623,9 @@ func TestWork_WithDeadLetterTopic_NoMessagesWrittenToDLTSinceNoErrorsOccurred(t 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
-	mockReader := zstreams_mocks.NewMockReader(ctrl)
+	mockReader := zkafka_mocks.NewMockReader(ctrl)
 	gomock.InOrder(
 		mockReader.EXPECT().Read(gomock.Any()).Return(getRandomMessage(), nil),
 		mockReader.EXPECT().Read(gomock.Any()).Return(getRandomMessage(), nil),
@@ -633,30 +633,30 @@ func TestWork_WithDeadLetterTopic_NoMessagesWrittenToDLTSinceNoErrorsOccurred(t 
 	)
 	mockReader.EXPECT().Close().Return(nil).AnyTimes()
 
-	mockWriter := zstreams_mocks.NewMockWriter(ctrl)
+	mockWriter := zkafka_mocks.NewMockWriter(ctrl)
 	// no messages written into dlt because there weren't errors
 	mockWriter.EXPECT().Write(gomock.Any(), gomock.Any()).Times(0)
 	mockWriter.EXPECT().Close().AnyTimes()
 
-	mockClientProvider := zstreams_mocks.NewMockClientProvider(ctrl)
+	mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
 	mockClientProvider.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(mockReader, nil)
 	mockClientProvider.EXPECT().Writer(gomock.Any(), gomock.Any()).Times(2).Return(mockWriter, nil)
 
-	kwf := zstreams.NewWorkFactory(mockClientProvider, zstreams.WithLogger(l))
+	kwf := zkafka.NewWorkFactory(mockClientProvider, zkafka.WithLogger(l))
 
 	processor := fakeProcessor{}
 
 	var cnt atomic.Int64
 	w1 := kwf.Create(
-		zstreams.ConsumerTopicConfig{
+		zkafka.ConsumerTopicConfig{
 			Topic: topicName,
-			DeadLetterTopicConfig: &zstreams.ProducerTopicConfig{
+			DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
 				ClientID: uuid.NewString(),
 				Topic:    "topic2",
 			},
 		},
 		&processor,
-		zstreams.WithOnDone(func(ctx context.Context, message *zstreams.Message, err error) {
+		zkafka.WithOnDone(func(ctx context.Context, message *zkafka.Message, err error) {
 			cnt.Add(1)
 		}),
 	)
@@ -698,9 +698,9 @@ func TestWork_WithDeadLetterTopic_MessagesWrittenToDLTSinceErrorOccurred(t *test
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
-	mockReader := zstreams_mocks.NewMockReader(ctrl)
+	mockReader := zkafka_mocks.NewMockReader(ctrl)
 	msg1 := getRandomMessage()
 	msg2 := getRandomMessage()
 	gomock.InOrder(
@@ -710,27 +710,27 @@ func TestWork_WithDeadLetterTopic_MessagesWrittenToDLTSinceErrorOccurred(t *test
 	)
 	mockReader.EXPECT().Close().Return(nil).AnyTimes()
 
-	mockWriter := zstreams_mocks.NewMockWriter(ctrl)
+	mockWriter := zkafka_mocks.NewMockWriter(ctrl)
 	// each errored message gets forwarded
 	mockWriter.EXPECT().WriteRaw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(2)
 	mockWriter.EXPECT().Close().AnyTimes()
 
-	mockClientProvider := zstreams_mocks.NewMockClientProvider(ctrl)
+	mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
 	mockClientProvider.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(mockReader, nil)
 	mockClientProvider.EXPECT().Writer(gomock.Any(), gomock.Any()).Times(2).Return(mockWriter, nil)
 
-	kwf := zstreams.NewWorkFactory(mockClientProvider, zstreams.WithLogger(l))
+	kwf := zkafka.NewWorkFactory(mockClientProvider, zkafka.WithLogger(l))
 
 	processor := fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			return errors.New("processor error")
 		},
 	}
 
 	w1 := kwf.Create(
-		zstreams.ConsumerTopicConfig{
+		zkafka.ConsumerTopicConfig{
 			Topic: topicName,
-			DeadLetterTopicConfig: &zstreams.ProducerTopicConfig{
+			DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
 				ClientID: uuid.NewString(),
 				Topic:    "topic2",
 			},
@@ -764,39 +764,39 @@ func TestWork_WithDeadLetterTopic_FailedToGetWriterDoesntPauseProcessing(t *test
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
-	mockReader := zstreams_mocks.NewMockReader(ctrl)
+	mockReader := zkafka_mocks.NewMockReader(ctrl)
 	msg1 := getRandomMessage()
 	mockReader.EXPECT().Read(gomock.Any()).Times(10).Return(msg1, nil)
 	mockReader.EXPECT().Read(gomock.Any()).Return(nil, nil).AnyTimes()
 	mockReader.EXPECT().Close().Return(nil).AnyTimes()
 
-	mockClientProvider := zstreams_mocks.NewMockClientProvider(ctrl)
+	mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
 	mockClientProvider.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(mockReader, nil)
 	mockClientProvider.EXPECT().Writer(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, errors.New("failed to get dlt writer"))
 
-	kwf := zstreams.NewWorkFactory(mockClientProvider, zstreams.WithLogger(l))
+	kwf := zkafka.NewWorkFactory(mockClientProvider, zkafka.WithLogger(l))
 
 	processor := fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			return errors.New("processor error")
 		},
 	}
 
 	dltTopic1 := "dlt-topic2"
 	w1 := kwf.Create(
-		zstreams.ConsumerTopicConfig{
+		zkafka.ConsumerTopicConfig{
 			Topic:    topicName,
 			ClientID: uuid.NewString(),
 			GroupID:  uuid.NewString(),
-			DeadLetterTopicConfig: &zstreams.ProducerTopicConfig{
+			DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
 				ClientID: uuid.NewString(),
 				Topic:    dltTopic1,
 			},
 		},
 		&processor,
-		zstreams.DisableCircuitBreaker(),
+		zkafka.DisableCircuitBreaker(),
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -826,43 +826,43 @@ func TestWork_WithDeadLetterTopic_FailedToWriteToDLTDoesntPauseProcessing(t *tes
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
-	mockReader := zstreams_mocks.NewMockReader(ctrl)
+	mockReader := zkafka_mocks.NewMockReader(ctrl)
 	msg1 := getRandomMessage()
 	mockReader.EXPECT().Read(gomock.Any()).Times(10).Return(msg1, nil)
 	mockReader.EXPECT().Read(gomock.Any()).Return(nil, nil).AnyTimes()
 	mockReader.EXPECT().Close().Return(nil).AnyTimes()
 
-	mockWriter := zstreams_mocks.NewMockWriter(ctrl)
-	mockWriter.EXPECT().WriteRaw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(zstreams.Response{}, errors.New("error writing to dlt")).AnyTimes()
+	mockWriter := zkafka_mocks.NewMockWriter(ctrl)
+	mockWriter.EXPECT().WriteRaw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(zkafka.Response{}, errors.New("error writing to dlt")).AnyTimes()
 	mockWriter.EXPECT().Close().AnyTimes()
 
-	mockClientProvider := zstreams_mocks.NewMockClientProvider(ctrl)
+	mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
 	mockClientProvider.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(mockReader, nil)
 	mockClientProvider.EXPECT().Writer(gomock.Any(), gomock.Any()).AnyTimes().Return(mockWriter, nil)
 
-	kwf := zstreams.NewWorkFactory(mockClientProvider, zstreams.WithLogger(l))
+	kwf := zkafka.NewWorkFactory(mockClientProvider, zkafka.WithLogger(l))
 
 	processor := fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			return errors.New("processor error")
 		},
 	}
 
 	dltTopic1 := "dlt-topic2"
 	w1 := kwf.Create(
-		zstreams.ConsumerTopicConfig{
+		zkafka.ConsumerTopicConfig{
 			Topic:    topicName,
 			ClientID: uuid.NewString(),
 			GroupID:  uuid.NewString(),
-			DeadLetterTopicConfig: &zstreams.ProducerTopicConfig{
+			DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
 				ClientID: uuid.NewString(),
 				Topic:    dltTopic1,
 			},
 		},
 		&processor,
-		zstreams.DisableCircuitBreaker(),
+		zkafka.DisableCircuitBreaker(),
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -889,9 +889,9 @@ func TestWork_DisableDLTWrite(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
-	mockReader := zstreams_mocks.NewMockReader(ctrl)
+	mockReader := zkafka_mocks.NewMockReader(ctrl)
 	msg1 := getRandomMessage()
 	msg2 := getRandomMessage()
 	gomock.InOrder(
@@ -901,20 +901,20 @@ func TestWork_DisableDLTWrite(t *testing.T) {
 	)
 	mockReader.EXPECT().Close().Return(nil).AnyTimes()
 
-	mockWriter := zstreams_mocks.NewMockWriter(ctrl)
+	mockWriter := zkafka_mocks.NewMockWriter(ctrl)
 	// as we disabled the forwarding, we expect write to be called zero times
 	mockWriter.EXPECT().WriteRaw(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 	mockWriter.EXPECT().Close().AnyTimes()
 
-	mockClientProvider := zstreams_mocks.NewMockClientProvider(ctrl)
+	mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
 	mockClientProvider.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(mockReader, nil)
 	mockClientProvider.EXPECT().Writer(gomock.Any(), gomock.Any()).Times(2).Return(mockWriter, nil)
 
-	kwf := zstreams.NewWorkFactory(mockClientProvider, zstreams.WithLogger(l))
+	kwf := zkafka.NewWorkFactory(mockClientProvider, zkafka.WithLogger(l))
 
 	processor := fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
-			return zstreams.ProcessError{
+		process: func(ctx context.Context, message *zkafka.Message) error {
+			return zkafka.ProcessError{
 				Err:             errors.New("processor error"),
 				DisableDLTWrite: true,
 			}
@@ -922,9 +922,9 @@ func TestWork_DisableDLTWrite(t *testing.T) {
 	}
 
 	w1 := kwf.Create(
-		zstreams.ConsumerTopicConfig{
+		zkafka.ConsumerTopicConfig{
 			Topic: topicName,
-			DeadLetterTopicConfig: &zstreams.ProducerTopicConfig{
+			DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
 				ClientID: uuid.NewString(),
 				Topic:    "topic2",
 			},
@@ -960,35 +960,35 @@ func TestWork_Run_OnDoneCallbackCalledOnProcessorError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
-	msg := zstreams.GetFakeMessage("key", "val", &zfmt.StringFormatter{}, NoopOnDone)
-	r := zstreams_mocks.NewMockReader(ctrl)
+	msg := zkafka.GetFakeMessage("key", "val", &zfmt.StringFormatter{}, NoopOnDone)
+	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
 
-	kwf := zstreams.NewWorkFactory(kcp, zstreams.WithLogger(l))
+	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 
 	sig := make(chan struct{}, 1)
 
 	processingError := errors.New("failed processing")
 	p := &fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			return processingError
 		},
 	}
 	var errReceived error
-	errorCallback := func(ctx context.Context, _ *zstreams.Message, e error) {
+	errorCallback := func(ctx context.Context, _ *zkafka.Message, e error) {
 		errReceived = e
 		sig <- struct{}{}
 	}
 
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{Topic: topicName},
+		zkafka.ConsumerTopicConfig{Topic: topicName},
 		p,
-		zstreams.WithOnDone(errorCallback),
+		zkafka.WithOnDone(errorCallback),
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1008,12 +1008,12 @@ func TestWork_Run_WritesMetrics(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	msg := zstreams.GetFakeMessage("key", "val", &zfmt.StringFormatter{}, NoopOnDone)
+	msg := zkafka.GetFakeMessage("key", "val", &zfmt.StringFormatter{}, NoopOnDone)
 	msg.Topic = topicName
-	r := zstreams_mocks.NewMockReader(ctrl)
+	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).MinTimes(1).Return(msg, nil)
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
 
 	lhMtx := sync.Mutex{}
@@ -1021,20 +1021,20 @@ func TestWork_Run_WritesMetrics(t *testing.T) {
 		numCalls: map[string]int{},
 	}
 	lh := NewFakeLifecycleHooks(&lhMtx, &lhState)
-	kwf := zstreams.NewWorkFactory(kcp, zstreams.WithWorkLifecycleHooks(lh))
+	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithWorkLifecycleHooks(lh))
 
 	sig := make(chan struct{}, 1)
 
 	p := fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			return nil
 		},
 	}
 
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{Topic: topicName, GroupID: "xxx"},
+		zkafka.ConsumerTopicConfig{Topic: topicName, GroupID: "xxx"},
 		&p,
-		zstreams.WithOnDone(func(ctx context.Context, _ *zstreams.Message, e error) { sig <- struct{}{} }),
+		zkafka.WithOnDone(func(ctx context.Context, _ *zkafka.Message, e error) { sig <- struct{}{} }),
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1052,11 +1052,11 @@ func TestWork_LifecycleHooksCalledForEachItem_Reader(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
 	numMsgs := 5
-	msgs := zstreams.GetFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
-	r := zstreams_mocks.NewMockReader(ctrl)
+	msgs := zkafka.GetFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
 		r.EXPECT().Read(gomock.Any()).Times(1).Return(msgs[0], nil),
@@ -1067,7 +1067,7 @@ func TestWork_LifecycleHooksCalledForEachItem_Reader(t *testing.T) {
 		r.EXPECT().Read(gomock.Any()).AnyTimes().Return(nil, nil),
 	)
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
 
 	lhMtx := sync.Mutex{}
@@ -1075,13 +1075,13 @@ func TestWork_LifecycleHooksCalledForEachItem_Reader(t *testing.T) {
 		numCalls: map[string]int{},
 	}
 	lm := NewFakeLifecycleHooks(&lhMtx, &lhState)
-	wf := zstreams.NewWorkFactory(kcp, zstreams.WithLogger(l), zstreams.WithWorkLifecycleHooks(lm))
+	wf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l), zkafka.WithWorkLifecycleHooks(lm))
 	p := fakeProcessor{}
 
 	var numProcessedItems int32
-	w := wf.Create(zstreams.ConsumerTopicConfig{Topic: topicName, GroupID: "xxx"},
+	w := wf.Create(zkafka.ConsumerTopicConfig{Topic: topicName, GroupID: "xxx"},
 		&p,
-		zstreams.WithOnDone(func(ctx context.Context, msg *zstreams.Message, err error) {
+		zkafka.WithOnDone(func(ctx context.Context, msg *zkafka.Message, err error) {
 			atomic.AddInt32(&numProcessedItems, 1)
 		}))
 
@@ -1117,18 +1117,18 @@ func TestWork_LifecycleHooksPostReadCanUpdateContext(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
 	numMsgs := 1
-	msgs := zstreams.GetFakeMessages(topicName, numMsgs, "lydia", &zfmt.JSONFormatter{}, NoopOnDone)
-	r := zstreams_mocks.NewMockReader(ctrl)
+	msgs := zkafka.GetFakeMessages(topicName, numMsgs, "lydia", &zfmt.JSONFormatter{}, NoopOnDone)
+	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
 		r.EXPECT().Read(gomock.Any()).Times(1).Return(msgs[0], nil),
 		r.EXPECT().Read(gomock.Any()).AnyTimes().Return(nil, nil),
 	)
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
 
 	lhMtx := sync.Mutex{}
@@ -1136,22 +1136,22 @@ func TestWork_LifecycleHooksPostReadCanUpdateContext(t *testing.T) {
 		numCalls: map[string]int{},
 	}
 	lm := NewFakeLifecycleHooks(&lhMtx, &lhState)
-	lm.PostRead = func(ctx context.Context, meta zstreams.LifecyclePostReadMeta) (context.Context, error) {
+	lm.PostRead = func(ctx context.Context, meta zkafka.LifecyclePostReadMeta) (context.Context, error) {
 		return context.WithValue(ctx, "stewy", "hello"), nil
 	}
-	wf := zstreams.NewWorkFactory(kcp, zstreams.WithLogger(l), zstreams.WithWorkLifecycleHooks(lm))
+	wf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l), zkafka.WithWorkLifecycleHooks(lm))
 	var capturedContext context.Context
 	p := fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			capturedContext = ctx
 			return nil
 		},
 	}
 
 	var numProcessedItems int32
-	w := wf.Create(zstreams.ConsumerTopicConfig{Topic: topicName, GroupID: "xxx"},
+	w := wf.Create(zkafka.ConsumerTopicConfig{Topic: topicName, GroupID: "xxx"},
 		&p,
-		zstreams.WithOnDone(func(ctx context.Context, msg *zstreams.Message, err error) {
+		zkafka.WithOnDone(func(ctx context.Context, msg *zkafka.Message, err error) {
 			atomic.AddInt32(&numProcessedItems, 1)
 		}))
 
@@ -1176,18 +1176,18 @@ func TestWork_LifecycleHooksPostReadErrorDoesntHaltProcessing(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
 	numMsgs := 1
-	msgs := zstreams.GetFakeMessages(topicName, numMsgs, "lydia", &zfmt.JSONFormatter{}, NoopOnDone)
-	r := zstreams_mocks.NewMockReader(ctrl)
+	msgs := zkafka.GetFakeMessages(topicName, numMsgs, "lydia", &zfmt.JSONFormatter{}, NoopOnDone)
+	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
 		r.EXPECT().Read(gomock.Any()).Times(1).Return(msgs[0], nil),
 		r.EXPECT().Read(gomock.Any()).AnyTimes().Return(nil, nil),
 	)
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
 
 	lhMtx := sync.Mutex{}
@@ -1195,20 +1195,20 @@ func TestWork_LifecycleHooksPostReadErrorDoesntHaltProcessing(t *testing.T) {
 		numCalls: map[string]int{},
 	}
 	lm := NewFakeLifecycleHooks(&lhMtx, &lhState)
-	lm.PostRead = func(ctx context.Context, meta zstreams.LifecyclePostReadMeta) (context.Context, error) {
+	lm.PostRead = func(ctx context.Context, meta zkafka.LifecyclePostReadMeta) (context.Context, error) {
 		return ctx, errors.New("post read hook error")
 	}
-	wf := zstreams.NewWorkFactory(kcp, zstreams.WithLogger(l), zstreams.WithWorkLifecycleHooks(lm))
+	wf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l), zkafka.WithWorkLifecycleHooks(lm))
 	p := fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			return nil
 		},
 	}
 
 	var numProcessedItems int32
-	w := wf.Create(zstreams.ConsumerTopicConfig{Topic: topicName, GroupID: "xxx"},
+	w := wf.Create(zkafka.ConsumerTopicConfig{Topic: topicName, GroupID: "xxx"},
 		&p,
-		zstreams.WithOnDone(func(ctx context.Context, msg *zstreams.Message, err error) {
+		zkafka.WithOnDone(func(ctx context.Context, msg *zkafka.Message, err error) {
 			atomic.AddInt32(&numProcessedItems, 1)
 		}))
 
@@ -1232,10 +1232,10 @@ func TestWork_LifecycleHooksCalledForEachItem(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 	numMsgs := 5
-	msgs := zstreams.GetFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
-	r := zstreams_mocks.NewMockReader(ctrl)
+	msgs := zkafka.GetFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
 		r.EXPECT().Read(gomock.Any()).Times(1).Return(msgs[0], nil),
@@ -1246,7 +1246,7 @@ func TestWork_LifecycleHooksCalledForEachItem(t *testing.T) {
 		r.EXPECT().Read(gomock.Any()).AnyTimes().Return(nil, nil),
 	)
 
-	qp := zstreams_mocks.NewMockClientProvider(ctrl)
+	qp := zkafka_mocks.NewMockClientProvider(ctrl)
 	qp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
 
 	lhMtx := sync.Mutex{}
@@ -1254,12 +1254,12 @@ func TestWork_LifecycleHooksCalledForEachItem(t *testing.T) {
 		numCalls: map[string]int{},
 	}
 	lh := NewFakeLifecycleHooks(&lhMtx, &lhState)
-	wf := zstreams.NewWorkFactory(qp, zstreams.WithLogger(l), zstreams.WithWorkLifecycleHooks(lh))
+	wf := zkafka.NewWorkFactory(qp, zkafka.WithLogger(l), zkafka.WithWorkLifecycleHooks(lh))
 	p := fakeProcessor{}
 
 	var numProcessedItems int32
-	w := wf.Create(zstreams.ConsumerTopicConfig{Topic: topicName, GroupID: "xxx"},
-		&p, zstreams.WithOnDone(func(ctx context.Context, msg *zstreams.Message, err error) {
+	w := wf.Create(zkafka.ConsumerTopicConfig{Topic: topicName, GroupID: "xxx"},
+		&p, zkafka.WithOnDone(func(ctx context.Context, msg *zkafka.Message, err error) {
 			atomic.AddInt32(&numProcessedItems, 1)
 		}))
 
@@ -1280,57 +1280,57 @@ func TestWork_LifecycleHooksCalledForEachItem(t *testing.T) {
 
 type FakeLifecycleState struct {
 	numCalls     map[string]int
-	preProMeta   []zstreams.LifecyclePreProcessingMeta
-	postProMeta  []zstreams.LifecyclePostProcessingMeta
-	postAckMeta  []zstreams.LifecyclePostAckMeta
-	preReadMeta  []zstreams.LifecyclePostReadMeta
-	preWriteMeta []zstreams.LifecyclePreWriteMeta
+	preProMeta   []zkafka.LifecyclePreProcessingMeta
+	postProMeta  []zkafka.LifecyclePostProcessingMeta
+	postAckMeta  []zkafka.LifecyclePostAckMeta
+	preReadMeta  []zkafka.LifecyclePostReadMeta
+	preWriteMeta []zkafka.LifecyclePreWriteMeta
 }
 
-func NewFakeLifecycleHooks(mtx *sync.Mutex, state *FakeLifecycleState) zstreams.LifecycleHooks {
-	h := zstreams.LifecycleHooks{
-		PostRead: func(ctx context.Context, meta zstreams.LifecyclePostReadMeta) (context.Context, error) {
+func NewFakeLifecycleHooks(mtx *sync.Mutex, state *FakeLifecycleState) zkafka.LifecycleHooks {
+	h := zkafka.LifecycleHooks{
+		PostRead: func(ctx context.Context, meta zkafka.LifecyclePostReadMeta) (context.Context, error) {
 			mtx.Lock()
 			state.numCalls["pre-read"] += 1
 			state.preReadMeta = append(state.preReadMeta, meta)
 			mtx.Unlock()
 			return ctx, nil
 		},
-		PreProcessing: func(ctx context.Context, meta zstreams.LifecyclePreProcessingMeta) (context.Context, error) {
+		PreProcessing: func(ctx context.Context, meta zkafka.LifecyclePreProcessingMeta) (context.Context, error) {
 			mtx.Lock()
 			state.numCalls["pre-processing"] += 1
 			state.preProMeta = append(state.preProMeta, meta)
 			mtx.Unlock()
 			return ctx, nil
 		},
-		PostProcessing: func(ctx context.Context, meta zstreams.LifecyclePostProcessingMeta) error {
+		PostProcessing: func(ctx context.Context, meta zkafka.LifecyclePostProcessingMeta) error {
 			mtx.Lock()
 			state.numCalls["post-processing"] += 1
 			state.postProMeta = append(state.postProMeta, meta)
 			mtx.Unlock()
 			return nil
 		},
-		PostAck: func(ctx context.Context, meta zstreams.LifecyclePostAckMeta) error {
+		PostAck: func(ctx context.Context, meta zkafka.LifecyclePostAckMeta) error {
 			mtx.Lock()
 			state.numCalls["post-ack"] += 1
 			state.postAckMeta = append(state.postAckMeta, meta)
 			mtx.Unlock()
 			return nil
 		},
-		PreWrite: func(ctx context.Context, meta zstreams.LifecyclePreWriteMeta) (zstreams.LifecyclePreWriteResp, error) {
+		PreWrite: func(ctx context.Context, meta zkafka.LifecyclePreWriteMeta) (zkafka.LifecyclePreWriteResp, error) {
 			mtx.Lock()
 			state.numCalls["pre-write"] += 1
 			state.preWriteMeta = append(state.preWriteMeta, meta)
 			mtx.Unlock()
-			return zstreams.LifecyclePreWriteResp{}, nil
+			return zkafka.LifecyclePreWriteResp{}, nil
 		},
 	}
 
 	return h
 }
 
-func getRandomMessage() *zstreams.Message {
-	return zstreams.GetFakeMessage(fmt.Sprintf("%d", rand.Intn(5)), nil, &zfmt.JSONFormatter{}, NoopOnDone)
+func getRandomMessage() *zkafka.Message {
+	return zkafka.GetFakeMessage(fmt.Sprintf("%d", rand.Intn(5)), nil, &zfmt.JSONFormatter{}, NoopOnDone)
 }
 
 func TestWork_CircuitBreaker_WithoutBusyLoopBreaker_DoesNotWaitsForCircuitToOpen(t *testing.T) {
@@ -1340,32 +1340,32 @@ func TestWork_CircuitBreaker_WithoutBusyLoopBreaker_DoesNotWaitsForCircuitToOpen
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	msg := zstreams.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
-	r := zstreams_mocks.NewMockReader(ctrl)
+	msg := zkafka.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Return(msg, nil).AnyTimes()
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
 
-	l := zstreams.NoopLogger{}
-	kwf := zstreams.NewWorkFactory(kcp, zstreams.WithLogger(l))
+	l := zkafka.NoopLogger{}
+	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 
 	fanoutCount := atomic.Int64{}
 	processorCount := atomic.Int64{}
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{Topic: topicName},
+		zkafka.ConsumerTopicConfig{Topic: topicName},
 		&fakeProcessor{
-			process: func(ctx context.Context, message *zstreams.Message) error {
+			process: func(ctx context.Context, message *zkafka.Message) error {
 				processorCount.Add(1)
 				return errors.New("an error occurred during processing")
 			},
 		},
-		zstreams.DisableBusyLoopBreaker(),
-		zstreams.WithLifecycleHooks(zstreams.LifecycleHooks{PostFanout: func(ctx context.Context) {
+		zkafka.DisableBusyLoopBreaker(),
+		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 			fanoutCount.Add(1)
 		}}),
-		zstreams.CircuitBreakAfter(1),
-		zstreams.CircuitBreakFor(10*time.Second),
+		zkafka.CircuitBreakAfter(1),
+		zkafka.CircuitBreakFor(10*time.Second),
 	)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -1390,27 +1390,27 @@ func TestWork_CircuitBreaker_WaitsForCircuitToOpen(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	msg := zstreams.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
-	r := zstreams_mocks.NewMockReader(ctrl)
+	msg := zkafka.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Return(msg, nil).AnyTimes()
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
 
-	kwf := zstreams.NewWorkFactory(kcp)
+	kwf := zkafka.NewWorkFactory(kcp)
 
 	processCount := atomic.Int64{}
 	circuitBreakDuration := 10 * time.Millisecond
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{Topic: topicName},
+		zkafka.ConsumerTopicConfig{Topic: topicName},
 		&fakeProcessor{
-			process: func(ctx context.Context, message *zstreams.Message) error {
+			process: func(ctx context.Context, message *zkafka.Message) error {
 				processCount.Add(1)
 				return errors.New("an error occurred during processing")
 			},
 		},
-		zstreams.CircuitBreakAfter(1),
-		zstreams.CircuitBreakFor(circuitBreakDuration),
+		zkafka.CircuitBreakAfter(1),
+		zkafka.CircuitBreakFor(circuitBreakDuration),
 	)
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -1442,32 +1442,32 @@ func TestWork_DontDeadlockWhenCircuitBreakerIsInHalfOpen(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	qr := zstreams_mocks.NewMockReader(ctrl)
-	msg := zstreams.GetFakeMessage("1", struct{ name string }{name: "stewy"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	qr := zkafka_mocks.NewMockReader(ctrl)
+	msg := zkafka.GetFakeMessage("1", struct{ name string }{name: "stewy"}, &zfmt.JSONFormatter{}, NoopOnDone)
 	gomock.InOrder(
 		qr.EXPECT().Read(gomock.Any()).Times(1).Return(msg, nil),
 		qr.EXPECT().Read(gomock.Any()).AnyTimes().Return(nil, nil),
 	)
 
-	cp := zstreams_mocks.NewMockClientProvider(ctrl)
+	cp := zkafka_mocks.NewMockClientProvider(ctrl)
 	cp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(qr, nil)
 
-	wf := zstreams.NewWorkFactory(cp)
+	wf := zkafka.NewWorkFactory(cp)
 
 	p := fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			return errors.New("an error occurred during processing")
 		},
 	}
 
 	fanoutCount := atomic.Int64{}
-	w := wf.Create(zstreams.ConsumerTopicConfig{Topic: topicName},
+	w := wf.Create(zkafka.ConsumerTopicConfig{Topic: topicName},
 		&p,
 		// go into half state almost immediately after processing the message.
-		zstreams.CircuitBreakFor(time.Microsecond),
+		zkafka.CircuitBreakFor(time.Microsecond),
 		// update so we enter open state immediately once one processing error occurs
-		zstreams.CircuitBreakAfter(1),
-		zstreams.WithLifecycleHooks(zstreams.LifecycleHooks{PostFanout: func(ctx context.Context) {
+		zkafka.CircuitBreakAfter(1),
+		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 			time.Sleep(time.Millisecond * 100)
 			fanoutCount.Add(1)
 		}}),
@@ -1505,25 +1505,25 @@ func Test_Bugfix_WorkPoolCanBeRestartedAfterShutdown(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
-	mockReader := zstreams_mocks.NewMockReader(ctrl)
-	msg1 := zstreams.GetFakeMessage("abc", "def", &zfmt.StringFormatter{}, NoopOnDone)
+	mockReader := zkafka_mocks.NewMockReader(ctrl)
+	msg1 := zkafka.GetFakeMessage("abc", "def", &zfmt.StringFormatter{}, NoopOnDone)
 	mockReader.EXPECT().Read(gomock.Any()).Return(msg1, nil).AnyTimes()
 	mockReader.EXPECT().Close().Return(nil).AnyTimes()
 
-	mockClientProvider := zstreams_mocks.NewMockClientProvider(ctrl)
+	mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
 	mockClientProvider.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(mockReader, nil)
 	mockClientProvider.EXPECT().Writer(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, nil)
 
-	kwf := zstreams.NewWorkFactory(mockClientProvider, zstreams.WithLogger(l))
+	kwf := zkafka.NewWorkFactory(mockClientProvider, zkafka.WithLogger(l))
 
 	processor := fakeProcessor{}
 
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{
+		zkafka.ConsumerTopicConfig{
 			Topic: topicName,
-			DeadLetterTopicConfig: &zstreams.ProducerTopicConfig{
+			DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
 				ClientID: uuid.NewString(),
 				Topic:    "topic2",
 			},
@@ -1591,14 +1591,14 @@ func Test_MsgOrderingIsMaintainedPerKeyWithAnyNumberOfVirtualPartitions(t *testi
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
-	mockReader := zstreams_mocks.NewMockReader(ctrl)
+	mockReader := zkafka_mocks.NewMockReader(ctrl)
 	var readerCalls []*gomock.Call
 	keyCount := 3
 	msgCount := 200
 	for i := 0; i < msgCount; i++ {
-		msg1 := zstreams.GetFakeMessage(strconv.Itoa(i%keyCount), strconv.Itoa(i), &zfmt.StringFormatter{}, NoopOnDone)
+		msg1 := zkafka.GetFakeMessage(strconv.Itoa(i%keyCount), strconv.Itoa(i), &zfmt.StringFormatter{}, NoopOnDone)
 		readerCalls = append(readerCalls, mockReader.EXPECT().Read(gomock.Any()).Return(msg1, nil))
 	}
 	readerCalls = append(readerCalls, mockReader.EXPECT().Read(gomock.Any()).Return(nil, nil).AnyTimes())
@@ -1607,29 +1607,29 @@ func Test_MsgOrderingIsMaintainedPerKeyWithAnyNumberOfVirtualPartitions(t *testi
 	)
 	mockReader.EXPECT().Close().Return(nil).AnyTimes()
 
-	mockClientProvider := zstreams_mocks.NewMockClientProvider(ctrl)
+	mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
 	mockClientProvider.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(mockReader, nil)
 	mockClientProvider.EXPECT().Writer(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, nil)
 
-	kwf := zstreams.NewWorkFactory(mockClientProvider, zstreams.WithLogger(l))
+	kwf := zkafka.NewWorkFactory(mockClientProvider, zkafka.WithLogger(l))
 
 	processor := fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)))
 			return nil
 		},
 	}
 
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{
+		zkafka.ConsumerTopicConfig{
 			Topic: topicName,
-			DeadLetterTopicConfig: &zstreams.ProducerTopicConfig{
+			DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
 				ClientID: uuid.NewString(),
 				Topic:    "topic2",
 			},
 		},
 		&processor,
-		zstreams.Speedup(10),
+		zkafka.Speedup(10),
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1644,7 +1644,7 @@ func Test_MsgOrderingIsMaintainedPerKeyWithAnyNumberOfVirtualPartitions(t *testi
 		exit: cancel,
 	})
 
-	keyToMsgs := make(map[string][]*zstreams.Message)
+	keyToMsgs := make(map[string][]*zkafka.Message)
 	for _, m := range processor.ProcessedMessages() {
 		keyToMsgs[m.Key] = append(keyToMsgs[m.Key], m)
 	}
@@ -1675,18 +1675,18 @@ func TestWork_LifecycleHookReaderPanicIsHandledAndMessagingProceeds(t *testing.T
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zstreams.NoopLogger{}
+	l := zkafka.NoopLogger{}
 
-	testPanic := func(hooks zstreams.LifecycleHooks) {
+	testPanic := func(hooks zkafka.LifecycleHooks) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		qr := zstreams_mocks.NewMockReader(ctrl)
+		qr := zkafka_mocks.NewMockReader(ctrl)
 		numMsgs := 1
 		sentMsg := false
-		msg := zstreams.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+		msg := zkafka.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
 
-		qr.EXPECT().Read(gomock.Any()).AnyTimes().DoAndReturn(func(ctx context.Context) (*zstreams.Message, error) {
+		qr.EXPECT().Read(gomock.Any()).AnyTimes().DoAndReturn(func(ctx context.Context) (*zkafka.Message, error) {
 			if !sentMsg {
 				sentMsg = true
 				return msg, nil
@@ -1694,27 +1694,27 @@ func TestWork_LifecycleHookReaderPanicIsHandledAndMessagingProceeds(t *testing.T
 			return nil, nil
 		})
 
-		qp := zstreams_mocks.NewMockClientProvider(ctrl)
+		qp := zkafka_mocks.NewMockClientProvider(ctrl)
 		qp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(qr, nil)
 
-		wf := zstreams.NewWorkFactory(qp, zstreams.WithLogger(l), zstreams.WithWorkLifecycleHooks(hooks))
+		wf := zkafka.NewWorkFactory(qp, zkafka.WithLogger(l), zkafka.WithWorkLifecycleHooks(hooks))
 
 		p := fakeProcessor{
-			process: func(ctx context.Context, message *zstreams.Message) error {
+			process: func(ctx context.Context, message *zkafka.Message) error {
 				return nil
 			},
 		}
 
 		m := sync.Mutex{}
-		var processedMsgs []*zstreams.Message
-		topicConfig := zstreams.ConsumerTopicConfig{
+		var processedMsgs []*zkafka.Message
+		topicConfig := zkafka.ConsumerTopicConfig{
 			ClientID:  "test-config",
 			GroupID:   "group",
 			Topic:     "topic",
 			Formatter: zfmt.JSONFmt,
 		}
 		w := wf.Create(topicConfig, &p,
-			zstreams.WithOnDone(func(ctx context.Context, msg *zstreams.Message, err error) {
+			zkafka.WithOnDone(func(ctx context.Context, msg *zkafka.Message, err error) {
 				m.Lock()
 				processedMsgs = append(processedMsgs, msg)
 				m.Unlock()
@@ -1739,13 +1739,13 @@ func TestWork_LifecycleHookReaderPanicIsHandledAndMessagingProceeds(t *testing.T
 		require.Len(t, processedMsgs, numMsgs)
 	}
 
-	testPanic(zstreams.LifecycleHooks{
-		PreProcessing: func(ctx context.Context, meta zstreams.LifecyclePreProcessingMeta) (context.Context, error) {
+	testPanic(zkafka.LifecycleHooks{
+		PreProcessing: func(ctx context.Context, meta zkafka.LifecyclePreProcessingMeta) (context.Context, error) {
 			panic("pre processing panic")
 		},
 	})
-	testPanic(zstreams.LifecycleHooks{
-		PostProcessing: func(ctx context.Context, meta zstreams.LifecyclePostProcessingMeta) error {
+	testPanic(zkafka.LifecycleHooks{
+		PostProcessing: func(ctx context.Context, meta zkafka.LifecyclePostProcessingMeta) error {
 			panic("post processing panic")
 		},
 	})
@@ -1758,21 +1758,21 @@ func TestWork_ShutdownCausesRunExit(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	msg := zstreams.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
-	r := zstreams_mocks.NewMockReader(ctrl)
+	msg := zkafka.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Return(msg, nil).AnyTimes()
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
 
-	l := zstreams.NoopLogger{}
-	kwf := zstreams.NewWorkFactory(kcp, zstreams.WithLogger(l))
+	l := zkafka.NoopLogger{}
+	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 
 	fanoutCount := atomic.Int64{}
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{Topic: topicName},
+		zkafka.ConsumerTopicConfig{Topic: topicName},
 		&fakeProcessor{},
-		zstreams.WithLifecycleHooks(zstreams.LifecycleHooks{PostFanout: func(ctx context.Context) {
+		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 			fanoutCount.Add(1)
 		}}),
 	)
@@ -1803,25 +1803,25 @@ func BenchmarkWork_Run_CircuitBreaker_BusyLoopBreaker(b *testing.B) {
 	ctrl := gomock.NewController(b)
 	defer ctrl.Finish()
 
-	msg := zstreams.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
-	r := zstreams_mocks.NewMockReader(ctrl)
+	msg := zkafka.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Return(msg, nil).AnyTimes()
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
 
-	kwf := zstreams.NewWorkFactory(kcp)
+	kwf := zkafka.NewWorkFactory(kcp)
 
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{Topic: topicName},
+		zkafka.ConsumerTopicConfig{Topic: topicName},
 		&fakeProcessor{
-			process: func(ctx context.Context, message *zstreams.Message) error {
+			process: func(ctx context.Context, message *zkafka.Message) error {
 				return errors.New("an error occurred during processing")
 			},
 		},
-		zstreams.Speedup(10),
-		zstreams.CircuitBreakAfter(100),
-		zstreams.CircuitBreakFor(30*time.Millisecond),
+		zkafka.Speedup(10),
+		zkafka.CircuitBreakAfter(100),
+		zkafka.CircuitBreakFor(30*time.Millisecond),
 	)
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
@@ -1841,26 +1841,26 @@ func BenchmarkWork_Run_CircuitBreaker_DisableBusyLoopBreaker(b *testing.B) {
 	ctrl := gomock.NewController(b)
 	defer ctrl.Finish()
 
-	msg := zstreams.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
-	r := zstreams_mocks.NewMockReader(ctrl)
+	msg := zkafka.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Return(msg, nil).AnyTimes()
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
 
-	kwf := zstreams.NewWorkFactory(kcp)
+	kwf := zkafka.NewWorkFactory(kcp)
 
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{Topic: topicName},
+		zkafka.ConsumerTopicConfig{Topic: topicName},
 		&fakeProcessor{
-			process: func(ctx context.Context, message *zstreams.Message) error {
+			process: func(ctx context.Context, message *zkafka.Message) error {
 				return errors.New("an error occurred during processing")
 			},
 		},
-		zstreams.Speedup(10),
-		zstreams.CircuitBreakAfter(100),
-		zstreams.CircuitBreakFor(30*time.Millisecond),
-		zstreams.DisableBusyLoopBreaker(),
+		zkafka.Speedup(10),
+		zkafka.CircuitBreakAfter(100),
+		zkafka.CircuitBreakFor(30*time.Millisecond),
+		zkafka.DisableBusyLoopBreaker(),
 	)
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
@@ -1879,12 +1879,12 @@ func recoverThenFail(t *testing.T) {
 
 type fakeProcessor struct {
 	m                 sync.Mutex
-	processedMessages []*zstreams.Message
+	processedMessages []*zkafka.Message
 	processedContexts []context.Context
-	process           func(context.Context, *zstreams.Message) error
+	process           func(context.Context, *zkafka.Message) error
 }
 
-func (p *fakeProcessor) Process(ctx context.Context, msg *zstreams.Message) error {
+func (p *fakeProcessor) Process(ctx context.Context, msg *zkafka.Message) error {
 	p.m.Lock()
 	p.processedMessages = append(p.processedMessages, msg)
 	p.processedContexts = append(p.processedContexts, ctx)
@@ -1895,11 +1895,11 @@ func (p *fakeProcessor) Process(ctx context.Context, msg *zstreams.Message) erro
 	return nil
 }
 
-func (p *fakeProcessor) ProcessedMessages() []*zstreams.Message {
+func (p *fakeProcessor) ProcessedMessages() []*zkafka.Message {
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	var msgs []*zstreams.Message
+	var msgs []*zkafka.Message
 	for _, m := range p.processedMessages {
 		msgs = append(msgs, m)
 	}

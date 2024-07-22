@@ -1,4 +1,4 @@
-package zstreams
+package zkafka
 
 import (
 	"context"
@@ -9,8 +9,8 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
+	mock_confluent "github.com/zillow/zkafka/mocks/confluent"
 	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
-	mock_confluent "gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4/mocks/confluent"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace/noop"

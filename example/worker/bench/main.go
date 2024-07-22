@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/zillow/zkafka"
+	zkafka_mocks "github.com/zillow/zkafka/mocks"
 	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4"
-	zstreams_mocks "gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4/mocks"
 )
 
 func main() {
@@ -30,21 +30,21 @@ func main() {
 	defer ctrl.Finish()
 	messageDone := func() {
 	}
-	msg := zstreams.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, messageDone)
-	r := zstreams_mocks.NewMockReader(ctrl)
+	msg := zkafka.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, messageDone)
+	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Return(msg, nil).AnyTimes()
 
-	kcp := zstreams_mocks.NewMockClientProvider(ctrl)
+	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
 
-	kwf := zstreams.NewWorkFactory(kcp)
+	kwf := zkafka.NewWorkFactory(kcp)
 	w := kwf.Create(
-		zstreams.ConsumerTopicConfig{Topic: "topicName"},
+		zkafka.ConsumerTopicConfig{Topic: "topicName"},
 		&kafkaProcessorError{},
-		zstreams.Speedup(10),
-		zstreams.CircuitBreakAfter(100),
-		zstreams.CircuitBreakFor(30*time.Second),
-		zstreams.DisableBusyLoopBreaker(),
+		zkafka.Speedup(10),
+		zkafka.CircuitBreakAfter(100),
+		zkafka.CircuitBreakFor(30*time.Second),
+		zkafka.DisableBusyLoopBreaker(),
 	)
 	ctx, c := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer c()
@@ -53,7 +53,7 @@ func main() {
 
 type kafkaProcessorError struct{}
 
-func (p *kafkaProcessorError) Process(_ context.Context, _ *zstreams.Message) error {
+func (p *kafkaProcessorError) Process(_ context.Context, _ *zkafka.Message) error {
 	fmt.Print(".")
 	return errors.New("an error occurred during processing")
 }

@@ -1,4 +1,4 @@
-package zstreams
+package zkafka
 
 //go:generate mockgen -destination=./mocks/mock_logger.go -source=logger.go
 

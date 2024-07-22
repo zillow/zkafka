@@ -7,15 +7,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/zillow/zkafka"
 	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4"
 )
 
 func main() {
 	ctx := context.Background()
-	writer, err := zstreams.NewClient(zstreams.Config{
+	writer, err := zkafka.NewClient(zkafka.Config{
 		BootstrapServers: []string{"localhost:9093"},
-	}).Writer(ctx, zstreams.ProducerTopicConfig{
+	}).Writer(ctx, zkafka.ProducerTopicConfig{
 		ClientID:  "example",
 		Topic:     "two-multi-partition",
 		Formatter: zfmt.JSONFmt,

@@ -1,6 +1,6 @@
-package zstreams
+package zkafka
 
-//go:generate mockgen -package=mock_zstreams -destination=./mocks/mock_lifecycle.go -source=./lifecycle.go
+//go:generate mockgen -package=mock_zkafka -destination=./mocks/mock_lifecycle.go -source=./lifecycle.go
 
 import (
 	"context"

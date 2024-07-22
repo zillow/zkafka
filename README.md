@@ -1,4 +1,15 @@
-# zstreams
+# zkafka
+
+[![License](https://img.shields.io/github/license/zillow/zkafka)](https://github.com/zillow/zkafka/blob/main/LICENSE)
+[![GitHub Actions](https://github.com/zillow/zkafka/actions/workflows/go.yml/badge.svg)](https://github.com/zillow/zkafka/actions/workflows/go.yml)
+[![Codecov](https://codecov.io/gh/zillow/zkafka/branch/main/graph/badge.svg?token=STRT8T67YP)](https://codecov.io/gh/zillow/zkafka)
+
+
+## Install
+
+`go get -u github.com/zillow/zkafka`
+
+## About
 
 A library built on top of confluent-kafka-go for reading and writing to kafka with limited Schema Registry support. The
 library supports at least once message processing. It does so using a commit strategy built off auto commit and manual
@@ -7,7 +18,7 @@ offset storage.
 ---
 **NOTE**
 
-confluent-kafka-go is a CGO module, and therefore so is zstreams. When building zstreams, make sure to set
+confluent-kafka-go is a CGO module, and therefore so is zkafka. When building zkafka, make sure to set
 CGO_ENABLED=1.
 ---
 
@@ -38,7 +49,7 @@ where a strategy of asynchronous/synchronous commits is suggested to reduced dup
 
 ## Work
 
-Zstreams also supports an abstraction built on top of the reader defined in the Work struct (`work.go`). Work introduces
+zkafka also supports an abstraction built on top of the reader defined in the Work struct (`work.go`). Work introduces
 concurrency by way of the configurable option `Speedup(n int)`. This creates n goroutines which process messages as
 they are written to the golang channel assigned to that goroutine. Kafka key ordering is preserved (by a mechanism similar to kafka
 partitions) whereby a message sharing the same key will always be written to the same channel (internally, this is called a virtual partition).
@@ -49,7 +60,7 @@ partitions.
 
 ## SchemaRegistry Support:
 
-There is limited support for schema registry in zstreams. A schemaID can be hardcoded via configuration. No
+There is limited support for schema registry in zkafka. A schemaID can be hardcoded via configuration. No
 communication is done with schema registry, but some primitive checks can be conducted if a schemaID is specified via
 configuration.
 
@@ -95,15 +106,15 @@ client because that value is explicitly set to true after reading of the Additio
 
 ```
 
-3. zstreams.ProcessError
+3. zkafka.ProcessError
 
-The `zstreams.ProcessError` can be used to control error handling on a per-message basis. Use of this type is entirely optional. The current options exposed through this type are as follows:
+The `zkafka.ProcessError` can be used to control error handling on a per-message basis. Use of this type is entirely optional. The current options exposed through this type are as follows:
 1. `DisableDLTWrite`: if true, the message will not be written to a dead letter topic (if one is configured)
 2. `DisableCircuitBreaker`: if true, the message will not count as a failed message for purposes of controlling the circuit breaker.
 
 ## Installation
 
-go get -u gitlab.zgtools.net/devex/archetypes/gomods/zstreams
+go get -u gitlab.zgtools.net/devex/archetypes/gomods/zkafka
 
 ## Running Example
 

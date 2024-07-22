@@ -1,4 +1,4 @@
-package zstreams
+package zkafka
 
 import (
 	"context"
@@ -19,7 +19,7 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/golang/mock/gomock"
-	mock_confluent "gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4/mocks/confluent"
+	mock_confluent "github.com/zillow/zkafka/mocks/confluent"
 )
 
 func TestWork_processTimeoutMillis(t *testing.T) {
@@ -32,7 +32,7 @@ func TestWork_processTimeoutMillis(t *testing.T) {
 		want   time.Duration
 	}{
 		{
-			// this case shouldn't happen as zstreams should set a default when this field is nil. But for completeness we'll include it
+			// this case shouldn't happen as zkafka should set a default when this field is nil. But for completeness we'll include it
 			name: "topic config has specified processTimeoutDuration",
 			fields: fields{
 				topicConfig: ConsumerTopicConfig{
@@ -42,7 +42,7 @@ func TestWork_processTimeoutMillis(t *testing.T) {
 			want: time.Second,
 		},
 		{
-			// this case shouldn't happen as zstreams should set a default when this field is nil. But for completeness we'll include it
+			// this case shouldn't happen as zkafka should set a default when this field is nil. But for completeness we'll include it
 			name: "topic config has missing processTimeoutDuration",
 			fields: fields{
 				topicConfig: ConsumerTopicConfig{},
@@ -226,7 +226,7 @@ func TestWork_ShouldCommitMessagesProperly(t *testing.T) {
 		break
 	}
 
-	require.Equal(t, now, msgTimeStamp, "expected timestamp in kafka.Message to be mapped zstreams.Message")
+	require.Equal(t, now, msgTimeStamp, "expected timestamp in kafka.Message to be mapped zkafka.Message")
 
 	// These are the largest offsets that are processed. They should show up last (because larger offsets shouldn't be stored
 	// before smaller offsets) in stored offsets which is ordered

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
+## 1.0.0 (July 2024)
+
+Initial release to public github.com
+
+Internal Releases Below
+----
+
 ## 4.2.0 (June 2024)
 
 1. Updated otel to v1.27
@@ -19,14 +26,14 @@ This project adheres to Semantic Versioning.
 
 ## 4.0.0 (April 2024)
 1. Updated to be used with zworker.Work which requires a `work.Run` interface not `work.Do`. The difference been
-   `work.Run` is executed once, and `zstreams` is responsible for continuously looping, whereas `work.Do` would be continually executed
+   `work.Run` is executed once, and `zkafka` is responsible for continuously looping, whereas `work.Do` would be continually executed
    in a loop.
-1. Renamed `zstreams.WithOnDoneWithContext` to `zstreams.WithOnDone` and removed original `zstreams.WithOnDone` option (which didn't provide a context.Context arg)
+1. Renamed `zkafka.WithOnDoneWithContext` to `zkafka.WithOnDone` and removed original `zkafka.WithOnDone` option (which didn't provide a context.Context arg)
 1. Updated `Writer` interface to include `WriteRaw` method. The concrete type has supported it for some time, but was waiting for a major version roll to update the interface.
-1. Updated `zstreams.Message` headers to be a `map[string][]byte` instead of `map[string]interface{}`. This is closer to the transport representation and is more convenient and self documenting.
+1. Updated `zkafka.Message` headers to be a `map[string][]byte` instead of `map[string]interface{}`. This is closer to the transport representation and is more convenient and self documenting.
 The interface{} type was a holdover from the original implementation and was not necessary.
-1. Removed `ExtractHeaderKeys` (reduce surface area of package). Opinionated API (zillow specific) that now resides in zstreamscomproot
-1. Added variadic arguments (`...zstreams.WriteOption`) to `kwriter.Write*` methods . This allows future customization in a noninvasive way. 
+1. Removed `ExtractHeaderKeys` (reduce surface area of package). Opinionated API (zillow specific) that now resides in zkafkacomproot
+1. Added variadic arguments (`...zkafka.WriteOption`) to `kwriter.Write*` methods . This allows future customization in a noninvasive way. 
 1. Removed `zcommon` dependency. Introduce hooks which can be used toward the same end
 1. Changed interface{} -> any
 1. Added lifecycle methods `PostRead`, `PreWrite` and `PostFanout`
@@ -36,7 +43,7 @@ The interface{} type was a holdover from the original implementation and was not
 ## 3.0.0 (October 2023)
 
 1. Supports migration from Datadog [statsd](https://www.datadoghq.com/blog/statsd/) to [Panoptes](https://getpanoptes.io/).
-2. Removes the `Metrics` interface and related options. Removes `NoopMetrics` struct. Rather than calling metrics classes directly, the user registers lifecycle hooks and calls the metric provider from the hooks. For example, [zstreamscomproot](https://gitlab.zgtools.net/devex/archetypes/gomods/zstreamscomproot) registers hooks that call the zmetric provider.
+2. Removes the `Metrics` interface and related options. Removes `NoopMetrics` struct. Rather than calling metrics classes directly, the user registers lifecycle hooks and calls the metric provider from the hooks. For example, [zkafkacomproot](https://gitlab.zgtools.net/devex/archetypes/gomods/zkafkacomproot) registers hooks that call the zmetric provider.
 3. Removes the `RequestContextExtractor` interface. Instead, use the `PreProcessing` lifecycle hook to extract information from the request and add it to the context. The context returned from the `PreProcessing` hook is used for the rest of the request lifecycle.
 
 ## 2.0.0 (July 27th 2023)

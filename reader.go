@@ -1,7 +1,7 @@
-package zstreams
+package zkafka
 
 //go:generate mockgen  -package mock_confluent  --destination=./mocks/confluent/kafka_consumer.go . KafkaConsumer
-//go:generate mockgen  --package=mock_zstreams  --destination=./mocks/mock_reader.go  . Reader
+//go:generate mockgen  --package=mock_zkafka  --destination=./mocks/mock_reader.go  . Reader
 
 import (
 	"context"
@@ -148,7 +148,7 @@ func (r *KReader) removeInWork(offset kafka.TopicPartition) {
 	c.RemoveInWork(offset)
 }
 
-// mapMessage is responsible for mapping the confluent kafka.Message to a zstreams.Message.
+// mapMessage is responsible for mapping the confluent kafka.Message to a zkafka.Message.
 func (r *KReader) mapMessage(_ context.Context, msg kafka.Message) *Message {
 	headerMap := headers(msg)
 

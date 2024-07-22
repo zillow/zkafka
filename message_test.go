@@ -1,4 +1,4 @@
-package zstreams
+package zkafka
 
 import (
 	"bytes"

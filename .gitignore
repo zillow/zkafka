@@ -31,8 +31,12 @@ zk-multiple-kafka-multiple/
 *.prof
 coverage.tmp.xml
 coverage.xml
+cover.html
+cover.out
+
 /example/worker/worker
 /example/consumer/consumer
 /example/sandbox
 
 testdata/fuzz
+

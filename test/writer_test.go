@@ -11,9 +11,9 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
+	"github.com/zillow/zkafka"
+	mock_confluent "github.com/zillow/zkafka/mocks/confluent"
 	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4"
-	mock_confluent "gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4/mocks/confluent"
 )
 
 func TestWriter_Write_LifecycleHooksCalled(t *testing.T) {
@@ -40,16 +40,16 @@ func TestWriter_Write_LifecycleHooksCalled(t *testing.T) {
 		return nil
 	})
 
-	client := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}},
-		zstreams.LoggerOption(stdLogger{}),
-		zstreams.WithClientLifecycleHooks(lh),
-		zstreams.WithProducerProvider(func(config map[string]any) (zstreams.KafkaProducer, error) {
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}},
+		zkafka.LoggerOption(stdLogger{}),
+		zkafka.WithClientLifecycleHooks(lh),
+		zkafka.WithProducerProvider(func(config map[string]any) (zkafka.KafkaProducer, error) {
 			return mockProducer, nil
 		}),
 	)
 	defer func() { _ = client.Close() }()
 
-	writer, err := client.Writer(ctx, zstreams.ProducerTopicConfig{
+	writer, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
 		ClientID:  "writer",
 		Topic:     "topic",
 		Formatter: zfmt.JSONFmt,

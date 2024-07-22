@@ -18,8 +18,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/zillow/zkafka"
 	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -43,15 +43,15 @@ func TestKafkaClientsCanReadOwnWritesAndBehaveProperlyAfterRestart(t *testing.T)
 
 	groupID := uuid.NewString()
 
-	client := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}}, zstreams.LoggerOption(stdLogger{}))
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
 	defer func() { require.NoError(t, client.Close()) }()
 
-	writer, err := client.Writer(ctx, zstreams.ProducerTopicConfig{
+	writer, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
 		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
 		Topic:     topic,
 		Formatter: zfmt.JSONFmt,
 	})
-	consumerTopicConfig := zstreams.ConsumerTopicConfig{
+	consumerTopicConfig := zkafka.ConsumerTopicConfig{
 		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
 		Topic:     topic,
 		Formatter: zfmt.JSONFmt,
@@ -64,14 +64,14 @@ func TestKafkaClientsCanReadOwnWritesAndBehaveProperlyAfterRestart(t *testing.T)
 	require.NoError(t, err)
 
 	readResponses := make(chan struct {
-		msg *zstreams.Message
+		msg *zkafka.Message
 		err error
 	})
 
 	// helper method for reading from topic in loop until all messages specified in map have been read
 	// will signal on channel the messages read from topic
-	funcReadSpecifiedMessages := func(reader zstreams.Reader, msgsToRead map[Msg]struct{}, responses chan struct {
-		msg *zstreams.Message
+	funcReadSpecifiedMessages := func(reader zkafka.Reader, msgsToRead map[Msg]struct{}, responses chan struct {
+		msg *zkafka.Message
 		err error
 	},
 	) {
@@ -93,7 +93,7 @@ func TestKafkaClientsCanReadOwnWritesAndBehaveProperlyAfterRestart(t *testing.T)
 					delete(msgsToRead, gotMsg)
 				}
 				responses <- struct {
-					msg *zstreams.Message
+					msg *zkafka.Message
 					err error
 				}{msg: rmsg, err: err}
 				if len(msgsToRead) == 0 {
@@ -201,12 +201,12 @@ func Test_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
 			createTopic(t, bootstrapServer, topic, 2)
 
 			l := stdLogger{}
-			wclient := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}})
+			wclient := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}})
 			defer func() { require.NoError(t, wclient.Close()) }()
-			client := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}}, zstreams.LoggerOption(l))
+			client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(l))
 			defer func() { require.NoError(t, client.Close()) }()
 
-			writer, err := wclient.Writer(ctx, zstreams.ProducerTopicConfig{
+			writer, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
 				ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
 				Topic:     topic,
 				Formatter: zfmt.JSONFmt,
@@ -228,7 +228,7 @@ func Test_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
 			t.Log("Completed writing messages")
 
 			// create work1 which has its own processor
-			cTopicCfg1 := zstreams.ConsumerTopicConfig{
+			cTopicCfg1 := zkafka.ConsumerTopicConfig{
 				ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), tc.name),
 				Topic:     topic,
 				Formatter: zfmt.JSONFmt,
@@ -237,17 +237,17 @@ func Test_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
 					"auto.offset.reset": "earliest",
 				},
 			}
-			wf := zstreams.NewWorkFactory(client, zstreams.WithLogger(l))
+			wf := zkafka.NewWorkFactory(client, zkafka.WithLogger(l))
 
 			maxDurationMillis := int(tc.processingDuration / time.Millisecond)
 			minDurationMillis := int(tc.processingDuration / time.Millisecond)
 			ctx1, cancel1 := context.WithCancel(ctx)
 			defer cancel1()
-			processor1 := &Processor{maxDurationMillis: maxDurationMillis, minDurationMillis: minDurationMillis, l: zstreams.NoopLogger{}}
-			processor2 := &Processor{maxDurationMillis: maxDurationMillis, minDurationMillis: minDurationMillis, l: zstreams.NoopLogger{}}
+			processor1 := &Processor{maxDurationMillis: maxDurationMillis, minDurationMillis: minDurationMillis, l: zkafka.NoopLogger{}}
+			processor2 := &Processor{maxDurationMillis: maxDurationMillis, minDurationMillis: minDurationMillis, l: zkafka.NoopLogger{}}
 
 			work1 := wf.Create(cTopicCfg1, processor1,
-				zstreams.WithLifecycleHooks(zstreams.LifecycleHooks{PostFanout: func(ctx context.Context) {
+				zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 					if len(processor1.ProcessedMessages()) > 3 && len(processor2.ProcessedMessages()) > 3 {
 						cancel1()
 					}
@@ -259,7 +259,7 @@ func Test_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
 			cTopicCfg2 := cTopicCfg1
 			cTopicCfg2.ClientID += "-2"
 			work2 := wf.Create(cTopicCfg2, processor2,
-				zstreams.WithLifecycleHooks(zstreams.LifecycleHooks{PostFanout: func(ctx context.Context) {
+				zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 					totalProcessed := len(processor1.ProcessedMessages()) + len(processor2.ProcessedMessages())
 					if totalProcessed == tc.messageCount {
 						cancel2()
@@ -312,7 +312,7 @@ func Test_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
 
 			// keep track of how many times each message (identified by the topic/partition/offset) is processed
 			messageProcessCounter := make(map[partition]int)
-			updateProcessCounter := func(msgs []*zstreams.Message) {
+			updateProcessCounter := func(msgs []*zkafka.Message) {
 				for _, m := range msgs {
 					key := partition{
 						partition: m.Partition,
@@ -381,10 +381,10 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 			createTopic(t, bootstrapServer, topic2, 2)
 
 			l := stdLogger{}
-			wclient := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}})
+			wclient := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}})
 			defer func() { require.NoError(t, wclient.Close()) }()
 
-			writer1, err := wclient.Writer(ctx, zstreams.ProducerTopicConfig{
+			writer1, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
 				ClientID:            fmt.Sprintf("writer1-%s-%s", t.Name(), tc.name),
 				Topic:               topic1,
 				Formatter:           zfmt.JSONFmt,
@@ -393,7 +393,7 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 			})
 			require.NoError(t, err)
 
-			writer2, err := wclient.Writer(ctx, zstreams.ProducerTopicConfig{
+			writer2, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
 				ClientID:            fmt.Sprintf("writer2-%s-%s", t.Name(), tc.name),
 				Topic:               topic2,
 				Formatter:           zfmt.JSONFmt,
@@ -417,7 +417,7 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 				require.NoError(t, err)
 			}
 
-			cTopicCfg1 := zstreams.ConsumerTopicConfig{
+			cTopicCfg1 := zkafka.ConsumerTopicConfig{
 				ClientID:  fmt.Sprintf("dltReader-%s-%s", t.Name(), tc.name),
 				Topics:    []string{topic1, topic2},
 				Formatter: zfmt.JSONFmt,
@@ -427,15 +427,15 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 				},
 			}
 
-			client := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}}, zstreams.LoggerOption(l))
+			client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(l))
 			defer func() { require.NoError(t, client.Close()) }()
 
-			wf := zstreams.NewWorkFactory(client, zstreams.WithLogger(l))
+			wf := zkafka.NewWorkFactory(client, zkafka.WithLogger(l))
 
 			maxDurationMillis := int(tc.processingDuration / time.Millisecond)
 			minDurationMillis := int(tc.processingDuration / time.Millisecond)
-			processor1 := &Processor{maxDurationMillis: maxDurationMillis, minDurationMillis: minDurationMillis, l: zstreams.NoopLogger{}}
-			processor2 := &Processor{maxDurationMillis: maxDurationMillis, minDurationMillis: minDurationMillis, l: zstreams.NoopLogger{}}
+			processor1 := &Processor{maxDurationMillis: maxDurationMillis, minDurationMillis: minDurationMillis, l: zkafka.NoopLogger{}}
+			processor2 := &Processor{maxDurationMillis: maxDurationMillis, minDurationMillis: minDurationMillis, l: zkafka.NoopLogger{}}
 			breakProcessingCondition := func() bool {
 				uniqueTopics1 := map[string]struct{}{}
 				for _, m := range processor1.ProcessedMessages() {
@@ -449,7 +449,7 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 			}
 			ctx1, cancel1 := context.WithCancel(ctx)
 			work1 := wf.Create(cTopicCfg1, processor1,
-				zstreams.WithLifecycleHooks(zstreams.LifecycleHooks{PostFanout: func(ctx context.Context) {
+				zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 					if breakProcessingCondition() {
 						cancel1()
 					}
@@ -460,7 +460,7 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 			//cTopicCfg2.ClientID += "-2"
 			ctx2, cancel2 := context.WithCancel(ctx)
 			work2 := wf.Create(cTopicCfg2, processor2,
-				zstreams.WithLifecycleHooks(zstreams.LifecycleHooks{PostFanout: func(ctx context.Context) {
+				zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 					if breakProcessingCondition() {
 						cancel2()
 					}
@@ -493,7 +493,7 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 			wg.Wait()
 
 			messageProcessCounter := make(map[partition]int)
-			updateProcessCounter := func(msgs []*zstreams.Message) {
+			updateProcessCounter := func(msgs []*zkafka.Message) {
 				for _, m := range msgs {
 					key := partition{
 						partition: m.Partition,
@@ -556,11 +556,11 @@ func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *test
 			createTopic(t, bootstrapServer, topic, 2)
 			t.Log("Completed creating topic")
 
-			l := zstreams.NoopLogger{}
-			wclient := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}})
+			l := zkafka.NoopLogger{}
+			wclient := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}})
 			defer func() { require.NoError(t, wclient.Close()) }()
 
-			writer, err := wclient.Writer(ctx, zstreams.ProducerTopicConfig{
+			writer, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
 				ClientID:            fmt.Sprintf("writer-%s-%s", t.Name(), tc.name),
 				Topic:               topic,
 				Formatter:           zfmt.JSONFmt,
@@ -582,7 +582,7 @@ func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *test
 			}
 			t.Logf("Completed writing n message")
 
-			cTopicCfg1 := zstreams.ConsumerTopicConfig{
+			cTopicCfg1 := zkafka.ConsumerTopicConfig{
 				ClientID:  fmt.Sprintf("dltReader-%s-%s", t.Name(), tc.name),
 				Topic:     topic,
 				Formatter: zfmt.JSONFmt,
@@ -592,10 +592,10 @@ func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *test
 				},
 			}
 
-			client := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}}, zstreams.LoggerOption(l))
+			client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(l))
 			defer func() { require.NoError(t, client.Close()) }()
 
-			wf := zstreams.NewWorkFactory(client, zstreams.WithLogger(l))
+			wf := zkafka.NewWorkFactory(client, zkafka.WithLogger(l))
 
 			processor1 := &Processor{minDurationMillis: tc.processingDurationMinMillis, maxDurationMillis: tc.processingDurationMaxMillis, l: l}
 			processor2 := &Processor{minDurationMillis: tc.processingDurationMinMillis, maxDurationMillis: tc.processingDurationMaxMillis, l: l}
@@ -603,8 +603,8 @@ func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *test
 				return len(processor1.ProcessedMessages()) > 3 && len(processor2.ProcessedMessages()) > 3
 			}
 			ctx1, cancel1 := context.WithCancel(ctx)
-			work1 := wf.Create(cTopicCfg1, processor1, zstreams.Speedup(5),
-				zstreams.WithLifecycleHooks(zstreams.LifecycleHooks{PostFanout: func(ctx context.Context) {
+			work1 := wf.Create(cTopicCfg1, processor1, zkafka.Speedup(5),
+				zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 					if breakProcessingCondition() {
 						cancel1()
 					}
@@ -613,8 +613,8 @@ func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *test
 			cTopicCfg2 := cTopicCfg1
 			cTopicCfg2.ClientID += "-2"
 			ctx2, cancel2 := context.WithCancel(ctx)
-			work2 := wf.Create(cTopicCfg2, processor2, zstreams.Speedup(5),
-				zstreams.WithLifecycleHooks(zstreams.LifecycleHooks{PostFanout: func(ctx context.Context) {
+			work2 := wf.Create(cTopicCfg2, processor2, zkafka.Speedup(5),
+				zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 					if breakProcessingCondition() {
 						cancel2()
 					}
@@ -645,7 +645,7 @@ func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *test
 			wg.Wait()
 			// keep track of how many messages
 			messageProcessCounter := make(map[partition]int)
-			updateProcessCounter := func(msgs []*zstreams.Message) {
+			updateProcessCounter := func(msgs []*zkafka.Message) {
 				for _, m := range msgs {
 					key := partition{
 						partition: m.Partition,
@@ -687,14 +687,14 @@ func Test_AssignmentsReflectsConsumerAssignments(t *testing.T) {
 	partitionCount := 2
 	createTopic(t, bootstrapServer, topic, partitionCount)
 
-	l := zstreams.NoopLogger{}
-	wclient := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}})
+	l := zkafka.NoopLogger{}
+	wclient := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}})
 	defer func() { require.NoError(t, wclient.Close()) }()
 
-	client := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}}, zstreams.LoggerOption(l))
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(l))
 	defer func() { require.NoError(t, client.Close()) }()
 
-	writer, err := wclient.Writer(ctx, zstreams.ProducerTopicConfig{
+	writer, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
 		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
 		Topic:     topic,
 		Formatter: zfmt.JSONFmt,
@@ -717,7 +717,7 @@ func Test_AssignmentsReflectsConsumerAssignments(t *testing.T) {
 	t.Log("Completed writing messages")
 
 	// create consumer 1 which has its own processor
-	cTopicCfg1 := zstreams.ConsumerTopicConfig{
+	cTopicCfg1 := zkafka.ConsumerTopicConfig{
 		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
 		Topic:     topic,
 		Formatter: zfmt.JSONFmt,
@@ -731,7 +731,7 @@ func Test_AssignmentsReflectsConsumerAssignments(t *testing.T) {
 
 	reader1, err := client.Reader(ctx, cTopicCfg1)
 	require.NoError(t, err)
-	r1, ok := reader1.(*zstreams.KReader)
+	r1, ok := reader1.(*zkafka.KReader)
 	require.True(t, ok, "expected reader to be KReader")
 
 	// create consumer 2 which has its own processor
@@ -739,11 +739,11 @@ func Test_AssignmentsReflectsConsumerAssignments(t *testing.T) {
 	cTopicCfg2.ClientID += "-2"
 	reader2, err := client.Reader(ctx, cTopicCfg2)
 	require.NoError(t, err)
-	r2, ok := reader2.(*zstreams.KReader)
+	r2, ok := reader2.(*zkafka.KReader)
 	require.True(t, ok, "expected reader to be KReader")
 
 	// a helper method for reading a message and committing if its available (similar to what the work loop would do)
-	readAndCommit := func(t *testing.T, r *zstreams.KReader) *zstreams.Message {
+	readAndCommit := func(t *testing.T, r *zkafka.KReader) *zkafka.Message {
 		t.Helper()
 		msg, err := r.Read(context.Background())
 		require.NoError(t, err)
@@ -804,12 +804,12 @@ func Test_UnfinishableWorkDoesntBlockWorkIndefinitely(t *testing.T) {
 	createTopic(t, bootstrapServer, topic, partitionCount)
 
 	l := stdLogger{}
-	wclient := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}})
+	wclient := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}})
 	defer func() { require.NoError(t, wclient.Close()) }()
-	client := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}}, zstreams.LoggerOption(l))
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(l))
 	defer func() { require.NoError(t, client.Close()) }()
 
-	writer, err := wclient.Writer(ctx, zstreams.ProducerTopicConfig{
+	writer, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
 		ClientID:            fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
 		Topic:               topic,
 		Formatter:           zfmt.JSONFmt,
@@ -830,7 +830,7 @@ func Test_UnfinishableWorkDoesntBlockWorkIndefinitely(t *testing.T) {
 	}
 
 	// create consumer 1 which has its own processor
-	cTopicCfg1 := zstreams.ConsumerTopicConfig{
+	cTopicCfg1 := zkafka.ConsumerTopicConfig{
 		ClientID:          fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
 		Topic:             topic,
 		Formatter:         zfmt.JSONFmt,
@@ -844,7 +844,7 @@ func Test_UnfinishableWorkDoesntBlockWorkIndefinitely(t *testing.T) {
 	reader1, err := client.Reader(ctx, cTopicCfg1)
 	require.NoError(t, err)
 
-	r1, ok := reader1.(*zstreams.KReader)
+	r1, ok := reader1.(*zkafka.KReader)
 	require.True(t, ok, "expected reader to be KReader")
 
 	// create consumer 2 which has its own processor
@@ -853,7 +853,7 @@ func Test_UnfinishableWorkDoesntBlockWorkIndefinitely(t *testing.T) {
 	reader2, err := client.Reader(ctx, cTopicCfg2)
 	require.NoError(t, err)
 
-	r2, ok := reader2.(*zstreams.KReader)
+	r2, ok := reader2.(*zkafka.KReader)
 	require.True(t, ok, "expected reader to be KReader")
 	defer client.Close()
 
@@ -896,18 +896,18 @@ func Test_KafkaClientsCanWriteToTheirDeadLetterTopic(t *testing.T) {
 
 	groupID := uuid.NewString()
 
-	client := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}}, zstreams.LoggerOption(stdLogger{}))
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
 	defer func() { require.NoError(t, client.Close()) }()
 
 	ctx := context.Background()
 
-	writer, err := client.Writer(ctx, zstreams.ProducerTopicConfig{
+	writer, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
 		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
 		Topic:     topic,
 		Formatter: zfmt.JSONFmt,
 	})
 
-	consumerTopicConfig := zstreams.ConsumerTopicConfig{
+	consumerTopicConfig := zkafka.ConsumerTopicConfig{
 		ClientID:  fmt.Sprintf("worker-%s-%s", t.Name(), uuid.NewString()),
 		Topic:     topic,
 		Formatter: zfmt.JSONFmt,
@@ -915,7 +915,7 @@ func Test_KafkaClientsCanWriteToTheirDeadLetterTopic(t *testing.T) {
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
 		},
-		DeadLetterTopicConfig: &zstreams.ProducerTopicConfig{
+		DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
 			ClientID:  fmt.Sprintf("dltWriter-%s-%s", t.Name(), uuid.NewString()),
 			Topic:     dlt,
 			Formatter: zfmt.JSONFmt,
@@ -930,7 +930,7 @@ func Test_KafkaClientsCanWriteToTheirDeadLetterTopic(t *testing.T) {
 	_, err = writer.WriteKey(ctx, key, msg)
 	require.NoError(t, err)
 
-	wf := zstreams.NewWorkFactory(client)
+	wf := zkafka.NewWorkFactory(client)
 
 	processor := &Processor{
 		reterr: errors.New("processing error"),
@@ -950,7 +950,7 @@ func Test_KafkaClientsCanWriteToTheirDeadLetterTopic(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 
-	dltReader, err := client.Reader(ctx, zstreams.ConsumerTopicConfig{
+	dltReader, err := client.Reader(ctx, zkafka.ConsumerTopicConfig{
 		ClientID:          fmt.Sprintf("reader-for-test-%s-%s", t.Name(), uuid.NewString()),
 		GroupID:           uuid.NewString(),
 		Topic:             dlt,
@@ -989,14 +989,14 @@ func Test_WorkDelay_GuaranteesProcessingDelayedAtLeastSpecifiedDelayDurationFrom
 	createTopic(t, bootstrapServer, topic, 2)
 
 	l := stdLogger{}
-	wclient := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}})
+	wclient := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}})
 	defer func() { require.NoError(t, wclient.Close()) }()
-	client := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}}, zstreams.LoggerOption(l))
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(l))
 	defer func() { require.NoError(t, client.Close()) }()
 
 	processDelayMillis := 2000
 	// create work which has its own processor
-	cTopicCfg1 := zstreams.ConsumerTopicConfig{
+	cTopicCfg1 := zkafka.ConsumerTopicConfig{
 		ClientID:           fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
 		Topic:              topic,
 		Formatter:          zfmt.JSONFmt,
@@ -1006,18 +1006,18 @@ func Test_WorkDelay_GuaranteesProcessingDelayedAtLeastSpecifiedDelayDurationFrom
 			"auto.offset.reset": "earliest",
 		},
 	}
-	wf := zstreams.NewWorkFactory(client, zstreams.WithLogger(l))
+	wf := zkafka.NewWorkFactory(client, zkafka.WithLogger(l))
 
 	ctx1, cancel1 := context.WithCancel(ctx)
 	defer cancel1()
 
 	type result struct {
-		message           *zstreams.Message
+		message           *zkafka.Message
 		processingInstant time.Time
 	}
 	var results []result
 	processor1 := &fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			results = append(results, result{
 				message:           message,
 				processingInstant: time.Now(),
@@ -1034,7 +1034,7 @@ func Test_WorkDelay_GuaranteesProcessingDelayedAtLeastSpecifiedDelayDurationFrom
 		return work.Run(context.Background(), ctx1.Done())
 	})
 
-	writer, err := wclient.Writer(ctx, zstreams.ProducerTopicConfig{
+	writer, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
 		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
 		Topic:     topic,
 		Formatter: zfmt.JSONFmt,
@@ -1095,12 +1095,12 @@ func Test_WorkDelay_DoesntHaveDurationStackEffect(t *testing.T) {
 	createTopic(t, bootstrapServer, topic, 2)
 
 	l := stdLogger{}
-	wclient := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}})
+	wclient := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}})
 	defer func() { require.NoError(t, wclient.Close()) }()
-	client := zstreams.NewClient(zstreams.Config{BootstrapServers: []string{bootstrapServer}}, zstreams.LoggerOption(l))
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(l))
 	defer func() { require.NoError(t, client.Close()) }()
 
-	writer, err := wclient.Writer(ctx, zstreams.ProducerTopicConfig{
+	writer, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
 		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
 		Topic:     topic,
 		Formatter: zfmt.JSONFmt,
@@ -1122,7 +1122,7 @@ func Test_WorkDelay_DoesntHaveDurationStackEffect(t *testing.T) {
 
 	processDelayMillis := 2000
 	// create work which has its own processor
-	cTopicCfg1 := zstreams.ConsumerTopicConfig{
+	cTopicCfg1 := zkafka.ConsumerTopicConfig{
 		ClientID:           fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
 		Topic:              topic,
 		Formatter:          zfmt.JSONFmt,
@@ -1132,18 +1132,18 @@ func Test_WorkDelay_DoesntHaveDurationStackEffect(t *testing.T) {
 			"auto.offset.reset": "earliest",
 		},
 	}
-	wf := zstreams.NewWorkFactory(client, zstreams.WithLogger(l))
+	wf := zkafka.NewWorkFactory(client, zkafka.WithLogger(l))
 
 	ctx1, cancel1 := context.WithCancel(ctx)
 	defer cancel1()
 
 	type result struct {
-		message           *zstreams.Message
+		message           *zkafka.Message
 		processingInstant time.Time
 	}
 	var results []result
 	processor1 := &fakeProcessor{
-		process: func(ctx context.Context, message *zstreams.Message) error {
+		process: func(ctx context.Context, message *zkafka.Message) error {
 			results = append(results, result{
 				message:           message,
 				processingInstant: time.Now(),
@@ -1215,14 +1215,14 @@ type Msg struct {
 
 type Processor struct {
 	m                 sync.Mutex
-	processedMessages []*zstreams.Message
+	processedMessages []*zkafka.Message
 	reterr            error
 	minDurationMillis int
 	maxDurationMillis int
-	l                 zstreams.Logger
+	l                 zkafka.Logger
 }
 
-func (p *Processor) Process(ctx context.Context, msg *zstreams.Message) error {
+func (p *Processor) Process(ctx context.Context, msg *zkafka.Message) error {
 	p.m.Lock()
 	p.processedMessages = append(p.processedMessages, msg)
 	p.m.Unlock()
@@ -1239,11 +1239,11 @@ func (p *Processor) Process(ctx context.Context, msg *zstreams.Message) error {
 	return p.reterr
 }
 
-func (p *Processor) ProcessedMessages() []*zstreams.Message {
+func (p *Processor) ProcessedMessages() []*zkafka.Message {
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	var msgs []*zstreams.Message
+	var msgs []*zkafka.Message
 	for _, m := range p.processedMessages {
 		msgs = append(msgs, m)
 	}

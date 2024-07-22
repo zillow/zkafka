@@ -9,24 +9,24 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zillow/zkafka"
 	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4"
 )
 
-// Demonstrates reading from a topic via the zstreams.Work struct which is more convenient, typically, than using the consumer directly
+// Demonstrates reading from a topic via the zkafka.Work struct which is more convenient, typically, than using the consumer directly
 func main() {
 	ctx := context.Background()
-	client := zstreams.NewClient(zstreams.Config{
+	client := zkafka.NewClient(zkafka.Config{
 		BootstrapServers: []string{"localhost:9093"},
 	},
-		zstreams.LoggerOption(stdLogger{}),
+		zkafka.LoggerOption(stdLogger{}),
 	)
 	// It's important to close the client after consumption to gracefully leave the consumer group
 	// (this commits completed work, and informs the broker that this consumer is leaving the group which yields a faster rebalance)
 	defer client.Close()
 
-	topicConfig := zstreams.ConsumerTopicConfig{
-		// ClientID is used for caching inside zstreams, and observability within streamz dashboards. But it's not an important
+	topicConfig := zkafka.ConsumerTopicConfig{
+		// ClientID is used for caching inside zkafka, and observability within streamz dashboards. But it's not an important
 		// part of consumer group semantics. A typical convention is to use the service name executing the kafka worker
 		ClientID: "service-name",
 		// GroupID is the consumer group. If multiple instances of the same consumer group read messages for the same
@@ -35,7 +35,7 @@ func main() {
 		// across releases
 		GroupID: "concierge/example/example-consumery",
 		Topic:   "two-multi-partition",
-		// The formatter is registered internally to the `zstreams.Message` and used when calling `msg.Decode()`
+		// The formatter is registered internally to the `zkafka.Message` and used when calling `msg.Decode()`
 		// string fmt can be used for both binary and pure strings encoded in the value field of the kafka message. Other options include
 		// json, proto, avro, etc.
 		Formatter: zfmt.StringFmt,
@@ -57,16 +57,16 @@ func main() {
 		close(shutdown)
 	}()
 
-	wf := zstreams.NewWorkFactory(client)
+	wf := zkafka.NewWorkFactory(client)
 	// Register a processor which is executed per message.
 	// Speedup is used to create multiple processor goroutines. Order is still maintained with this setup by way of `virtual partitions`
-	work := wf.Create(topicConfig, &Processor{}, zstreams.Speedup(5))
+	work := wf.Create(topicConfig, &Processor{}, zkafka.Speedup(5))
 	work.Run(ctx, shutdown)
 }
 
 type Processor struct{}
 
-func (p Processor) Process(_ context.Context, msg *zstreams.Message) error {
+func (p Processor) Process(_ context.Context, msg *zkafka.Message) error {
 	// sleep to simulate random amount of work
 	time.Sleep(100 * time.Millisecond)
 	var buf bytes.Buffer

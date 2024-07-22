@@ -1,4 +1,4 @@
-package zstreams
+package zkafka
 
 import (
 	"context"
@@ -435,8 +435,8 @@ func (w *Work) processSingle(ctx context.Context, msg *Message, partitionIndex i
 	if pError, ok := err.(processorError); ok {
 		// Because we assume workers will log their own internal errors once
 		// already, we try to ignore logging them twice by also logging them
-		// as errors in zstreams (also as this is not considered an 'error'
-		// in the zstreams library itself).
+		// as errors in zkafka (also as this is not considered an 'error'
+		// in the zkafka library itself).
 		w.logger.Warnw(ctxCancel, "Kafka topic single message processing failed",
 			"error", pError.inner,
 			"kmsg", msg,
@@ -514,7 +514,7 @@ func (w *Work) startSpan(ctx context.Context, msg *Message) (context.Context, sp
 		trace.WithSpanKind(trace.SpanKindConsumer),
 	}
 
-	operationName := "zstreams.process"
+	operationName := "zkafka.process"
 	ctx, otelSpan := w.tracer.Start(ctx, operationName, opts...)
 
 	return ctx, spanWrapper{otelSpan}

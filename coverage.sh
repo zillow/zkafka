@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # golang packages that will be used for either testing or will be assessed for coverage
-pck1=gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4
+pck1=github.com/zillow/zkafka
 pck2=$pck1/test
 
 topdir=$(pwd)
@@ -48,5 +48,5 @@ gocover-cobertura < $omni_out > coverage.tmp.xml
 # We'll run two commands
 # 1. Remove the prefixed go.mod package name from filenames inside of the cobertura with a brute force replace with empty string
 # 2. Add the workingdirectory to the sources array using a find replace (search for sources node, and replace with sources node but new workdir source nod)
-pkg=gitlab.zgtools.net/devex/archetypes/gomods/zstreams
+pkg=gitlab.zgtools.net/devex/archetypes/gomods/zkafka
 sed "s|$pkg/||" coverage.tmp.xml | sed "s|<sources>|<sources>\n<source>$(pwd)</source>|"> coverage.xml

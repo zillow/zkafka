@@ -1,6 +1,6 @@
-package zstreams
+package zkafka
 
-//go:generate mockgen -package=mock_zstreams -destination=./mocks/mock_client.go -source=./client.go
+//go:generate mockgen -package=mock_zkafka -destination=./mocks/mock_client.go -source=./client.go
 
 import (
 	"context"
@@ -22,7 +22,7 @@ type ClientProvider interface {
 // static type checking for the convenient Writer interface
 var _ ClientProvider = (*Client)(nil)
 
-const instrumentationName = "gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4"
+const instrumentationName = "github.com/zillow/zkafka"
 
 // Client helps instantiate usable readers and writers
 type Client struct {

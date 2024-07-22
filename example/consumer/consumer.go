@@ -5,18 +5,18 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/zillow/zkafka"
 	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4"
 )
 
 func main() {
-	// configure broker connectivity options with zstreams.Config
-	cfg := zstreams.Config{
+	// configure broker connectivity options with zkafka.Config
+	cfg := zkafka.Config{
 		BootstrapServers: []string{"localhost:9093"},
 	}
 
-	// configure consumer options  with zstreams.ConsumerTopicConfig. See zstreams for full option values
-	topicConfig := zstreams.ConsumerTopicConfig{
+	// configure consumer options  with zkafka.ConsumerTopicConfig. See zkafka for full option values
+	topicConfig := zkafka.ConsumerTopicConfig{
 		ClientID: "xxx",
 		GroupID:  "golang-example-consumer-3",
 		Topic:    "two-multi-partition",
@@ -31,13 +31,13 @@ func main() {
 
 	ctx := context.Background()
 	// Create a reader using Config and ConsumerTopicConfig
-	reader, err := zstreams.NewClient(cfg).Reader(ctx, topicConfig)
+	reader, err := zkafka.NewClient(cfg).Reader(ctx, topicConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
 	for {
 		// Poll for 1 message for up to 10 seconds. Return nil if no messages available.
-		// To continually poll a kafka message, we suggest using zstreams in conjunction with zwork. This offers a
+		// To continually poll a kafka message, we suggest using zkafka in conjunction with zwork. This offers a
 		// good mechanism for processing messages using stateless messaging semantics using golang
 		msg, err := reader.Read(ctx)
 		if err != nil {
@@ -48,7 +48,7 @@ func main() {
 			return
 		}
 
-		// zstreams.Message (the type of msg variable) wraps a kafka message exposing higher level APIs for interacting with the data.
+		// zkafka.Message (the type of msg variable) wraps a kafka message exposing higher level APIs for interacting with the data.
 		// This includes a decode method for easily
 		// deserializing the kafka value byte array. In this case, we're using the JSONFmt (specified in TopicConfig).
 		item := DummyEvent{}

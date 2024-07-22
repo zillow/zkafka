@@ -1,4 +1,4 @@
-module gitlab.zgtools.net/devex/archetypes/gomods/zstreams/v4
+module github.com/zillow/zkafka
 
 go 1.22
 

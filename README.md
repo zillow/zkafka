@@ -11,7 +11,19 @@
 
 ## About
 
-A library built on top of [confluent-kafka-go](https://github.com/confluentinc/confluent-kafka-go) for reading and writing to kafka. 
+`zkafka` is built for making message processing in kafka easy. This library aims to reduce boilerplate as much as possible,
+allowing the author to focus on writing the business logic to be executed on each kafka message. `zkafka` then
+aims to take care of everything else, which includes:
+
+1. Reading from the worker's configured topics
+2. Safely managing message offsets - Kafka offset management can be a real headache. Let `zkafka` worry about that. Just write the code for processing a single message, and mark it as errored or no error.
+Get on with your life.
+3. Fanning out messages to virtual partitions (to be explained later)   
+4. Dead lettering failed messages - Add dead lettering  for all failed messages. 
+5. Inspectable and customizable behavior by way of lifecycle functions (Callbacks) - Add your own metrics or logging at interesting seams in the message processing lifecycle
+
+
+`zkafka` is  built on top of [confluent-kafka-go](https://github.com/confluentinc/confluent-kafka-go). 
 It's tailor-made for stateless message processing use cases (a churched up name for writing code which processes each kafka message in isolation).
 The library supports at least once message processing. It does so using a commit strategy built off auto commit and manual
 offset storage.
@@ -22,17 +34,10 @@ offset storage.
 confluent-kafka-go is a CGO module, and therefore so is zkafka. When building with zkafka, make sure to set CGO_ENABLED=1.
 ---
 
-There are two quick definitions important to the understanding of the commit strategy
-
-1. **Commit** - involves communicating with kafka broker and durably persisting offsets on a kafka broker.
-2. **Store** - is the action of updating a local store of message offsets which will be persisted during the commit
-   action
-
 ### Features
-- Stateless Message Processing
-- Hyper Scalability
-- Dead Letter Topics
-- Delay Processing
+
+The following subsections within feature detail some useful features and are backed by examples in the aptly named `./examples` directory.
+The best way to learn is to fiddle around with the examples. Hack away!
 
 #### Stateless Message Processing
 
@@ -94,7 +99,7 @@ is canceled signalling a more aggressive tear down.
    err = w.Run(context.Background(), nil)
 ```
  
-### Hyper Scalability
+#### Hyper Scalability
 
 `zkafka` work implementation supports a concept called `virtual partitions`. This extends
 the kafka `partition` concept. Message ordering is guaranteed within a kafka partition,
@@ -117,7 +122,7 @@ make example-producer
 make example-worker
 ```
 
-### Configurable Dead Letter Topics
+#### Configurable Dead Letter Topics
 
 A `zkafka.Work` instance can be configured to write to a Dead Letter Topic (DLT) when message processing fails.
 This can be accomplished `zkafka.WithDeadLetterTopic()` option. Or more conveniently, can be controlled by adding
@@ -163,7 +168,7 @@ make example-producer
 make example-deadletter-worker
 ```
 
-### Process Delay Workers
+#### Process Delay Workers
 
 Process Delay Workers can be an important piece of an automated retry policy. A simple example of this would be
 2 workers daisy-chained together as follows:
@@ -227,37 +232,87 @@ make example-producer
 make example-delay-worker
 ```
 
-#### Commit Strategy:
+### Commit Strategy:
 
-1. *Store* offset of a message for commit after processing
-2. *Commit* messages whose offsets have been stored at configurable intervals (`auto.commit.interval.ms`)
-3. *Commit* messages whose offsets have been stored when partitions are revoked
-   (this is implicitly handled by librdkafka. To see this add debug=cgrp in ConsumerTopicConfig, and there'll be COMMIT logs after a rebalance.
+A `zkafka.Work`er commit strategy allows for at least once message processing. 
+
+There are two quick definitions important to the understanding of the commit strategy:
+
+1. **Commit** - involves communicating with kafka broker and durably persisting offsets on a kafka broker.
+2. **Store** - is the action of updating a local store of message offsets which will be persisted during the commit
+   action
+
+The `zkafka.Work` instance will store message offsets as message processing concludes. Because the worker manages
+storing commits the library sets `enable.auto.offset.store`=false. Additionally, the library offloads actually commiting messages
+to a background process managed by librdkafka (The frequency at which commits are communicated to the broker is controlled by `auto.commit.interval.ms`, default=5s).
+Additionally, during rebalance events, explicit commits are executed.
+
+This strategy is based off of [Kafka Docs - Offset Management](https://docs.confluent.io/platform/current/clients/consumer.html#offset-management)
+where a strategy of asynchronous/synchronous commits is suggested to reduced duplicate messages.
+
+The above results in the following algorithm:
+
+
+1. Before message processing is started, an internal heap structure is used to track in flight messages.
+2. After message processing concludes, a heap structure managed by `zkafka` marks the message as complete (regardless of whether processing errored or not). 
+3. The inflight heap, and the work completed heap are compared. Since offsets increase incrementally (by 1), it can be determined whether message processing
+finished out of order. If the inflight heap's lowest offset is the same as the completed, then that message is safe to be **Stored**. This can be done repetiveily
+until the inflight heap is empty, or inflight messages haven't yet been marked as complete.
+
+The remaining steps are implicitly handled by `librdkafka`
+1. *Commit* messages whose offsets have been stored at configurable intervals (`auto.commit.interval.ms`)
+2. *Commit* messages whose offsets have been stored when partitions are revoked
+   (this is implicitly handled by `librdkafka`. To see this add debug=cgrp in ConsumerTopicConfig, and there'll be COMMIT logs after a rebalance.
    If doing this experience, set the `auto.commit.interval.ms` to a large value to avoid confusion between the rebalance commit)
-4. *Commit* messages whose offsets have been stored on close of reader
-   (this is implicitly handled by librdkafka. To see this add debug=cgrp in ConsumerTopicConfig, and there'll be COMMIT logs after the client is closed, but before the client is destroyed)
+3. *Commit* messages whose offsets have been stored on close of reader
+   (this is implicitly handled by `librdkafka`. To see this add debug=cgrp in ConsumerTopicConfig, and there'll be COMMIT logs after the client is closed, but before the client is destroyed)
 
 Errors returned on processing are still stored. This avoids issues due to poison pill messages (messages which will
 never be able to be processed without error)
-as well as transient errors blocking future message processing. Use WithOnDone option to register callback for
-additional processing of these messages.
+as well as transient errors blocking future message processing. Use dead lettering to sequester these failed messages or Use `WithOnDone` option to register callback for
+special processing of these messages.
 
-This strategy is based off
-of [Kafka Docs - Offset Management](https://docs.confluent.io/platform/current/clients/consumer.html#offset-management)
-where a strategy of asynchronous/synchronous commits is suggested to reduced duplicate messages.
 
 ### SchemaRegistry Support:
 
 There is limited support for schema registry in zkafka. A schemaID can be hardcoded via configuration. No
 communication is done with schema registry, but some primitive checks can be conducted if a schemaID is specified via
-configuration.
+configuration. 
+
+Below breaks down schema registry interactions into two subcategories. One is `Raw Handling` where the configurable
+foramtter is bypassed entirely in favor of operating with the value byte arrays directly. The other is `Native Support` which
+attempts to create confluent compatible serializations, without communicating with schema registry directly.
 
 #### Producers
+
+##### Raw Handling
+
+For a producer, this would involve using the `kafka.Writer.WriteRaw()` method which takes in a byte array directly.
+
+##### Native Support
 
 Producers will include the schemaID in messages written to kafka (without any further verification).
 
 #### Consumers
 
+##### Raw Handling
+
+For a consumer, this would involve accessing the value byte array through the `zkafka.Message.Value()` method.
+
+```go 
+type Processor struct{}
+func (p Processor) Process(_ context.Context, msg *zkafka.Message) error {
+   e := MyEvent{}
+   // The Decode method uses the configured formatter and the configured schema registry ID.
+   //err := msg.Decode(&e)
+   // For schema registry, however, it might be better to bypass the configurable formatters, and deserialize the data by accessing the byte array directly
+   // The below function is a hypothetical function which inspects the data in in the kafka message's value and communicates with schema registry for verification
+   myUnmarshallFunction(msg.Value(), &e)
+   ...
+}
+```
+
+##### Native Support
 Consumers will verify that the message they're consuming has the schemaID specified in configuration
 (if it's specified). Be careful here, as backwards compatible schema evolutions would be treated as an error condition
 as the new schemaID wouldn't match what's in the configuration.
@@ -266,36 +321,40 @@ as the new schemaID wouldn't match what's in the configuration.
 
 See for description of configuration options and their defaults:
 
-1. [Consumer Configuration](https://docs.confluent.io/platform/current/installation/configuration/consumer-configs.html)
-2. [Producer Configurations](https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html)
+1. [Librdkafka Configuration](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md)
+2. [Consumer Configuration](https://docs.confluent.io/platform/current/installation/configuration/consumer-configs.html)
+3. [Producer Configurations](https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html)
 
-These are primarily specified through the TopicConfig struct. TopicConfig includes strongly typed fields which translate
-to librdconfig values. To see translation see config.go. An escape hatch is provided for ad hoc config properties via
+These are primarily specified through the TopicConfig structs (`ProducerTopicConfig` and `ConsumerTopicConfig`).
+TopicConfigs includes strongly typed fields which translate
+to librdconfig values. To see translation see `config.go`. An escape hatch is provided for ad hoc config properties via
 the AdditionalProperties map. Here config values that don't have a strongly typed version in TopicConfig may be
 specified. Not all specified config values will work (for example `enable.auto.commit=false` would not work with this
 client because that value is explicitly set to true after reading of the AdditionalProperties map).
 
-```json5
+```go
+deliveryTimeoutMS := 100
+enableIdempotence := false
+requiredAcks := "0"
 
-{
-  "KafkaTopicConfig": {
-    "Topic": "KafkaTopicName",
-    "BootstrapServers": [
-      "localhost:9092"
-    ],
-    // translates to librdkafka value "bootstrap.servers"
-    // specify ad hoc configuration values which don't have a strongly typed version in the TopicConfig struct.
-    "AdditionalProperties": {
-      "auto.commit.interval.ms": 1000,
-      "retry.backoff.ms": 10
-    }
-  }
+pcfg := ProducerTopicConfig{
+   ClientID:            "myclientid",
+   Topic: "mytopic",
+   DeliveryTimeoutMs:   &deliveryTimeoutMS,
+   EnableIdempotence:   &enableIdempotence,
+   RequestRequiredAcks: &requiredAcks,
+   AdditionalProps: map[string]any{
+      "linger.ms":               float64(5),
+   },
 }
 
+ccfg := ConsumerTopicConfig{
+   ClientID: "myclientid2",
+   GroupID:  "mygroup",
+   Topic: "mytopic",
+   AdditionalProps: map[string]any{
+      "auto.commit.interval.ms": float32(20),
+   },
+}
 ```
 
-3. zkafka.ProcessError
-
-The `zkafka.ProcessError` can be used to control error handling on a per-message basis. Use of this type is entirely optional. The current options exposed through this type are as follows:
-1. `DisableDLTWrite`: if true, the message will not be written to a dead letter topic (if one is configured)
-2. `DisableCircuitBreaker`: if true, the message will not count as a failed message for purposes of controlling the circuit breaker.

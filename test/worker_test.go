@@ -18,6 +18,7 @@ import (
 	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
 	zkafka_mocks "github.com/zillow/zkafka/mocks"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/golang/mock/gomock"
 )
@@ -89,7 +90,8 @@ func TestWork_Run_FailsWithLogsWhenGotNilReader(t *testing.T) {
 			cancel()
 		}}))
 
-	w.Run(ctx, nil)
+	err := w.Run(ctx, nil)
+	require.NoError(t, err)
 }
 
 func TestWork_Run_FailsWithLogsForReadError(t *testing.T) {
@@ -117,7 +119,8 @@ func TestWork_Run_FailsWithLogsForReadError(t *testing.T) {
 			cancel()
 		}}))
 
-	w.Run(ctx, nil)
+	err := w.Run(ctx, nil)
+	require.NoError(t, err)
 }
 
 func TestWork_Run_CircuitBreakerOpensOnReadError(t *testing.T) {
@@ -127,7 +130,7 @@ func TestWork_Run_CircuitBreakerOpensOnReadError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := zkafka.NoopLogger{}
+	l := stdLogger{}
 
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(nil, errors.New("error occurred during read"))
@@ -144,7 +147,7 @@ func TestWork_Run_CircuitBreakerOpensOnReadError(t *testing.T) {
 		zkafka.CircuitBreakAfter(1), // Circuit breaks after 1 error.
 		zkafka.CircuitBreakFor(50*time.Millisecond),
 		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
-			l.Warnw(ctx, "Fanout callback called")
+			l.Warnw(ctx, "Fan out callback called")
 			cnt.Add(1)
 		}}))
 
@@ -152,9 +155,10 @@ func TestWork_Run_CircuitBreakerOpensOnReadError(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		return cnt.Load() >= 10
@@ -164,7 +168,8 @@ func TestWork_Run_CircuitBreakerOpensOnReadError(t *testing.T) {
 			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %s", 10)
 		},
 	})
-	require.GreaterOrEqual(t, time.Since(start), 200*time.Millisecond, "Every circuit breaker stoppage is 50ms, and we expect it to be in open state (stoppage) for half the messages  (and half open for the other half, 1 message through).")
+	require.GreaterOrEqual(t, time.Since(start), 150*time.Millisecond, "Every circuit breaker stoppage is 50ms, and we expect it to be in open state (stoppage) for half the messages  (and half open for the other half, 1 message through). (10/2-1)*50ms = 200ms. Subtract 50ms for fuzz")
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_Run_CircuitBreaksOnProcessError(t *testing.T) {

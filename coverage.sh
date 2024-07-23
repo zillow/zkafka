@@ -14,7 +14,7 @@ source_res=$topdir/source.res
 root_out=$topdir/root.out
 source_out=$topdir/source.out
 
-omni_out=$topdir/omni.out
+cover_out=$topdir/cover.out
 
 function quit() {
   echo "Error in coverage.sh. Stopping processing";
@@ -30,12 +30,12 @@ go test -c -coverpkg=$pck1 -covermode=atomic -o "$source_res" $pck2
 go tool test2json -t "$source_res" -test.v -test.coverprofile "$source_out"
 
 # delete aggregate file
-rm "$omni_out"
+rm "$cover_out"
 
 # combine the results (the first line should be omitted on subsequent appends)
-cat "$root_out" >> "$omni_out"
-tail -n+2 "$source_out" >> "$omni_out"
+cat "$root_out" >> "$cover_out"
+tail -n+2 "$source_out" >> "$cover_out"
 
 # print aggregated results
-go tool cover -func="$omni_out"
-go tool cover -html="$omni_out" -o cover.html
+go tool cover -func="$cover_out"
+go tool cover -html="$cover_out" -o cover.html

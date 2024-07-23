@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
+	"github.com/zillow/zfmt"
 )
 
 const (

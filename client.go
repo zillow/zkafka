@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"sync"
 
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
+	"github.com/zillow/zfmt"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )

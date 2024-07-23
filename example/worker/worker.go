@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
 )
 
 // Demonstrates reading from a topic via the zkafka.Work struct which is more convenient, typically, than using the consumer directly

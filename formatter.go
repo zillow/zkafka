@@ -3,7 +3,7 @@ package zkafka
 import (
 	"errors"
 
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
+	"github.com/zillow/zfmt"
 )
 
 const (

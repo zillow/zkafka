@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
+	"github.com/zillow/zfmt"
 )
 
 func GetFakeMessage(key string, value any, fmt zfmt.Formatter, doneFunc func()) *Message {

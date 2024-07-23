@@ -10,7 +10,7 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
+	"github.com/zillow/zfmt"
 )
 
 // Message is a container for kafka message

@@ -18,8 +18,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
 	"golang.org/x/sync/errgroup"
 )
 

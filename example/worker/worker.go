@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
 )
 
 // Demonstrates reading from a topic via the zkafka.Work struct which is more convenient, typically, than using the consumer directly
@@ -61,7 +61,9 @@ func main() {
 	// Register a processor which is executed per message.
 	// Speedup is used to create multiple processor goroutines. Order is still maintained with this setup by way of `virtual partitions`
 	work := wf.Create(topicConfig, &Processor{}, zkafka.Speedup(5))
-	work.Run(ctx, shutdown)
+	if err := work.Run(ctx, shutdown); err != nil {
+		log.Panic(err)
+	}
 }
 
 type Processor struct{}

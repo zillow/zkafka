@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
 	zkafka_mocks "github.com/zillow/zkafka/mocks"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
 )
 
 func main() {
@@ -48,7 +48,9 @@ func main() {
 	)
 	ctx, c := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer c()
-	w.Run(ctx, nil)
+	if err := w.Run(ctx, nil); err != nil {
+		log.Panic(err)
+	}
 }
 
 type kafkaProcessorError struct{}

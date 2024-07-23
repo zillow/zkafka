@@ -10,7 +10,7 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
+	"github.com/zillow/zfmt"
 )
 
 // Message is a container for kafka message
@@ -65,6 +65,7 @@ func makeProducerMessageRaw(_ context.Context, serviceName, topic string, key *s
 		Key:   obsKeyOriginService,
 		Value: []byte(serviceName),
 	})
+	//nolint:errcheck // Its not particularly noteworthy if if host isn't propagated forward. We'll suppress the error
 	hostname, _ := os.Hostname()
 	// hn is empty string if there's an error
 	kafkaMessage.Headers = append(kafkaMessage.Headers, kafka.Header{

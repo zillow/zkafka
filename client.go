@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"sync"
 
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
+	"github.com/zillow/zfmt"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -133,17 +133,16 @@ func (c *Client) Writer(_ context.Context, topicConfig ProducerTopicConfig, opts
 }
 
 func getFormatter(topicConfig TopicConfig) (zfmt.Formatter, error) {
-	var fmtter zfmt.Formatter
 	switch topicConfig.GetFormatter() {
 	case CustomFmt:
-		fmtter = &noopFormatter{}
+		return &noopFormatter{}, nil
 	default:
-		fmtter, _ = zfmt.GetFormatter(topicConfig.GetFormatter(), topicConfig.GetSchemaID())
+		f, err := zfmt.GetFormatter(topicConfig.GetFormatter(), topicConfig.GetSchemaID())
+		if err != nil {
+			return nil, fmt.Errorf("unsupported formatter %s", topicConfig.GetFormatter())
+		}
+		return f, nil
 	}
-	if fmtter == nil {
-		return nil, fmt.Errorf("unsupported formatter %s", topicConfig.GetFormatter())
-	}
-	return fmtter, nil
 }
 
 // Close terminates all cached readers and writers gracefully.

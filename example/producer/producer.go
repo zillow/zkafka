@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
 )
 
 func main() {

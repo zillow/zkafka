@@ -15,9 +15,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
 	zkafka_mocks "github.com/zillow/zkafka/mocks"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
 
 	"github.com/golang/mock/gomock"
 )

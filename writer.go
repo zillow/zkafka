@@ -126,7 +126,11 @@ func (w *KWriter) WriteRaw(ctx context.Context, key *string, value []byte, opts 
 	e := <-deliveryChan
 
 	w.lifecyclePostAck(ctx, begin)
-	m := e.(*kafka.Message)
+
+	m, ok := e.(*kafka.Message)
+	if !ok {
+		return Response{}, errors.New("unexpected message delivered on kafka delivery channel")
+	}
 
 	span.SetAttributes(
 		semconv.MessagingMessageIDKey.Int64(int64(m.TopicPartition.Offset)),

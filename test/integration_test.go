@@ -1204,7 +1204,7 @@ func createTopic(t *testing.T, bootstrapServer, topic string, partitions int) {
 func getBootstrap() string {
 	bootstrapServer, ok := os.LookupEnv("KAFKA_BOOTSTRAP_SERVER")
 	if !ok {
-		bootstrapServer = "localhost:9093" // local development
+		bootstrapServer = "localhost:9092" // local development
 	}
 	return bootstrapServer
 }

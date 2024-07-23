@@ -93,7 +93,7 @@ client because that value is explicitly set to true after reading of the Additio
   "KafkaTopicConfig": {
     "Topic": "KafkaTopicName",
     "BootstrapServers": [
-      "localhost:9093"
+      "localhost:9092"
     ],
     // translates to librdkafka value "bootstrap.servers"
     // specify ad hoc configuration values which don't have a strongly typed version in the TopicConfig struct.

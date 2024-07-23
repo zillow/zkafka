@@ -14,7 +14,7 @@ import (
 func main() {
 	ctx := context.Background()
 	writer, err := zkafka.NewClient(zkafka.Config{
-		BootstrapServers: []string{"localhost:9093"},
+		BootstrapServers: []string{"localhost:9092"},
 	}).Writer(ctx, zkafka.ProducerTopicConfig{
 		ClientID:  "example",
 		Topic:     "two-multi-partition",

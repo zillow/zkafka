@@ -130,7 +130,7 @@ func TestWork_Run_CircuitBreakerOpensOnReadError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	l := stdLogger{}
+	l := zkafka.NoopLogger{}
 
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(nil, errors.New("error occurred during read"))

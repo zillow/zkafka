@@ -7,7 +7,7 @@ test-no-setup:
 
 .PHONY: setup-test
 setup-test:
-	docker compose -p $$RANDOM -f ./example/docker-compose.yaml up -d
+	docker compose -p $$RANDOM -f ./example/compose.yaml up -d
 
 .PHONY: test-local
 test-local: setup-test test-no-setup

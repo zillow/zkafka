@@ -1,9 +1,7 @@
-version: '2.1'
-
 services:
-  kafka3:
+  kafka:
     image: stewartboyd1988/docker-kafka-kraft
-    container_name: kafka3
+    container_name: kafka
     ports:
       - "29092:29092"
       - "9092:9092"

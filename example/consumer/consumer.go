@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
 )
 
 func main() {

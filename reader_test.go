@@ -12,7 +12,7 @@ import (
 	mock_confluent "github.com/zillow/zkafka/mocks/confluent"
 
 	"github.com/golang/mock/gomock"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
+	"github.com/zillow/zfmt"
 )
 
 func TestReader_Read_NilReturn(t *testing.T) {

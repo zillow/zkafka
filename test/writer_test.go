@@ -11,9 +11,9 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
+	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
 	mock_confluent "github.com/zillow/zkafka/mocks/confluent"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
 )
 
 func TestWriter_Write_LifecycleHooksCalled(t *testing.T) {

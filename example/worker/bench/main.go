@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
 	zkafka_mocks "github.com/zillow/zkafka/mocks"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zfmt"
 )
 
 func main() {

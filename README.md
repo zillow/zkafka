@@ -122,7 +122,7 @@ make example-worker
 #### Configurable Dead Letter Topics
 
 A `zkafka.Work` instance can be configured to write to a Dead Letter Topic (DLT) when message processing fails.
-This can be accomplished `zkafka.WithDeadLetterTopic()` option. Or more conveniently, can be controlled by adding
+This can be accomplished with the `zkafka.WithDeadLetterTopic()` option. Or, more conveniently, can be controlled by adding
 a non nil value to the `zkafka.ConsumerTopicConfig` `DeadLetterTopic` field. Minimally, the topic name of the (dead letter topic)
 must be specified (when specified via configuration, no clientID need be specified, as the encompassing consumer topic configs client id will be used).  
 
@@ -139,17 +139,6 @@ must be specified (when specified via configuration, no clientID need be specifi
 
 The above will write to `zkafka-example-deadletter-topic` in the case of a processing error. 
 
-The returned processor error determines whether or not a message is written to a dead letter topic. In some situations,
-you might not want to route an error to a DLT. An example might be, malformed data.
-
-The processor author has control over this behavior by way of the `zkafka.ProcessError`.
-
-```go 
-	return zkafka.ProcessError{
-		Err:                 err,
-		DisableDLTWrite:     true,
-	}
-```
 
 The above returned error will skip writing to the DLT. 
 
@@ -165,6 +154,17 @@ make example-producer
 make example-deadletter-worker
 ```
 
+The returned processor error determines whether a message is written to a dead letter topic. In some situations,
+you might not want to route an error to a DLT. An example might be malformed data.
+
+You have control over this behavior by way of the `zkafka.ProcessError`.
+
+```go 
+	return zkafka.ProcessError{
+		Err:                 err,
+		DisableDLTWrite:     true,
+	}
+```
 #### Process Delay Workers
 
 Process Delay Workers can be an important piece of an automated retry policy. A simple example of this would be
@@ -182,7 +182,7 @@ Process Delay Workers can be an important piece of an automated retry policy. A 
 		},
 	}
 
-    workerConfig1 := zkafka.ConsumerTopicConfig{
+    workerConfig2 := zkafka.ConsumerTopicConfig{
       ClientID: "svc1",
       GroupID: "grp1",
       Topic: "topicB",

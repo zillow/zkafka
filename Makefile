@@ -14,8 +14,7 @@ test-local: setup-test test-no-setup
 
 .PHONY: cover
 cover:
-	go test -v ./... -count=1 -coverprofile=cover.out -covermode atomic && \
-	go tool cover -html=cover.out -o cover.html
+	./coverage.sh
 
 .PHONY: example-producer
 example-producer:

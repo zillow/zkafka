@@ -36,6 +36,7 @@ func TestWork_Run_FailsWithLogsWhenFailedToGetReader(t *testing.T) {
 	defer ctrl.Finish()
 
 	l := zkafka_mocks.NewMockLogger(ctrl)
+	l.EXPECT().Debugw(gomock.Any(), gomock.Any()).AnyTimes()
 	l.EXPECT().Warnw(gomock.Any(), "Kafka worker read message failed", "error", gomock.Any(), "topics", gomock.Any()).MinTimes(1)
 	l.EXPECT().Warnw(gomock.Any(), "Kafka topic processing circuit open", "topics", gomock.Any()).AnyTimes()
 
@@ -52,9 +53,10 @@ func TestWork_Run_FailsWithLogsWhenFailedToGetReader(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		return fanoutCount.Load() >= 1
@@ -66,6 +68,8 @@ func TestWork_Run_FailsWithLogsWhenFailedToGetReader(t *testing.T) {
 		pollPause: time.Millisecond,
 		maxWait:   10 * time.Second,
 	})
+	cancel()
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_Run_FailsWithLogsWhenGotNilReader(t *testing.T) {
@@ -77,6 +81,7 @@ func TestWork_Run_FailsWithLogsWhenGotNilReader(t *testing.T) {
 
 	l := zkafka_mocks.NewMockLogger(ctrl)
 	l.EXPECT().Warnw(gomock.Any(), "Kafka worker read message failed", "error", gomock.Any(), "topics", gomock.Any()).Times(1)
+	l.EXPECT().Debugw(gomock.Any(), gomock.Any()).AnyTimes()
 
 	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
@@ -102,8 +107,8 @@ func TestWork_Run_FailsWithLogsForReadError(t *testing.T) {
 	defer ctrl.Finish()
 
 	l := zkafka_mocks.NewMockLogger(ctrl)
-
 	l.EXPECT().Warnw(gomock.Any(), "Kafka worker read message failed", "error", gomock.Any(), "topics", gomock.Any()).MinTimes(1)
+	l.EXPECT().Debugw(gomock.Any(), gomock.Any()).AnyTimes()
 
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Times(1).Return(nil, errors.New("error occurred during read"))
@@ -165,7 +170,7 @@ func TestWork_Run_CircuitBreakerOpensOnReadError(t *testing.T) {
 	}, pollOpts{
 		exit: cancel,
 		timeoutExit: func() {
-			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %s", 10)
+			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %d", 10)
 		},
 	})
 	require.GreaterOrEqual(t, time.Since(start), 150*time.Millisecond, "Every circuit breaker stoppage is 50ms, and we expect it to be in open state (stoppage) for half the messages  (and half open for the other half, 1 message through). (10/2-1)*50ms = 200ms. Subtract 50ms for fuzz")
@@ -210,20 +215,22 @@ func TestWork_Run_CircuitBreaksOnProcessError(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		return cnt.Load() >= 10
 	}, pollOpts{
 		exit: cancel,
 		timeoutExit: func() {
-			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %s", 10)
+			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %d", 10)
 		},
 	})
 
 	require.GreaterOrEqual(t, time.Since(start), 400*time.Millisecond, "Every circuit breaker stoppage is 50ms, and we expect it to be executed for each of the n -2 failed messages (first one results in error and trips the circuit breaker. Second message read prior to trip")
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_Run_DoNotSkipCircuitBreak(t *testing.T) {
@@ -267,9 +274,10 @@ func TestWork_Run_DoNotSkipCircuitBreak(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		return cnt.Load() > 10
@@ -277,10 +285,11 @@ func TestWork_Run_DoNotSkipCircuitBreak(t *testing.T) {
 		exit:      cancel,
 		pollPause: time.Microsecond * 100,
 		timeoutExit: func() {
-			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %s", 10)
+			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %d", 10)
 		},
 	})
 	require.GreaterOrEqual(t, time.Since(start), 450*time.Millisecond, "Every circuit breaker stoppage is 50ms, and we expect it to be executed for each of the n -1 failed messages (first one results in error and trips the circuit breaker")
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_Run_DoSkipCircuitBreak(t *testing.T) {
@@ -324,20 +333,22 @@ func TestWork_Run_DoSkipCircuitBreak(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		return cnt.Load() >= 10
 	}, pollOpts{
 		exit: cancel,
 		timeoutExit: func() {
-			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %s", 10)
+			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %d", 10)
 		},
 	})
 
-	require.LessOrEqual(t, time.Since(start), 50*time.Millisecond, "Every circuit breaker stoppage is 50ms, and we expect it to be skipped for each of the 10 failed messages. The expected time to process 10 messages is on the order of micro/nanoseconds, but we'll conservatievely be happy with being less than a single circuit break cycle")
+	require.LessOrEqual(t, time.Since(start), 50*time.Millisecond, "Every circuit breaker stoppage is 50ms, and we expect it to be skipped for each of the 10 failed messages. The expected time to process 10 messages is on the order of micro/nanoseconds, but we'll conservatively be happy with being less than a single circuit break cycle")
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_Run_CircuitBreaksOnProcessPanicInsideProcessorGoRoutine(t *testing.T) {
@@ -378,9 +389,10 @@ func TestWork_Run_CircuitBreaksOnProcessPanicInsideProcessorGoRoutine(t *testing
 	defer cancel()
 
 	start := time.Now()
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		ok := cnt.Load() >= 10
@@ -390,11 +402,12 @@ func TestWork_Run_CircuitBreaksOnProcessPanicInsideProcessorGoRoutine(t *testing
 		return ok
 	}, pollOpts{
 		timeoutExit: func() {
-			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %s", 10)
+			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %d", 10)
 		},
 	})
 
 	require.GreaterOrEqual(t, time.Since(start), 400*time.Millisecond, "Every circuit breaker stoppage is 50ms, and we expect it to be executed for each of the n failed messages with the exception of the first and second message (first trips, and second is read before the trip)")
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_Run_DisabledCircuitBreakerContinueReadError(t *testing.T) {
@@ -412,6 +425,7 @@ func TestWork_Run_DisabledCircuitBreakerContinueReadError(t *testing.T) {
 	l.EXPECT().Warnw(gomock.Any(), "Outside context canceled", "error", gomock.Any(), "kmsg", gomock.Any()).AnyTimes()
 	l.EXPECT().Warnw(gomock.Any(), "Kafka topic processing circuit open", "topics", gomock.Any()).Times(0)
 	l.EXPECT().Debugw(gomock.Any(), "Kafka topic message received", "offset", gomock.Any(), "partition", gomock.Any(), "topic", gomock.Any(), "groupID", gomock.Any()).AnyTimes()
+	l.EXPECT().Debugw(gomock.Any(), gomock.Any()).AnyTimes()
 
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).MinTimes(4).Return(nil, errors.New("error occurred on read"))
@@ -434,9 +448,10 @@ func TestWork_Run_DisabledCircuitBreakerContinueReadError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		ok := cnt.Load() >= int64(processingCount)
@@ -446,9 +461,10 @@ func TestWork_Run_DisabledCircuitBreakerContinueReadError(t *testing.T) {
 		return ok
 	}, pollOpts{
 		timeoutExit: func() {
-			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %s", processingCount)
+			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %d", processingCount)
 		},
 	})
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_Run_SpedUpIsFaster(t *testing.T) {
@@ -490,7 +506,7 @@ func TestWork_Run_SpedUpIsFaster(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
 		defer cancel()
 
-		workerSlow.Run(ctx, nil)
+		require.NoError(t, workerSlow.Run(ctx, nil))
 	}()
 
 	// use te speedup option so more go routines process the read messages.
@@ -506,7 +522,7 @@ func TestWork_Run_SpedUpIsFaster(t *testing.T) {
 		defer cancel()
 
 		// wait for the cancel to occur via timeout
-		workerSpedUp.Run(ctx, nil)
+		require.NoError(t, workerSpedUp.Run(ctx, nil))
 	}()
 
 	// by putting a delay in the work.do method we minimize the comparative overhead in creating additional goroutines
@@ -537,6 +553,7 @@ func TestKafkaWork_ProcessorReturnsErrorIsLoggedAsWarning(t *testing.T) {
 	l.EXPECT().Warnw(gomock.Any(), "Kafka topic single message processing failed", "error", gomock.Any(), "kmsg", gomock.Any()).MinTimes(1)
 	l.EXPECT().Warnw(gomock.Any(), "Outside context canceled", "kmsg", gomock.Any(), "error", gomock.Any()).AnyTimes()
 	l.EXPECT().Debugw(gomock.Any(), "Kafka topic message received", "offset", gomock.Any(), "partition", gomock.Any(), "topic", gomock.Any(), "groupID", gomock.Any()).AnyTimes()
+	l.EXPECT().Debugw(gomock.Any(), gomock.Any()).AnyTimes()
 
 	msg := zkafka.GetFakeMessage("key", "val", &zfmt.JSONFormatter{}, NoopOnDone)
 	mockReader := zkafka_mocks.NewMockReader(ctrl)
@@ -560,9 +577,10 @@ func TestKafkaWork_ProcessorReturnsErrorIsLoggedAsWarning(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() {
-		work.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return work.Run(ctx, nil)
+	})
 	for {
 		if count.Load() >= 1 {
 			cancel()
@@ -570,6 +588,7 @@ func TestKafkaWork_ProcessorReturnsErrorIsLoggedAsWarning(t *testing.T) {
 		}
 		time.Sleep(time.Microsecond * 100)
 	}
+	require.NoError(t, grp.Wait())
 }
 
 // TestKafkaWork_ProcessorTimeoutCausesContextCancellation demonstrates that ProcessTimeoutMillis will
@@ -610,9 +629,10 @@ func TestKafkaWork_ProcessorTimeoutCausesContextCancellation(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() {
-		work.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return work.Run(ctx, nil)
+	})
 	for {
 		if count.Load() >= 1 {
 			cancel()
@@ -620,6 +640,8 @@ func TestKafkaWork_ProcessorTimeoutCausesContextCancellation(t *testing.T) {
 		}
 		time.Sleep(time.Microsecond * 100)
 	}
+
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_WithDeadLetterTopic_NoMessagesWrittenToDLTSinceNoErrorsOccurred(t *testing.T) {
@@ -666,13 +688,13 @@ func TestWork_WithDeadLetterTopic_NoMessagesWrittenToDLTSinceNoErrorsOccurred(t 
 		}),
 	)
 
-	workCompleted := atomic.Bool{}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() {
-		w1.Run(ctx, nil)
-		workCompleted.Store(true)
-	}()
+
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w1.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		stop := cnt.Load() == 2
@@ -687,14 +709,7 @@ func TestWork_WithDeadLetterTopic_NoMessagesWrittenToDLTSinceNoErrorsOccurred(t 
 		maxWait: 10 * time.Second,
 	})
 
-	pollWait(func() bool {
-		return workCompleted.Load()
-	}, pollOpts{
-		timeoutExit: func() {
-			require.Fail(t, "Timed out during poll waiting for work exit")
-		},
-		maxWait: 10 * time.Second,
-	})
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_WithDeadLetterTopic_MessagesWrittenToDLTSinceErrorOccurred(t *testing.T) {
@@ -745,9 +760,10 @@ func TestWork_WithDeadLetterTopic_MessagesWrittenToDLTSinceErrorOccurred(t *test
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() {
-		w1.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w1.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		return len(processor.ProcessedMessages()) == 2
@@ -758,9 +774,11 @@ func TestWork_WithDeadLetterTopic_MessagesWrittenToDLTSinceErrorOccurred(t *test
 		pollPause: time.Millisecond,
 		maxWait:   10 * time.Second,
 	})
+	cancel()
+	require.NoError(t, grp.Wait())
 }
 
-// TestWork_WithDeadLetterTopic_FailedToGetWriterDoesntPauseProcessing even if get topic writer (for DLT) returns error processing still continues.
+// TestWork_WithDeadLetterTopic_FailedToGetWriterDoesntPauseProcessing shows that even if get topic writer (for DLT) returns error processing still continues.
 // This test configures a single virtual partition to process the reader. If processing halted on account of DLT write error,
 // the test wouldn't get through all 10 messages
 func TestWork_WithDeadLetterTopic_FailedToGetWriterDoesntPauseProcessing(t *testing.T) {
@@ -806,9 +824,10 @@ func TestWork_WithDeadLetterTopic_FailedToGetWriterDoesntPauseProcessing(t *test
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() {
-		w1.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w1.Run(ctx, nil)
+	})
 
 	// the previous poll doesn't fully guarantee that the piece of code that
 	pollWait(func() bool {
@@ -820,6 +839,8 @@ func TestWork_WithDeadLetterTopic_FailedToGetWriterDoesntPauseProcessing(t *test
 		pollPause: time.Millisecond,
 		maxWait:   10 * time.Second,
 	})
+	cancel()
+	require.NoError(t, grp.Wait())
 }
 
 // TestWork_WithDeadLetterTopic_FailedToWriteToDLTDoesntPauseProcessing even if callback can't write to DLT,  processing still continues.
@@ -872,9 +893,10 @@ func TestWork_WithDeadLetterTopic_FailedToWriteToDLTDoesntPauseProcessing(t *tes
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() {
-		w1.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w1.Run(ctx, nil)
+	})
 
 	// the previous poll doesn't fully guarantee that the piece of code that
 	pollWait(func() bool {
@@ -886,6 +908,8 @@ func TestWork_WithDeadLetterTopic_FailedToWriteToDLTDoesntPauseProcessing(t *tes
 		pollPause: time.Millisecond,
 		maxWait:   10 * time.Second,
 	})
+	cancel()
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_DisableDLTWrite(t *testing.T) {
@@ -939,9 +963,10 @@ func TestWork_DisableDLTWrite(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() {
-		w1.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w1.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		return len(processor.ProcessedMessages()) == 2
@@ -952,7 +977,8 @@ func TestWork_DisableDLTWrite(t *testing.T) {
 		pollPause: time.Millisecond,
 		maxWait:   10 * time.Second,
 	})
-
+	cancel()
+	require.NoError(t, grp.Wait())
 }
 
 // TestWork_Run_OnDoneCallbackCalledOnProcessorError asserts that our callback
@@ -976,7 +1002,7 @@ func TestWork_Run_OnDoneCallbackCalledOnProcessorError(t *testing.T) {
 
 	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 
-	sig := make(chan struct{}, 1)
+	errCount := atomic.Int64{}
 
 	processingError := errors.New("failed processing")
 	p := &fakeProcessor{
@@ -987,7 +1013,7 @@ func TestWork_Run_OnDoneCallbackCalledOnProcessorError(t *testing.T) {
 	var errReceived error
 	errorCallback := func(ctx context.Context, _ *zkafka.Message, e error) {
 		errReceived = e
-		sig <- struct{}{}
+		errCount.Add(1)
 	}
 
 	w := kwf.Create(
@@ -999,11 +1025,21 @@ func TestWork_Run_OnDoneCallbackCalledOnProcessorError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go func() { w.Run(ctx, nil) }()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
 	// wait until channel from error callback is written to
-	<-sig
+	pollWait(func() bool {
+		return errCount.Load() >= 1
+	}, pollOpts{
+		exit:        cancel,
+		timeoutExit: cancel,
+	})
 
 	require.ErrorIs(t, errReceived, processingError, "Expected processing error to be passed to callback")
+	cancel()
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_Run_WritesMetrics(t *testing.T) {
@@ -1028,7 +1064,7 @@ func TestWork_Run_WritesMetrics(t *testing.T) {
 	lh := NewFakeLifecycleHooks(&lhMtx, &lhState)
 	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithWorkLifecycleHooks(lh))
 
-	sig := make(chan struct{}, 1)
+	onDoneCount := atomic.Int64{}
 
 	p := fakeProcessor{
 		process: func(ctx context.Context, message *zkafka.Message) error {
@@ -1039,15 +1075,23 @@ func TestWork_Run_WritesMetrics(t *testing.T) {
 	w := kwf.Create(
 		zkafka.ConsumerTopicConfig{Topic: topicName, GroupID: "xxx"},
 		&p,
-		zkafka.WithOnDone(func(ctx context.Context, _ *zkafka.Message, e error) { sig <- struct{}{} }),
+		zkafka.WithOnDone(func(ctx context.Context, _ *zkafka.Message, e error) { onDoneCount.Add(1) }),
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go func() { w.Run(ctx, nil) }()
-	// wait until channel from error callback is written to
-	<-sig
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
+	pollWait(func() bool {
+		return onDoneCount.Load() >= 1
+	}, pollOpts{
+		exit:        cancel,
+		timeoutExit: cancel,
+	})
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_LifecycleHooksCalledForEachItem_Reader(t *testing.T) {
@@ -1090,9 +1134,10 @@ func TestWork_LifecycleHooksCalledForEachItem_Reader(t *testing.T) {
 			atomic.AddInt32(&numProcessedItems, 1)
 		}))
 
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		return int(atomic.LoadInt32(&numProcessedItems)) == numMsgs
@@ -1114,6 +1159,7 @@ func TestWork_LifecycleHooksCalledForEachItem_Reader(t *testing.T) {
 	require.Equal(t, lhState.postProMeta[0].Topic, topicName)
 	require.Equal(t, lhState.postProMeta[0].GroupID, "xxx")
 	require.Equal(t, lhState.postProMeta[0].VirtualPartitionIndex, 0)
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_LifecycleHooksPostReadCanUpdateContext(t *testing.T) {
@@ -1162,9 +1208,10 @@ func TestWork_LifecycleHooksPostReadCanUpdateContext(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		return int(atomic.LoadInt32(&numProcessedItems)) == numMsgs
@@ -1173,6 +1220,7 @@ func TestWork_LifecycleHooksPostReadCanUpdateContext(t *testing.T) {
 	})
 
 	require.Equal(t, capturedContext.Value("stewy"), "hello", "Expect context passed to process to include data injected at post read step")
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_LifecycleHooksPostReadErrorDoesntHaltProcessing(t *testing.T) {
@@ -1219,15 +1267,17 @@ func TestWork_LifecycleHooksPostReadErrorDoesntHaltProcessing(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		return int(atomic.LoadInt32(&numProcessedItems)) == numMsgs
 	}, pollOpts{
 		exit: cancel,
 	})
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_LifecycleHooksCalledForEachItem(t *testing.T) {
@@ -1268,9 +1318,10 @@ func TestWork_LifecycleHooksCalledForEachItem(t *testing.T) {
 			atomic.AddInt32(&numProcessedItems, 1)
 		}))
 
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		return int(atomic.LoadInt32(&numProcessedItems)) == numMsgs
@@ -1281,6 +1332,7 @@ func TestWork_LifecycleHooksCalledForEachItem(t *testing.T) {
 	require.Equal(t, numMsgs, lhState.numCalls["pre-processing"])
 	require.Equal(t, numMsgs, lhState.numCalls["post-processing"])
 	require.Equal(t, 0, lhState.numCalls["post-ack"])
+	require.NoError(t, grp.Wait())
 }
 
 type FakeLifecycleState struct {
@@ -1352,7 +1404,8 @@ func TestWork_CircuitBreaker_WithoutBusyLoopBreaker_DoesNotWaitsForCircuitToOpen
 	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
 
-	l := zkafka.NoopLogger{}
+	//l := zkafka.NoopLogger{}
+	l := stdLogger{includeDebug: true}
 	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 
 	fanoutCount := atomic.Int64{}
@@ -1376,16 +1429,26 @@ func TestWork_CircuitBreaker_WithoutBusyLoopBreaker_DoesNotWaitsForCircuitToOpen
 	defer cancel()
 
 	start := time.Now()
-	go func() { w.Run(ctx, nil) }()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		return fanoutCount.Load() >= 100
 	}, pollOpts{
-		exit:        cancel,
-		timeoutExit: cancel,
+		exit: cancel,
+		timeoutExit: func() {
+			require.Failf(t, "Timed out during poll", "Fanout Count %d", fanoutCount.Load())
+		},
+		maxWait: 10 * time.Second,
 	})
 	require.LessOrEqual(t, processorCount.Load(), int64(2), "circuit breaker should prevent processor from being called after circuit break opens, since circuit breaker won't close again until after test completes. At most two messages are read prior to circuit breaker opening")
 	require.LessOrEqual(t, time.Since(start), time.Second, "without busy loop breaker we expect fanout to called rapidly. Circuit break is open for 10 seconds. So asserting that fanout was called 100 times in a second is a rough assertion that busy loop breaker is not in effect. Typically these 100 calls should be on the order of micro or nanoseconds. But with resource contention in the pipeline we're more conservative with timing based assertions")
+	t.Log("begin")
+	cancel()
+	t.Log("nend")
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_CircuitBreaker_WaitsForCircuitToOpen(t *testing.T) {
@@ -1421,9 +1484,11 @@ func TestWork_CircuitBreaker_WaitsForCircuitToOpen(t *testing.T) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	start := time.Now()
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
+
 	loopCount := int64(5)
 	for {
 		if processCount.Load() == loopCount {
@@ -1433,6 +1498,7 @@ func TestWork_CircuitBreaker_WaitsForCircuitToOpen(t *testing.T) {
 		time.Sleep(time.Microsecond * 100)
 	}
 	require.GreaterOrEqual(t, circuitBreakDuration*time.Duration(loopCount), time.Since(start), "Total time should be greater than circuit break duration * loop count")
+	require.NoError(t, grp.Wait())
 }
 
 // TestWork_DontDeadlockWhenCircuitBreakerIsInHalfOpen this test protects against a bug that was demonstrated in another worker library which implements similar behavior.
@@ -1481,9 +1547,10 @@ func TestWork_DontDeadlockWhenCircuitBreakerIsInHalfOpen(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
 
 	start := time.Now()
 	for {
@@ -1496,6 +1563,7 @@ func TestWork_DontDeadlockWhenCircuitBreakerIsInHalfOpen(t *testing.T) {
 		time.Sleep(time.Microsecond)
 		require.GreaterOrEqual(t, 10*time.Second, time.Since(start), "Process timeout likely not being respected. Likely entered a deadlock due to circuit breaker")
 	}
+	require.NoError(t, grp.Wait())
 }
 
 // Test_Bugfix_WorkPoolCanBeRestartedAfterShutdown this test is in response to a bug
@@ -1539,12 +1607,10 @@ func Test_Bugfix_WorkPoolCanBeRestartedAfterShutdown(t *testing.T) {
 	t.Log("Starting first work.Run")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		w.Run(context.Background(), ctx.Done())
-		wg.Done()
-	}()
+	wg := errgroup.Group{}
+	wg.Go(func() error {
+		return w.Run(context.Background(), ctx.Done())
+	})
 
 	// wait for at least 1 message to be processed and then cancel the context (which will stop worker)
 	// and break for loop
@@ -1556,7 +1622,7 @@ func Test_Bugfix_WorkPoolCanBeRestartedAfterShutdown(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 	// wait until worker fully completes and returns
-	wg.Wait()
+	require.NoError(t, wg.Wait())
 	t.Log("Completed first work.Run")
 
 	// take a count of how many messages were processed. Because of concurrent processing it might be more than 1
@@ -1565,9 +1631,10 @@ func Test_Bugfix_WorkPoolCanBeRestartedAfterShutdown(t *testing.T) {
 	// Start the worker again (make sure you don't pass in the canceled context).
 	ctx2, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() {
-		w.Run(context.Background(), ctx2.Done())
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(context.Background(), ctx2.Done())
+	})
 
 	t.Log("Started polling for second work.Run")
 
@@ -1639,9 +1706,10 @@ func Test_MsgOrderingIsMaintainedPerKeyWithAnyNumberOfVirtualPartitions(t *testi
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
 
 	pollWait(func() bool {
 		return len(processor.ProcessedMessages()) == msgCount
@@ -1674,6 +1742,7 @@ func Test_MsgOrderingIsMaintainedPerKeyWithAnyNumberOfVirtualPartitions(t *testi
 	require.IsIncreasingf(t, vals0, "messages for key 0 are not sorted %v", vals0)
 	require.IsIncreasingf(t, vals1, "messages for key 1 are not sorted")
 	require.IsIncreasingf(t, vals2, "messages for key 2 are not sorted")
+	require.NoError(t, grp.Wait())
 }
 
 func TestWork_LifecycleHookReaderPanicIsHandledAndMessagingProceeds(t *testing.T) {
@@ -1726,9 +1795,10 @@ func TestWork_LifecycleHookReaderPanicIsHandledAndMessagingProceeds(t *testing.T
 			}),
 		)
 
-		go func() {
-			w.Run(ctx, nil)
-		}()
+		grp := errgroup.Group{}
+		grp.Go(func() error {
+			return w.Run(ctx, nil)
+		})
 
 		for {
 			m.Lock()
@@ -1742,6 +1812,7 @@ func TestWork_LifecycleHookReaderPanicIsHandledAndMessagingProceeds(t *testing.T
 		}
 
 		require.Len(t, processedMsgs, numMsgs)
+		require.NoError(t, grp.Wait())
 	}
 
 	testPanic(zkafka.LifecycleHooks{
@@ -1831,9 +1902,11 @@ func BenchmarkWork_Run_CircuitBreaker_BusyLoopBreaker(b *testing.B) {
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
+	require.NoError(b, grp.Wait())
 }
 
 // $ go test -run=XXX -bench=BenchmarkWork_Run_CircuitBreaker_DisableBusyLoopBreaker -cpuprofile profile_cpu_disable.out
@@ -1870,9 +1943,11 @@ func BenchmarkWork_Run_CircuitBreaker_DisableBusyLoopBreaker(b *testing.B) {
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
-	go func() {
-		w.Run(ctx, nil)
-	}()
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
+	require.NoError(b, grp.Wait())
 }
 
 func recoverThenFail(t *testing.T) {

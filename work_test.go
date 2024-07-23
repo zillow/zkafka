@@ -489,7 +489,8 @@ func Test_busyLoopBreaker_waitRespectsMaxPause(t *testing.T) {
 		maxPause: time.Microsecond,
 	}
 	// if this doesn't respect maxPause it would pause here indefinitely
-	blb.wait()
+	blocker, _ := blb.wait()
+	<-blocker
 }
 
 // Test_busyLoopBreaker_waitRespectsRelease asserts that calling release() cancels that wait occuring at the wait() site
@@ -504,7 +505,8 @@ func Test_busyLoopBreaker_waitRespectsRelease(t *testing.T) {
 	// This signal can be used versus a timeout to assert
 	blbFinishedWait := make(chan struct{})
 	go func() {
-		blb.wait()
+		blocker, _ := blb.wait()
+		<-blocker
 		blbFinishedWait <- struct{}{}
 	}()
 

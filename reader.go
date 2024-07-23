@@ -5,11 +5,12 @@ package zkafka
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/pkg/errors"
 )
 
 //// go:generate mockgen -destination=./mocks/mock_metrics.go -source=reader.go
@@ -98,9 +99,9 @@ func (r *KReader) Read(ctx context.Context) (*Message, error) {
 				r.logger.Debugw(ctx, "Retryable error occurred", "topics", r.topicConfig.topics(), "error", v)
 				return nil, nil
 			}
-			return nil, errors.Wrap(err, "failed to read kafka message")
+			return nil, fmt.Errorf("failed to read kafka message: %w", err)
 		}
-		return nil, errors.Wrap(err, "failed to read kafka message")
+		return nil, fmt.Errorf("failed to read kafka message: %w", err)
 	}
 	if kmsg == nil {
 		return nil, nil
@@ -118,7 +119,7 @@ func (r *KReader) Close() error {
 	r.isClosed = true
 	err := r.consumer.Close()
 	if err != nil {
-		return errors.Wrap(err, "failed to close kafka reader")
+		return fmt.Errorf("failed to close kafka reader: %w", err)
 	}
 	return nil
 }
@@ -127,7 +128,7 @@ func (r *KReader) Close() error {
 func (r *KReader) Assignments(_ context.Context) ([]Assignment, error) {
 	assignments, err := r.consumer.Assignment()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get assignments")
+		return nil, fmt.Errorf("failed to get assignments: %w", err)
 	}
 	topicPartitions := make([]Assignment, 0, len(assignments))
 	for _, tp := range assignments {

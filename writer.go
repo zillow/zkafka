@@ -4,11 +4,12 @@ package zkafka
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
@@ -120,7 +121,7 @@ func (w *KWriter) WriteRaw(ctx context.Context, key *string, value []byte, opts 
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return Response{}, errors.Wrap(err, "error writing message")
+		return Response{}, fmt.Errorf("error writing message: %w", err)
 	}
 	// wait on callback channel for kafka broker to ack written message
 	e := <-deliveryChan
@@ -139,7 +140,7 @@ func (w *KWriter) WriteRaw(ctx context.Context, key *string, value []byte, opts 
 
 	if m.TopicPartition.Error != nil {
 		w.logger.Debugw(ctx, "Delivery failed", "error", m.TopicPartition.Error)
-		return Response{}, errors.Wrap(m.TopicPartition.Error, "failed to produce kafka message")
+		return Response{}, fmt.Errorf("failed to produce kafka message: %w", m.TopicPartition.Error)
 	}
 	return Response{Partition: m.TopicPartition.Partition, Offset: int64(m.TopicPartition.Offset)}, nil
 }
@@ -195,7 +196,7 @@ func (w *KWriter) write(ctx context.Context, msg keyValuePair, opts ...WriteOpti
 	}
 	value, err := w.fmtter.Marshall(msg.value)
 	if err != nil {
-		return Response{}, errors.Wrap(err, "failed to marshall producer message")
+		return Response{}, fmt.Errorf("failed to marshall producer message: %w", err)
 	}
 
 	return w.WriteRaw(ctx, msg.key, value, opts...)

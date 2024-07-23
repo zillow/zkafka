@@ -7,7 +7,6 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/pkg/errors v0.9.1
 	github.com/sony/gobreaker v1.0.0
 	github.com/stretchr/testify v1.9.0
 	github.com/zillow/zfmt v1.0.1

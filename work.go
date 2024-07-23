@@ -2,6 +2,7 @@ package zkafka
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"strconv"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"github.com/sony/gobreaker"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -433,7 +433,7 @@ func (w *Work) processSingle(ctx context.Context, msg *Message, partitionIndex i
 				w.logger.Warnw(ctx, "Outside context canceled", "kmsg", msg, "error", x)
 				return nil
 			}
-			return errors.Wrap(ctxCancel.Err(), "processSingle execution canceled")
+			return fmt.Errorf("processSingle execution canceled: %w", ctxCancel.Err())
 		}
 	}()
 
@@ -747,7 +747,7 @@ func selectPartitionIndex(key string, isKeyNil bool, partitionCount int) (int, e
 	h := fnv.New32a()
 	_, err := h.Write([]byte(key))
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to create partition index from seed string")
+		return 0, fmt.Errorf("failed to create partition index from seed string: %w", err)
 	}
 	index := int(h.Sum32())
 	return index % partitionCount, nil

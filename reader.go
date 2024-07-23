@@ -202,8 +202,8 @@ func (r *KReader) mapMessage(_ context.Context, msg kafka.Message) *Message {
 }
 
 // getRebalanceCb returns a callback which can be used during rebalances.
-// It previously attempted to do one final, explict commit of stored offsets.
-// This was unncessary per the mantainer of librdkafka (https://github.com/confluentinc/librdkafka/issues/1829#issuecomment-393427324)
+// It previously attempted to do one final, explicit commit of stored offsets.
+// This was unnecessary per the maintainer of librdkafka (https://github.com/confluentinc/librdkafka/issues/1829#issuecomment-393427324)
 // since when using auto.offset.commit=true (which this library does) the offsets are commit at configured intervals, during close and finally during rebalance.
 //
 // We do however, want to attempt to let current work complete before allowing a rebalance (so we check the in progress heap) for up to 10 seconds.

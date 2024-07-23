@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/github/license/zillow/zkafka)](https://github.com/zillow/zkafka/blob/main/LICENSE)
 [![GitHub Actions](https://github.com/zillow/zkafka/actions/workflows/go.yml/badge.svg)](https://github.com/zillow/zkafka/actions/workflows/go.yml)
 [![Codecov](https://codecov.io/gh/zillow/zkafka/branch/main/graph/badge.svg?token=STRT8T67YP)](https://codecov.io/gh/zillow/zkafka)
-
+[![Go Report Card](https://goreportcard.com/badge/github.com/zillow/zkafka)](https://goreportcard.com/report/github.com/zillow/zkafka)
 
 ## Install
 

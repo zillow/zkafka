@@ -1081,9 +1081,9 @@ func Test_WorkDelay_GuaranteesProcessingDelayedAtLeastSpecifiedDelayDurationFrom
 //
 // This test creates N messages on the topic and then starts processing
 // 1. It asserts that the time since the message was written is at least that of the delay.
-// This is a weak assertion sicne the messages are written before the work consumer group is started. Other tests do a better job confirming this behavior
+// This is a weak assertion since the messages are written before the work consumer group is started. Other tests do a better job confirming this behavior
 // 2. It also asserts that the time between the first and last message is very short.
-// This is expected in a backlog situation, since the worker will delay once, and with monotonically increasing timestamps won't have to dely again
+// This is expected in a backlog situation, since the worker will delay once, and with monotonically increasing timestamps won't have to delay again
 func Test_WorkDelay_DoesntHaveDurationStackEffect(t *testing.T) {
 	ctx := context.Background()
 
@@ -1204,7 +1204,7 @@ func createTopic(t *testing.T, bootstrapServer, topic string, partitions int) {
 func getBootstrap() string {
 	bootstrapServer, ok := os.LookupEnv("KAFKA_BOOTSTRAP_SERVER")
 	if !ok {
-		bootstrapServer = "localhost:9093" // local development
+		bootstrapServer = "localhost:9092" // local development
 	}
 	return bootstrapServer
 }

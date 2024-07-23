@@ -12,7 +12,7 @@ import (
 func main() {
 	// configure broker connectivity options with zkafka.Config
 	cfg := zkafka.Config{
-		BootstrapServers: []string{"localhost:9093"},
+		BootstrapServers: []string{"localhost:9092"},
 	}
 
 	// configure consumer options  with zkafka.ConsumerTopicConfig. See zkafka for full option values

@@ -197,8 +197,8 @@ func Test_commitMgr_PerPartitionDataStructuresBuiltUpConcurrentlyCorrectly(t *te
 	require.Equal(t, int64(0), mgr.inWorkCount, "expected inWorkCount to be empty")
 }
 
-// Test_commitMgr_mutex_ShouldReturnReferenceToSameMutexForSamePartition tests for a race condition (based on bugfound)
-// where two goroutines calling this method received distinct mutexes (which isn't correct for syncronization purposes).
+// Test_commitMgr_mutex_ShouldReturnReferenceToSameMutexForSamePartition tests for a race condition (based on bug found)
+// where two goroutines calling this method received distinct mutexes (which isn't correct for synchronization purposes).
 // Try a large amount of times to access the mutex for a particular partition. Always should return same pointer
 func Test_commitMgr_mutex_ShouldReturnReferenceToSameMutexForSamePartition(t *testing.T) {
 	defer recoverThenFail(t)

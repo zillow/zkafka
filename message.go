@@ -2,6 +2,7 @@ package zkafka
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"github.com/zillow/zfmt"
 )
 

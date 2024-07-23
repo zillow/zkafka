@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/github/license/zillow/zkafka)](https://github.com/zillow/zkafka/blob/main/LICENSE)
 [![GitHub Actions](https://github.com/zillow/zkafka/actions/workflows/go.yml/badge.svg)](https://github.com/zillow/zkafka/actions/workflows/go.yml)
 [![Codecov](https://codecov.io/gh/zillow/zkafka/branch/main/graph/badge.svg?token=STRT8T67YP)](https://codecov.io/gh/zillow/zkafka)
-
+[![Go Report Card](https://goreportcard.com/badge/github.com/zillow/zkafka)](https://goreportcard.com/report/github.com/zillow/zkafka)
 
 ## Install
 
@@ -93,7 +93,7 @@ client because that value is explicitly set to true after reading of the Additio
   "KafkaTopicConfig": {
     "Topic": "KafkaTopicName",
     "BootstrapServers": [
-      "localhost:9093"
+      "localhost:9092"
     ],
     // translates to librdkafka value "bootstrap.servers"
     // specify ad hoc configuration values which don't have a strongly typed version in the TopicConfig struct.

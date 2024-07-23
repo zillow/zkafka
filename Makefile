@@ -1,20 +1,17 @@
 # Directories containing independent Go modules.
 MODULE_DIRS = .
 
-.PHONY: test-no-setup
-test-no-setup:
-	./coverage.sh
 
 .PHONY: setup-test
 setup-test:
-	docker compose -p $$RANDOM -f ./example/docker-compose.yaml up -d
+	docker compose -p $$RANDOM -f ./example/compose.yaml up -d
 
 .PHONY: test-local
-test-local: setup-test test-no-setup
+test-local: setup-test cover
 
 .PHONY: cover
 cover:
-	./coverage.sh
+	export GO_TAGS=--tags=integration; ./coverage.sh --tags=integration
 
 .PHONY: example-producer
 example-producer:

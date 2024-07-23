@@ -17,7 +17,7 @@ import (
 func main() {
 	ctx := context.Background()
 	client := zkafka.NewClient(zkafka.Config{
-		BootstrapServers: []string{"localhost:9093"},
+		BootstrapServers: []string{"localhost:9092"},
 	},
 		zkafka.LoggerOption(stdLogger{}),
 	)

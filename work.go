@@ -2,6 +2,7 @@ package zkafka
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"strconv"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"github.com/sony/gobreaker"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -122,10 +122,12 @@ func (w *Work) Run(ctx context.Context, shutdown <-chan struct{}) error {
 	g := errgroup.Group{}
 	g.Go(func() error {
 		w.execReader(ctx, shutdown)
+		w.logger.Debugw(ctx, "exiting reader loop")
 		return nil
 	})
 	g.Go(func() error {
 		w.execProcessors(ctx, shutdown)
+		w.logger.Debugw(ctx, "exiting processors loop")
 		return nil
 	})
 	return g.Wait()
@@ -193,7 +195,12 @@ func (w *Work) fanOut(ctx context.Context, shutdown <-chan struct{}) {
 		w.logger.Warnw(ctx, "Kafka topic processing circuit open",
 			"topics", w.topicConfig.topics())
 
-		w.blb.wait()
+		blocker, cleanup := w.blb.wait()
+		select {
+		case <-blocker:
+		case <-ctx.Done():
+			cleanup()
+		}
 		return
 	}
 	msg, err := w.readMessage(ctx, shutdown)
@@ -229,10 +236,14 @@ func (w *Work) fanOut(ctx context.Context, shutdown <-chan struct{}) {
 	}
 	select {
 	case w.messageBuffer <- struct{}{}:
-		w.virtualPartitions[index] <- workUnit{
+		select {
+		case w.virtualPartitions[index] <- workUnit{
 			ctx:         ctx,
 			msg:         msg,
 			successFunc: successFunc,
+		}:
+		case <-ctx.Done():
+			w.removeInWork(msg)
 		}
 	case <-shutdown:
 		w.removeInWork(msg)
@@ -422,7 +433,7 @@ func (w *Work) processSingle(ctx context.Context, msg *Message, partitionIndex i
 				w.logger.Warnw(ctx, "Outside context canceled", "kmsg", msg, "error", x)
 				return nil
 			}
-			return errors.Wrap(ctxCancel.Err(), "processSingle execution canceled")
+			return fmt.Errorf("processSingle execution canceled: %w", ctxCancel.Err())
 		}
 	}()
 
@@ -698,9 +709,11 @@ type busyLoopBreaker struct {
 	maxPause time.Duration
 }
 
-func (b *busyLoopBreaker) wait() {
+func (b *busyLoopBreaker) wait() (<-chan struct{}, func()) {
 	if b.disabled {
-		return
+		closedCh := make(chan struct{})
+		close(closedCh)
+		return closedCh, func() {}
 	}
 	c := make(chan struct{})
 	b.mtx.Lock()
@@ -708,10 +721,11 @@ func (b *busyLoopBreaker) wait() {
 	b.mtx.Unlock()
 
 	timer := time.AfterFunc(b.maxPause, b.release)
-	// if wait is released externally, we'll want to release this timer's resources
-	defer timer.Stop()
 
-	<-c
+	return c, func() {
+		// if wait is released externally, we'll want to release this timer's resources
+		timer.Stop()
+	}
 }
 
 func (b *busyLoopBreaker) release() {
@@ -733,7 +747,7 @@ func selectPartitionIndex(key string, isKeyNil bool, partitionCount int) (int, e
 	h := fnv.New32a()
 	_, err := h.Write([]byte(key))
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to create partition index from seed string")
+		return 0, fmt.Errorf("failed to create partition index from seed string: %w", err)
 	}
 	index := int(h.Sum32())
 	return index % partitionCount, nil

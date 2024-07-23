@@ -5,11 +5,12 @@ package zkafka
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/pkg/errors"
 )
 
 //// go:generate mockgen -destination=./mocks/mock_metrics.go -source=reader.go
@@ -98,9 +99,9 @@ func (r *KReader) Read(ctx context.Context) (*Message, error) {
 				r.logger.Debugw(ctx, "Retryable error occurred", "topics", r.topicConfig.topics(), "error", v)
 				return nil, nil
 			}
-			return nil, errors.Wrap(err, "failed to read kafka message")
+			return nil, fmt.Errorf("failed to read kafka message: %w", err)
 		}
-		return nil, errors.Wrap(err, "failed to read kafka message")
+		return nil, fmt.Errorf("failed to read kafka message: %w", err)
 	}
 	if kmsg == nil {
 		return nil, nil
@@ -118,7 +119,7 @@ func (r *KReader) Close() error {
 	r.isClosed = true
 	err := r.consumer.Close()
 	if err != nil {
-		return errors.Wrap(err, "failed to close kafka reader")
+		return fmt.Errorf("failed to close kafka reader: %w", err)
 	}
 	return nil
 }
@@ -127,7 +128,7 @@ func (r *KReader) Close() error {
 func (r *KReader) Assignments(_ context.Context) ([]Assignment, error) {
 	assignments, err := r.consumer.Assignment()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get assignments")
+		return nil, fmt.Errorf("failed to get assignments: %w", err)
 	}
 	topicPartitions := make([]Assignment, 0, len(assignments))
 	for _, tp := range assignments {
@@ -202,8 +203,8 @@ func (r *KReader) mapMessage(_ context.Context, msg kafka.Message) *Message {
 }
 
 // getRebalanceCb returns a callback which can be used during rebalances.
-// It previously attempted to do one final, explict commit of stored offsets.
-// This was unncessary per the mantainer of librdkafka (https://github.com/confluentinc/librdkafka/issues/1829#issuecomment-393427324)
+// It previously attempted to do one final, explicit commit of stored offsets.
+// This was unnecessary per the maintainer of librdkafka (https://github.com/confluentinc/librdkafka/issues/1829#issuecomment-393427324)
 // since when using auto.offset.commit=true (which this library does) the offsets are commit at configured intervals, during close and finally during rebalance.
 //
 // We do however, want to attempt to let current work complete before allowing a rebalance (so we check the in progress heap) for up to 10 seconds.

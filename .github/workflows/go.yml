@@ -32,7 +32,15 @@ jobs:
         run: |
           go mod download
 
+      - name: Run Kafka KRaft Broker
+        uses: spicyparrot/kafka-kraft-action@v1.1.0
+        with:
+          kafka-version: "3.7.0"
+          kafka-topics: "example,1"
+
       - name: Test
+        env:
+          KAFKA_BOOTSTRAP_SERVER: ${{ env.kafka_runner_address }}:9092
         run: make cover
 
       - name: Upload coverage reports to Codecov

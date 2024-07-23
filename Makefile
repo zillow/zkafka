@@ -2,24 +2,35 @@
 MODULE_DIRS = .
 
 
-.PHONY: setup-test
-setup-test:
-	docker compose -p $$RANDOM -f ./example/compose.yaml up -d
+# Sets up kafka broker using docker compose
+.PHONY: setup
+setup:
+	docker compose -f ./example/compose.yaml up -d
 
-.PHONY: test-local
-test-local: setup-test cover
-
+# Assumes setup has been executed. Runs go test with coverage
 .PHONY: cover
 cover:
-	export GO_TAGS=--tags=integration; ./coverage.sh --tags=integration
+	export GO_TAGS=--tags=integration; ./coverage.sh
+
+# Runs setup and executes tests with coverage.
+.PHONY: test-local
+test-local: setup cover
 
 .PHONY: example-producer
 example-producer:
-	go run example/producer/producer.go
+	go run example/producer/main.go
 
 .PHONY: example-worker
 example-worker:
-	go run example/worker/worker.go
+	go run example/worker/main.go
+
+.PHONY: example-deadletter-worker
+example-deadletter-worker:
+	go run example/worker-deadletter/main.go
+
+.PHONY: example-delay-worker
+example-delay-worker:
+	go run example/worker-delay/main.go
 
 .PHONY: lint
 lint: golangci-lint

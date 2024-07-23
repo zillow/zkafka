@@ -658,6 +658,9 @@ func (f WorkFactory) Create(topicConfig ConsumerTopicConfig, processor processor
 
 	if topicConfig.DeadLetterTopicConfig != nil {
 		cfg := *topicConfig.DeadLetterTopicConfig
+		if cfg.ClientID == "" {
+			cfg.ClientID = topicConfig.ClientID
+		}
 		options = append(options, WithDeadLetterTopic(cfg))
 	}
 

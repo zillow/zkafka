@@ -16,15 +16,6 @@ linters-settings:
       - default
   gosimple:
     go: '1.17'
-  govet:
-    check-shadowing: true
-    settings:
-      printf:
-        funcs:
-          - (gitlab.zgtools.net/devex/archetypes/gomods/zlog.Logger).Debug
-          - (gitlab.zgtools.net/devex/archetypes/gomods/zlog.Logger).Info
-          - (gitlab.zgtools.net/devex/archetypes/gomods/zlog.Logger).Warn
-          - (gitlab.zgtools.net/devex/archetypes/gomods/zlog.Logger).Error
   depguard:
     rules:
       Main:

@@ -28,7 +28,7 @@ There are two quick definitions important to the understanding of the commit str
 2. **Store** - is the action of updating a local store of message offsets which will be persisted during the commit
    action
 
-## Commit Strategy:
+### Commit Strategy:
 
 1. *Store* offset of a message for commit after processing
 2. *Commit* messages whose offsets have been stored at configurable intervals (`auto.commit.interval.ms`)
@@ -47,7 +47,7 @@ This strategy is based off
 of [Kafka Docs - Offset Management](https://docs.confluent.io/platform/current/clients/consumer.html#offset-management)
 where a strategy of asynchronous/synchronous commits is suggested to reduced duplicate messages.
 
-## Work
+### Work
 
 zkafka also supports an abstraction built on top of the reader defined in the Work struct (`work.go`). Work introduces
 concurrency by way of the configurable option `Speedup(n int)`. This creates n goroutines which process messages as
@@ -58,23 +58,23 @@ Speedup() can be increased beyond the number of assigned physical partitions wit
 committing the lowest offset to be completed. Additionally, kafka key ordering is preserved even as the number of virtual partitions increases beyond the number of physical assigned
 partitions.
 
-## SchemaRegistry Support:
+### SchemaRegistry Support:
 
 There is limited support for schema registry in zkafka. A schemaID can be hardcoded via configuration. No
 communication is done with schema registry, but some primitive checks can be conducted if a schemaID is specified via
 configuration.
 
-### Producers
+#### Producers
 
 Producers will include the schemaID in messages written to kafka (without any further verification).
 
-### Consumers
+#### Consumers
 
 Consumers will verify that the message they're consuming has the schemaID specified in configuration
 (if it's specified). Be careful here, as backwards compatible schema evolutions would be treated as an error condition
 as the new schemaID wouldn't match what's in the configuration.
 
-## Consumer/Producer Configuration
+### Consumer/Producer Configuration
 
 See for description of configuration options and their defaults:
 
@@ -112,13 +112,10 @@ The `zkafka.ProcessError` can be used to control error handling on a per-message
 1. `DisableDLTWrite`: if true, the message will not be written to a dead letter topic (if one is configured)
 2. `DisableCircuitBreaker`: if true, the message will not count as a failed message for purposes of controlling the circuit breaker.
 
-## Installation
-
-go get -u gitlab.zgtools.net/devex/archetypes/gomods/zkafka
-
 ## Running Example
 
 ```
+// This creates a locally running kafka broker (with automatically created topics during producer requests)
 make setup-test
 
 // <Terminal 1>

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"log"
 	"os"
@@ -17,9 +16,10 @@ import (
 func main() {
 	ctx := context.Background()
 	client := zkafka.NewClient(zkafka.Config{
-		BootstrapServers: []string{"localhost:9092"},
+		BootstrapServers: []string{"localhost:29092"},
 	},
-		zkafka.LoggerOption(stdLogger{}),
+	// optionally add a logger, which implements zkafka.Logger, to see detailed information about message processsing
+	//zkafka.LoggerOption(),
 	)
 	// It's important to close the client after consumption to gracefully leave the consumer group
 	// (this commits completed work, and informs the broker that this consumer is leaving the group which yields a faster rebalance)
@@ -33,12 +33,12 @@ func main() {
 		// topic the topic's partitions will be split between the collection. The broker remembers
 		// what offset has been committed for a consumer group, and therefore work can be picked up where it was left off
 		// across releases
-		GroupID: "concierge/example/example-consumery",
-		Topic:   "two-multi-partition",
+		GroupID: "zkafka/example/example-consumer",
+		Topic:   "zkafka-example-topic",
 		// The formatter is registered internally to the `zkafka.Message` and used when calling `msg.Decode()`
 		// string fmt can be used for both binary and pure strings encoded in the value field of the kafka message. Other options include
 		// json, proto, avro, etc.
-		Formatter: zfmt.StringFmt,
+		Formatter: zfmt.JSONFmt,
 		AdditionalProps: map[string]any{
 			// only important the first time a consumer group connects. Subsequent connections will start
 			// consuming messages
@@ -71,8 +71,8 @@ type Processor struct{}
 func (p Processor) Process(_ context.Context, msg *zkafka.Message) error {
 	// sleep to simulate random amount of work
 	time.Sleep(100 * time.Millisecond)
-	var buf bytes.Buffer
-	err := msg.Decode(&buf)
+	event := DummyEvent{}
+	err := msg.Decode(&event)
 	if err != nil {
 		return err
 	}
@@ -82,24 +82,12 @@ func (p Processor) Process(_ context.Context, msg *zkafka.Message) error {
 	//data := msg.Value()
 	//str := string(data)
 
-	log.Printf("message: %s, offset: %d, partition: %d \n", buf.String(), msg.Offset, msg.Partition)
+	log.Printf(" offset: %d, partition: %d. event.Name: %s, event.Age %d\n", msg.Offset, msg.Partition, event.Name, event.Age)
 	return nil
 }
 
-type stdLogger struct{}
-
-func (l stdLogger) Debugw(_ context.Context, msg string, keysAndValues ...any) {
-	log.Printf("Debugw-"+msg, keysAndValues...)
-}
-
-func (l stdLogger) Infow(_ context.Context, msg string, keysAndValues ...any) {
-	log.Printf("Infow-"+msg, keysAndValues...)
-}
-
-func (l stdLogger) Errorw(_ context.Context, msg string, keysAndValues ...any) {
-	log.Printf("Errorw-"+msg, keysAndValues...)
-}
-
-func (l stdLogger) Warnw(_ context.Context, msg string, keysAndValues ...any) {
-	log.Printf("Warnw-"+msg, keysAndValues...)
+// DummyEvent is a deserializable struct for producing/consuming kafka message values.
+type DummyEvent struct {
+	Name string `json:"name"`
+	Age  int    `json:"age"`
 }

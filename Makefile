@@ -1,3 +1,6 @@
+# Directories containing independent Go modules.
+MODULE_DIRS = .
+
 .PHONY: test-no-setup
 test-no-setup:
 	./coverage.sh
@@ -21,3 +24,13 @@ example-producer:
 .PHONY: example-worker
 example-worker:
 	go run example/worker/worker.go
+
+.PHONY: lint
+lint: golangci-lint
+
+.PHONY: golangci-lint
+golangci-lint:
+	@$(foreach mod,$(MODULE_DIRS), \
+		(cd $(mod) && \
+		echo "[lint] golangci-lint: $(mod)" && \
+		golangci-lint run --path-prefix $(mod) ./...) &&) true

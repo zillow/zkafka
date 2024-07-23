@@ -1,0 +1,69 @@
+run:
+  skip-dirs:
+    - docs
+    - datadog
+    - kustomize
+  skip-files:
+    - 'wire_gen.go'
+  tests: false
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  gci:
+    sections:
+      - standard
+      - default
+  gosimple:
+    go: '1.17'
+  govet:
+    check-shadowing: true
+    settings:
+      printf:
+        funcs:
+          - (gitlab.zgtools.net/devex/archetypes/gomods/zlog.Logger).Debug
+          - (gitlab.zgtools.net/devex/archetypes/gomods/zlog.Logger).Info
+          - (gitlab.zgtools.net/devex/archetypes/gomods/zlog.Logger).Warn
+          - (gitlab.zgtools.net/devex/archetypes/gomods/zlog.Logger).Error
+  depguard:
+    rules:
+      Main:
+        files:
+          - $all
+          - "!$test"
+        deny:
+          - github.com/satori/go.uuid: Prefer "github.com/google/uuid"
+  disable-all: true
+  enable:
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - cyclop
+    - decorder
+    - depguard
+    - deadcode
+    - dupl
+    - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exportloopref
+    - gci
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - gofmt
+    - gosimple
+    - govet
+    - ineffassign
+    - nolintlint
+    - prealloc
+    - staticcheck
+    - structcheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
+    - whitespace

@@ -48,7 +48,9 @@ func main() {
 	)
 	ctx, c := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer c()
-	w.Run(ctx, nil)
+	if err := w.Run(ctx, nil); err != nil {
+		log.Panic(err)
+	}
 }
 
 type kafkaProcessorError struct{}

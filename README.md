@@ -97,18 +97,18 @@ That's done for brevity in the readme, production use cases should take advantag
  
 #### Hyper Scalability
 
-`zkafka.Work` supports a concept called `virtual partitions`. This extends
-the kafka `partition` concept. Message ordering is guaranteed within a kafka partition,
-and the same is true for a `virtual partition`. Every `zkafka.Work` object manages a pool
-of goroutines called the processors (1 by default and controlled by `zkafka.Speedup(n int)` option).
-Each processor reads from a go channel called a `virtual partition`. As a message is read (By the reader), it is 
-assigned to one of the `virtual partitions`. The decision about which is based on `hash(message.Key) % virtual partition count`. 
-This is the same mechanism kafka uses. Using this strategy, a message with the same key will be assigned
-to the same virtual partition. 
+`zkafka.Work` supports a concept called `virtual partitions`. This extends 
+the Kafka `partition` concept. Message ordering is guaranteed within a Kafka partition, 
+and the same holds true for a `virtual partition`. Every `zkafka.Work` object manages a pool 
+of goroutines called processors (1 by default and controlled by the `zkafka.Speedup(n int)` option). 
+Each processor reads from a goroutine channel called a `virtual partition`. 
+When a message is read by the reader, it is assigned to one of the virtual partitions based on `hash(message.Key) % virtual partition count`. 
+This follows the same mechanism used by Kafka. With this strategy, a message with the same key will be assigned
+to the same virtual partition.
 
-What this allows is for another layer of scalability. To increase throughput and maintain the same 
-message ordering guarantees, there's no longer a requirement to increase the kafka partition count (which can be operationally difficult).
-Instead, use `zkafka.Speedup()` to add to the virtual partition count. 
+This allows for another layer of scalability. To increase throughput and maintain the same 
+message ordering guarantees, there is no longer a need to increase the Kafka partition count (which can be operationally challenging). 
+Instead, you can use `zkafka.Speedup()` to increase the virtual partition count.
 
 ```shell
 // sets up kafka broker locally

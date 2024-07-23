@@ -11,67 +11,61 @@
 
 ## About
 
-`zkafka` is built for making message processing in kafka easy. This library aims to reduce boilerplate as much as possible,
-allowing the author to focus on writing the business logic to be executed on each kafka message. `zkafka` then
-aims to take care of everything else, which includes:
+`zkafka` is built to simplify message processing in Kafka. This library aims to minimize boilerplate code, allowing the developer to focus on writing the business logic for each Kafka message. `zkafka` takes care of various responsibilities, including:
 
 1. Reading from the worker's configured topics
-2. Safely managing message offsets - Kafka offset management can be a real headache. Let `zkafka` worry about that. Just write the code for processing a single message, and mark it as errored or no error.
-Get on with your life.
-3. Fanning out messages to virtual partitions (to be explained later)   
-4. Dead lettering failed messages - Add dead lettering  for all failed messages. 
-5. Inspectable and customizable behavior by way of lifecycle functions (Callbacks) - Add your own metrics or logging at interesting seams in the message processing lifecycle
+2. Managing message offsets reliably - Kafka offset management can be complex, but `zkafka` handles it. Developers only need to write code for processing a single message and indicate whether it encountered an error or not.
+3. Distributing messages to virtual partitions (details will be explained later)
+4. Implementing dead lettering for failed messages
+5. Providing inspectable and customizable behavior through lifecycle functions (Callbacks) - Developers can add metrics or logging at specific points in the message processing lifecycle.
 
-
-`zkafka` is  built on top of [confluent-kafka-go](https://github.com/confluentinc/confluent-kafka-go). 
-It's tailor-made for stateless message processing use cases (a churched up name for writing code which processes each kafka message in isolation).
-The library supports at least once message processing. It does so using a commit strategy built off auto commit and manual
-offset storage.
+`zkafka` provides stateless message processing semantics ( sometimes, called lambda message processing). 
+This is a churched up way of saying, "You write code which executes on each message individually (without knowledge of other messages)". 
+It is purpose built with this type of usage in mind. Additionally, the worker implementation guarantees at least once processing (Details of how that's achieved are show in the [Commit Strategy](#commit-strategy) section)
 
 ---
 **NOTE**
-
-confluent-kafka-go is a CGO module, and therefore so is zkafka. When building with zkafka, make sure to set CGO_ENABLED=1.
+`zkafka` is  built on top of [confluent-kafka-go](https://github.com/confluentinc/confluent-kafka-go)
+which is a CGO module. Therefore, so is zkafka. When building with zkafka, make sure to set CGO_ENABLED=1.
 ---
 
 ### Features
 
-The following subsections within feature detail some useful features and are backed by examples in the aptly named `./examples` directory.
-The best way to learn is to fiddle around with the examples. Hack away!
+The following subsections detail some useful features. To make the following sections more accessible, there are runnable examples in `./examples` directory. 
+The best way to learn is to experiment with the examples. Dive in!
 
 #### Stateless Message Processing
 
-`zkafka` makes stateless message processing easy. Skipping ahead, the code author is responsible for writing a type which implements the
-following interface.
+`zkafka` makes stateless message processing easy. All you have to do is write a concrete `processor` implementation and wire it up (shown below).
 
 ```go 
 type processor interface {
-	Process(ctx context.Context, message *Message) error
+	Process(ctx context.Context, message *zkafka.Message) error
 }
 ```
+If you want skip ahead, and see a working processor check out the examples. Specifically `example/worker/main.go`.
 
-The `Process` method will then be called for each message read by the work implementation.
-`example/worker/worker.go` shows the full detailed setup.
+The anatomy of that example is described here:
 
-The boilerplate setup is described here:
+A `zkafka.Client` needs to be created which can connect to the kafka broker. Typically, authentication
+information must also be specified at this point (today that would include username/password).
 
-A zkafka.Client needs to be created which can connect to the kafka broker. Typically, authentication
-information must also be specified at this point (today that would include username/password)
 ```go 
 	client := zkafka.NewClient(zkafka.Config{ BootstrapServers: []string{"localhost:29092"} })
 ```
 
 Next this client should be passed to create a `zkafka.WorkFactory` instance.
-The factory design adds a little boilerplate, but allows default policies to be injected and then
-proliferated to created work instances.
+The factory design, used by this library, adds a little boilerplate, but allows default policies to be injected and
+proliferated to all instantiated work instances. We find that useful at zillow for transparently injecting the nuts and bolts
+of components which are necessary for our solutions to cross cutting concerns (typically those revolving around telemetry)
 
 ```go 
 	wf := zkafka.NewWorkFactory(client)
 ```
 
-Next we create the work instance. This is finally where the dots are begining to connext.
-`zkafka.Work` objects are responsible for continually polling topics they've been instructed
-to listen to, and then executing customer specified code (defined in the user controlled `processor`)
+Next we create the work instance. This is finally where the dots are beginning to connect.
+`zkafka.Work` objects are responsible for continually polling topics (the set of whom is specified in the config object) they've been instructed
+to listen to, and executing customer specified code (defined in the user controlled `processor` and `lifecycle` functions (not shown here))
 ```go 
    topicConfig := zkafka.TopicConfig{Topic: "my-topic", GroupdID: "mygroup", ClientID: "myclient"}
    // this implements the interface specified above and will be executed for each read message
@@ -79,21 +73,23 @@ to listen to, and then executing customer specified code (defined in the user co
    work := wf.Create(topicConfig, processor)
 ```
 
+All that's left now is to kick off the run loop (this will connect to the kafka broker, create a kafka consumer group, undergo consumer group assignments, and after assignment begin polling for messages).
+The run loop executes a single reader (kafka consumer) which reads messages and then fans those messages out to N processors (sized by the virtual partition pool size. Described later).
+Its a processing pipeline with a reader at the front, and processors at the back.
 
-All that's left now is to kick off the run loop. The runloop takes two arguments,
-both responsible for signalling that the run loop should exit.
+The run loop takes two arguments, both responsible for signalling that the run loop should exit.
 
-The first is a context object. When this object is cancelled, the internal
-work loop will begin to abruptly shutdown. 
+1. `context.Context` object. When this object is cancelled, the internal
+work loop will begin to abruptly shutdown. This involves exiting the reader loop and processor loops immediately.
 
-The second is a signal channel. This channel should be `closed`, and tells
-zkafka to begin a graceful shutdown. Graceful shutdown means new messages from
-the kafka topic won't be read, but ongoing work will be allowed to finish.
+2. signal channel. This channel should be `closed`, and tells zkafka to begin a graceful shutdown.
+Graceful shutdown means the reader stops reading new messages, and the processors attempt to finish their in flight work.
 
 At zillow, we deploy to kubernetes cluster, and use a strategy which uses both
 mechanisms. When k8s indicates shutdown is imminent, we close the `shutdown` channel. Graceful
 shutdown is time boxed, and if the deadline is reached, the outer `context` object
-is canceled signalling a more aggressive tear down.
+is canceled signalling a more aggressive tear down. The below example, passes in a nil shutdown signal (which is valid). 
+That's done for brevity in the readme, production use cases should take advantage (see examples).
 
 ```go 
    err = w.Run(context.Background(), nil)
@@ -101,15 +97,16 @@ is canceled signalling a more aggressive tear down.
  
 #### Hyper Scalability
 
-`zkafka` work implementation supports a concept called `virtual partitions`. This extends
+`zkafka.Work` supports a concept called `virtual partitions`. This extends
 the kafka `partition` concept. Message ordering is guaranteed within a kafka partition,
 and the same is true for a `virtual partition`. Every `zkafka.Work` object manages a pool
-of goroutines (1 by default and controlled by `zkafka.Speedup(n int)` option) which are the `virtual partitions`. As a message is read, it is 
+of goroutines called the processors (1 by default and controlled by `zkafka.Speedup(n int)` option).
+Each processor reads from a go channel called a `virtual partition`. As a message is read (By the reader), it is 
 assigned to one of the `virtual partitions`. The decision about which is based on `hash(message.Key) % virtual partition count`. 
 This is the same mechanism kafka uses. Using this strategy, a message with the same key will be assigned
 to the same virtual partition. 
 
-What this allows is for another layer of scalability. To increase throughput, and maintain the same 
+What this allows is for another layer of scalability. To increase throughput and maintain the same 
 message ordering guarantees, there's no longer a requirement to increase the kafka partition count (which can be operationally difficult).
 Instead, use `zkafka.Speedup()` to add to the virtual partition count. 
 

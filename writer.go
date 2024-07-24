@@ -99,7 +99,7 @@ func (w *KWriter) WriteKey(ctx context.Context, key string, value any, opts ...W
 // as the value for the kafka message
 // It's convenient for forwarding message in dead letter operations.
 func (w *KWriter) WriteRaw(ctx context.Context, key *string, value []byte, opts ...WriteOption) (Response, error) {
-	kafkaMessage := makeProducerMessageRaw(ctx, w.topicConfig.ClientID, w.topicConfig.Topic, key, value)
+	kafkaMessage := makeProducerMessageRaw(ctx, w.topicConfig.Topic, key, value)
 	for _, opt := range opts {
 		opt.apply(&kafkaMessage)
 	}

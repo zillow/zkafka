@@ -3,13 +3,10 @@ package zkafka
 import (
 	"context"
 	"errors"
-	"fmt"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/google/uuid"
 	"github.com/zillow/zfmt"
 )
 
@@ -30,77 +27,6 @@ type Message struct {
 	fmt            zfmt.Formatter
 	doneFunc       func(ctx context.Context)
 	doneOnce       sync.Once
-}
-
-// A set of observability headers for ZG Kafka
-const (
-	obsKeyMessageID     = "GUID"
-	obsKeyEventTime     = "eventTime"
-	obsKeyOriginService = "originService"
-	obsKeyOriginHost    = "originHost"
-)
-
-func makeProducerMessageRaw(_ context.Context, serviceName, topic string, key *string, value []byte) kafka.Message {
-	kafkaMessage := kafka.Message{
-		TopicPartition: kafka.TopicPartition{
-			Topic:     &topic,
-			Partition: kafka.PartitionAny,
-		},
-		Value: value,
-	}
-
-	if key != nil {
-		kafkaMessage.Key = []byte(*key)
-	}
-	// Observability
-	kafkaMessage.Headers = append(kafkaMessage.Headers, kafka.Header{
-		Key:   obsKeyMessageID,
-		Value: []byte(uuid.New().String()),
-	})
-	kafkaMessage.Headers = append(kafkaMessage.Headers, kafka.Header{
-		Key:   obsKeyEventTime,
-		Value: []byte(fmt.Sprintf("%d", time.Now().Unix())),
-	})
-	kafkaMessage.Headers = append(kafkaMessage.Headers, kafka.Header{
-		Key:   obsKeyOriginService,
-		Value: []byte(serviceName),
-	})
-	//nolint:errcheck // Its not particularly noteworthy if if host isn't propagated forward. We'll suppress the error
-	hostname, _ := os.Hostname()
-	// hn is empty string if there's an error
-	kafkaMessage.Headers = append(kafkaMessage.Headers, kafka.Header{
-		Key:   obsKeyOriginHost,
-		Value: []byte(hostname),
-	})
-	return kafkaMessage
-}
-
-func addHeaders(kafkaMessage kafka.Message, headers map[string][]byte) kafka.Message {
-	for k, v := range headers {
-		addStringAttribute(&kafkaMessage, k, v)
-	}
-	return kafkaMessage
-}
-
-// addStringAttribute updates a kafka message header in place if the key exists already.
-// If the key does not exist, it appends a new header.
-func addStringAttribute(msg *kafka.Message, k string, v []byte) {
-	for i, h := range msg.Headers {
-		if h.Key == k {
-			msg.Headers[i].Value = v
-			return
-		}
-	}
-	msg.Headers = append(msg.Headers, kafka.Header{Key: k, Value: v})
-}
-
-// Headers extracts metadata from kafka message and stores it in a basic map
-func headers(msg kafka.Message) map[string][]byte {
-	res := make(map[string][]byte)
-	for _, h := range msg.Headers {
-		res[h.Key] = h.Value
-	}
-	return res
 }
 
 // DoneWithContext is used to alert that message processing has completed.
@@ -143,6 +69,49 @@ func (m *Message) Value() []byte {
 	out := make([]byte, len(m.value))
 	copy(out, m.value)
 	return out
+}
+
+func makeProducerMessageRaw(_ context.Context, topic string, key *string, value []byte) kafka.Message {
+	kafkaMessage := kafka.Message{
+		TopicPartition: kafka.TopicPartition{
+			Topic:     &topic,
+			Partition: kafka.PartitionAny,
+		},
+		Value: value,
+	}
+
+	if key != nil {
+		kafkaMessage.Key = []byte(*key)
+	}
+	return kafkaMessage
+}
+
+func addHeaders(kafkaMessage kafka.Message, headers map[string][]byte) kafka.Message {
+	for k, v := range headers {
+		addStringAttribute(&kafkaMessage, k, v)
+	}
+	return kafkaMessage
+}
+
+// addStringAttribute updates a kafka message header in place if the key exists already.
+// If the key does not exist, it appends a new header.
+func addStringAttribute(msg *kafka.Message, k string, v []byte) {
+	for i, h := range msg.Headers {
+		if h.Key == k {
+			msg.Headers[i].Value = v
+			return
+		}
+	}
+	msg.Headers = append(msg.Headers, kafka.Header{Key: k, Value: v})
+}
+
+// Headers extracts metadata from kafka message and stores it in a basic map
+func headers(msg kafka.Message) map[string][]byte {
+	res := make(map[string][]byte)
+	for _, h := range msg.Headers {
+		res[h.Key] = h.Value
+	}
+	return res
 }
 
 // Response is a kafka response with the Partition where message was sent to along with its assigned Offset

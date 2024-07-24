@@ -186,7 +186,10 @@ func TestWork_Run_CircuitBreaksOnProcessError(t *testing.T) {
 
 	l := zkafka.NoopLogger{}
 
-	msg := zkafka.GetFakeMessage("1", nil, &zfmt.JSONFormatter{}, NoopOnDone)
+	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key: ptr("1"),
+		Fmt: &zfmt.JSONFormatter{},
+	})
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
 
@@ -241,7 +244,10 @@ func TestWork_Run_DoNotSkipCircuitBreak(t *testing.T) {
 
 	l := zkafka.NoopLogger{}
 
-	failureMessage := zkafka.GetFakeMessage("1", nil, &zfmt.JSONFormatter{}, NoopOnDone)
+	failureMessage := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key: ptr("1"),
+		Fmt: &zfmt.JSONFormatter{},
+	})
 	r := zkafka_mocks.NewMockReader(ctrl)
 
 	r.EXPECT().Read(gomock.Any()).Return(failureMessage, nil).AnyTimes()
@@ -300,7 +306,11 @@ func TestWork_Run_DoSkipCircuitBreak(t *testing.T) {
 
 	l := zkafka.NoopLogger{}
 
-	failureMessage := zkafka.GetFakeMessage("1", nil, &zfmt.JSONFormatter{}, NoopOnDone)
+	failureMessage := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key: ptr("1"),
+		Fmt: &zfmt.JSONFormatter{},
+	})
+
 	r := zkafka_mocks.NewMockReader(ctrl)
 
 	r.EXPECT().Read(gomock.Any()).Return(failureMessage, nil).AnyTimes()
@@ -360,7 +370,10 @@ func TestWork_Run_CircuitBreaksOnProcessPanicInsideProcessorGoRoutine(t *testing
 
 	l := zkafka.NoopLogger{}
 
-	msg := zkafka.GetFakeMessage("1", nil, &zfmt.JSONFormatter{}, NoopOnDone)
+	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key: ptr("1"),
+		Fmt: &zfmt.JSONFormatter{},
+	})
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
 
@@ -476,7 +489,11 @@ func TestWork_Run_SpedUpIsFaster(t *testing.T) {
 	mockReader := zkafka_mocks.NewMockReader(ctrl)
 
 	mockReader.EXPECT().Read(gomock.Any()).DoAndReturn(func(ctx context.Context) (*zkafka.Message, error) {
-		return zkafka.GetFakeMessage(uuid.NewString(), nil, &zfmt.JSONFormatter{}, NoopOnDone), nil
+		return zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+			Key: ptr(uuid.NewString()),
+			Fmt: &zfmt.JSONFormatter{},
+		}), nil
+
 	}).AnyTimes()
 	mockReader.EXPECT().Close().Return(nil).AnyTimes()
 
@@ -555,7 +572,11 @@ func TestKafkaWork_ProcessorReturnsErrorIsLoggedAsWarning(t *testing.T) {
 	l.EXPECT().Debugw(gomock.Any(), "Kafka topic message received", "offset", gomock.Any(), "partition", gomock.Any(), "topic", gomock.Any(), "groupID", gomock.Any()).AnyTimes()
 	l.EXPECT().Debugw(gomock.Any(), gomock.Any()).AnyTimes()
 
-	msg := zkafka.GetFakeMessage("key", "val", &zfmt.JSONFormatter{}, NoopOnDone)
+	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key:       ptr("key"),
+		ValueData: "val",
+		Fmt:       &zfmt.JSONFormatter{},
+	})
 	mockReader := zkafka_mocks.NewMockReader(ctrl)
 	mockReader.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
 	mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
@@ -601,7 +622,12 @@ func TestKafkaWork_ProcessorTimeoutCausesContextCancellation(t *testing.T) {
 
 	l := zkafka.NoopLogger{}
 
-	msg := zkafka.GetFakeMessage("key", "val", &zfmt.JSONFormatter{}, NoopOnDone)
+	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key:       ptr("key"),
+		ValueData: "val",
+		Fmt:       &zfmt.JSONFormatter{},
+	})
+
 	mockReader := zkafka_mocks.NewMockReader(ctrl)
 	mockReader.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
 
@@ -993,7 +1019,12 @@ func TestWork_Run_OnDoneCallbackCalledOnProcessorError(t *testing.T) {
 
 	l := zkafka.NoopLogger{}
 
-	msg := zkafka.GetFakeMessage("key", "val", &zfmt.StringFormatter{}, NoopOnDone)
+	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key:       ptr("1"),
+		ValueData: "val",
+		Fmt:       &zfmt.StringFormatter{},
+	})
+
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
 
@@ -1049,7 +1080,12 @@ func TestWork_Run_WritesMetrics(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	msg := zkafka.GetFakeMessage("key", "val", &zfmt.StringFormatter{}, NoopOnDone)
+	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key:       ptr("key"),
+		ValueData: "val",
+		Fmt:       &zfmt.StringFormatter{},
+	})
+
 	msg.Topic = topicName
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).MinTimes(1).Return(msg, nil)
@@ -1104,7 +1140,7 @@ func TestWork_LifecycleHooksCalledForEachItem_Reader(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	numMsgs := 5
-	msgs := zkafka.GetFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	msgs := getFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
 	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
@@ -1171,7 +1207,7 @@ func TestWork_LifecycleHooksPostReadCanUpdateContext(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	numMsgs := 1
-	msgs := zkafka.GetFakeMessages(topicName, numMsgs, "lydia", &zfmt.JSONFormatter{}, NoopOnDone)
+	msgs := getFakeMessages(topicName, numMsgs, "lydia", &zfmt.JSONFormatter{}, NoopOnDone)
 	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
@@ -1232,7 +1268,7 @@ func TestWork_LifecycleHooksPostReadErrorDoesntHaltProcessing(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	numMsgs := 1
-	msgs := zkafka.GetFakeMessages(topicName, numMsgs, "lydia", &zfmt.JSONFormatter{}, NoopOnDone)
+	msgs := getFakeMessages(topicName, numMsgs, "lydia", &zfmt.JSONFormatter{}, NoopOnDone)
 	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
@@ -1289,7 +1325,7 @@ func TestWork_LifecycleHooksCalledForEachItem(t *testing.T) {
 
 	l := zkafka.NoopLogger{}
 	numMsgs := 5
-	msgs := zkafka.GetFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	msgs := getFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
 	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
@@ -1387,7 +1423,11 @@ func NewFakeLifecycleHooks(mtx *sync.Mutex, state *FakeLifecycleState) zkafka.Li
 }
 
 func getRandomMessage() *zkafka.Message {
-	return zkafka.GetFakeMessage(fmt.Sprintf("%d", rand.Intn(5)), nil, &zfmt.JSONFormatter{}, NoopOnDone)
+	return zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key:      ptr(fmt.Sprintf("%d", rand.Intn(5))),
+		DoneFunc: func(ctx context.Context) {},
+		Fmt:      &zfmt.JSONFormatter{},
+	})
 }
 
 func TestWork_CircuitBreaker_WithoutBusyLoopBreaker_DoesNotWaitsForCircuitToOpen(t *testing.T) {
@@ -1397,7 +1437,11 @@ func TestWork_CircuitBreaker_WithoutBusyLoopBreaker_DoesNotWaitsForCircuitToOpen
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	msg := zkafka.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key:       ptr("1"),
+		ValueData: struct{ name string }{name: "arish"},
+		Fmt:       &zfmt.JSONFormatter{},
+	})
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Return(msg, nil).AnyTimes()
 
@@ -1458,7 +1502,12 @@ func TestWork_CircuitBreaker_WaitsForCircuitToOpen(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	msg := zkafka.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key:       ptr("1"),
+		ValueData: struct{ name string }{name: "arish"},
+		Fmt:       &zfmt.JSONFormatter{},
+	})
+
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Return(msg, nil).AnyTimes()
 
@@ -1514,7 +1563,11 @@ func TestWork_DontDeadlockWhenCircuitBreakerIsInHalfOpen(t *testing.T) {
 	defer ctrl.Finish()
 
 	qr := zkafka_mocks.NewMockReader(ctrl)
-	msg := zkafka.GetFakeMessage("1", struct{ name string }{name: "stewy"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key:       ptr("1"),
+		ValueData: struct{ name string }{name: "stewy"},
+		Fmt:       &zfmt.JSONFormatter{},
+	})
 	gomock.InOrder(
 		qr.EXPECT().Read(gomock.Any()).Times(1).Return(msg, nil),
 		qr.EXPECT().Read(gomock.Any()).AnyTimes().Return(nil, nil),
@@ -1581,7 +1634,11 @@ func Test_Bugfix_WorkPoolCanBeRestartedAfterShutdown(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	mockReader := zkafka_mocks.NewMockReader(ctrl)
-	msg1 := zkafka.GetFakeMessage("abc", "def", &zfmt.StringFormatter{}, NoopOnDone)
+	msg1 := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key:       ptr("abc"),
+		ValueData: "def",
+		Fmt:       &zfmt.StringFormatter{},
+	})
 	mockReader.EXPECT().Read(gomock.Any()).Return(msg1, nil).AnyTimes()
 	mockReader.EXPECT().Close().Return(nil).AnyTimes()
 
@@ -1670,7 +1727,11 @@ func Test_MsgOrderingIsMaintainedPerKeyWithAnyNumberOfVirtualPartitions(t *testi
 	keyCount := 3
 	msgCount := 200
 	for i := 0; i < msgCount; i++ {
-		msg1 := zkafka.GetFakeMessage(strconv.Itoa(i%keyCount), strconv.Itoa(i), &zfmt.StringFormatter{}, NoopOnDone)
+		msg1 := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+			Key:       ptr(strconv.Itoa(i % keyCount)),
+			ValueData: strconv.Itoa(i),
+			Fmt:       &zfmt.StringFormatter{},
+		})
 		readerCalls = append(readerCalls, mockReader.EXPECT().Read(gomock.Any()).Return(msg1, nil))
 	}
 	readerCalls = append(readerCalls, mockReader.EXPECT().Read(gomock.Any()).Return(nil, nil).AnyTimes())
@@ -1758,7 +1819,11 @@ func TestWork_LifecycleHookReaderPanicIsHandledAndMessagingProceeds(t *testing.T
 		qr := zkafka_mocks.NewMockReader(ctrl)
 		numMsgs := 1
 		sentMsg := false
-		msg := zkafka.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+		msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+			Key:       ptr("1"),
+			ValueData: struct{ name string }{name: "arish"},
+			Fmt:       &zfmt.JSONFormatter{},
+		})
 
 		qr.EXPECT().Read(gomock.Any()).AnyTimes().DoAndReturn(func(ctx context.Context) (*zkafka.Message, error) {
 			if !sentMsg {
@@ -1834,7 +1899,12 @@ func TestWork_ShutdownCausesRunExit(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	msg := zkafka.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key:       ptr("1"),
+		ValueData: struct{ name string }{name: "arish"},
+		Fmt:       &zfmt.JSONFormatter{},
+	})
+
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Return(msg, nil).AnyTimes()
 
@@ -1879,7 +1949,11 @@ func BenchmarkWork_Run_CircuitBreaker_BusyLoopBreaker(b *testing.B) {
 	ctrl := gomock.NewController(b)
 	defer ctrl.Finish()
 
-	msg := zkafka.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key:       ptr("1"),
+		ValueData: struct{ name string }{name: "arish"},
+		Fmt:       &zfmt.JSONFormatter{},
+	})
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Return(msg, nil).AnyTimes()
 
@@ -1919,7 +1993,11 @@ func BenchmarkWork_Run_CircuitBreaker_DisableBusyLoopBreaker(b *testing.B) {
 	ctrl := gomock.NewController(b)
 	defer ctrl.Finish()
 
-	msg := zkafka.GetFakeMessage("1", struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key:       ptr("1"),
+		ValueData: struct{ name string }{name: "arish"},
+		Fmt:       &zfmt.JSONFormatter{},
+	})
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Return(msg, nil).AnyTimes()
 
@@ -2066,4 +2144,22 @@ func pollWait(f func() bool, opts pollOpts) {
 		}
 		time.Sleep(pollPause)
 	}
+}
+
+func getFakeMessages(topic string, numMsgs int, value any, formatter zfmt.Formatter, doneFunc func()) []*zkafka.Message {
+	msgs := make([]*zkafka.Message, numMsgs)
+	wrapperFunc := func(c context.Context) { doneFunc() }
+
+	for i := 0; i < numMsgs; i++ {
+		key := fmt.Sprint(i)
+		msgs[i] = zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+			Key:       &key,
+			ValueData: value,
+			Fmt:       formatter,
+			DoneFunc:  wrapperFunc,
+		})
+		msgs[i].Topic = topic
+	}
+
+	return msgs
 }

@@ -66,6 +66,7 @@ func GetMsgFromFake(msg *FakeMessage) *Message {
 		val = msg.Value
 	}
 	if msg.ValueData != nil {
+		//nolint:errcheck // To simplify this helper function's api, we'll suppress marshalling errors.
 		val, _ = msg.Fmt.Marshall(msg.ValueData)
 	}
 	return &Message{

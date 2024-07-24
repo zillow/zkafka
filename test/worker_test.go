@@ -23,9 +23,8 @@ import (
 	"github.com/golang/mock/gomock"
 )
 
-var (
-	topicName  = "orange"
-	NoopOnDone = func() {}
+const (
+	topicName = "orange"
 )
 
 func TestWork_Run_FailsWithLogsWhenFailedToGetReader(t *testing.T) {
@@ -1140,7 +1139,7 @@ func TestWork_LifecycleHooksCalledForEachItem_Reader(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	numMsgs := 5
-	msgs := getFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	msgs := getFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{})
 	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
@@ -1207,7 +1206,7 @@ func TestWork_LifecycleHooksPostReadCanUpdateContext(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	numMsgs := 1
-	msgs := getFakeMessages(topicName, numMsgs, "lydia", &zfmt.JSONFormatter{}, NoopOnDone)
+	msgs := getFakeMessages(topicName, numMsgs, "lydia", &zfmt.JSONFormatter{})
 	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
@@ -1268,7 +1267,7 @@ func TestWork_LifecycleHooksPostReadErrorDoesntHaltProcessing(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	numMsgs := 1
-	msgs := getFakeMessages(topicName, numMsgs, "lydia", &zfmt.JSONFormatter{}, NoopOnDone)
+	msgs := getFakeMessages(topicName, numMsgs, "lydia", &zfmt.JSONFormatter{})
 	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
@@ -1325,7 +1324,7 @@ func TestWork_LifecycleHooksCalledForEachItem(t *testing.T) {
 
 	l := zkafka.NoopLogger{}
 	numMsgs := 5
-	msgs := getFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{}, NoopOnDone)
+	msgs := getFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{})
 	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
@@ -2146,9 +2145,8 @@ func pollWait(f func() bool, opts pollOpts) {
 	}
 }
 
-func getFakeMessages(topic string, numMsgs int, value any, formatter zfmt.Formatter, doneFunc func()) []*zkafka.Message {
+func getFakeMessages(topic string, numMsgs int, value any, formatter zfmt.Formatter) []*zkafka.Message {
 	msgs := make([]*zkafka.Message, numMsgs)
-	wrapperFunc := func(c context.Context) { doneFunc() }
 
 	for i := 0; i < numMsgs; i++ {
 		key := fmt.Sprint(i)
@@ -2156,7 +2154,6 @@ func getFakeMessages(topic string, numMsgs int, value any, formatter zfmt.Format
 			Key:       &key,
 			ValueData: value,
 			Fmt:       formatter,
-			DoneFunc:  wrapperFunc,
 		})
 		msgs[i].Topic = topic
 	}

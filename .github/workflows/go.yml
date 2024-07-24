@@ -48,6 +48,9 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
+      - name: Update go report card
+        uses: creekorful/goreportcard-action@v1.0
+
   lint:
     name: Lint
     runs-on: ubuntu-latest

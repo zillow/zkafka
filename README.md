@@ -23,11 +23,9 @@
 This is a churched-up way of saying, "You write code which executes on each message individually (without knowledge of other messages)".
 It is purpose-built with this type of usage in mind. Additionally, the worker implementation guarantees at least once processing (Details of how that's achieved are shown in the [Commit Strategy](#commit-strategy) section)
 
----
-**NOTE**
+**NOTE**: 
 `zkafka` is  built on top of [confluent-kafka-go](https://github.com/confluentinc/confluent-kafka-go)
 which is a CGO module. Therefore, so is `zkafka`. When building with `zkafka`, make sure to set CGO_ENABLED=1.
----
 
 ### Features
 

@@ -44,11 +44,11 @@ func TestWork_Run_FailsWithLogsWhenFailedToGetReader(t *testing.T) {
 	cp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("no kafka client reader created")).MinTimes(1)
 
 	kwf := zkafka.NewWorkFactory(cp, zkafka.WithLogger(l))
-	fanoutCount := atomic.Int64{}
+	fanOutCount := atomic.Int64{}
 	w := kwf.Create(zkafka.ConsumerTopicConfig{Topic: topicName},
 		&fakeProcessor{},
 		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
-			fanoutCount.Add(1)
+			fanOutCount.Add(1)
 		}}))
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -59,7 +59,7 @@ func TestWork_Run_FailsWithLogsWhenFailedToGetReader(t *testing.T) {
 	})
 
 	pollWait(func() bool {
-		return fanoutCount.Load() >= 1
+		return fanOutCount.Load() >= 1
 	}, pollOpts{
 		exit: cancel,
 		timeoutExit: func() {
@@ -1408,7 +1408,7 @@ func TestWork_CircuitBreaker_WithoutBusyLoopBreaker_DoesNotWaitsForCircuitToOpen
 	l := stdLogger{includeDebug: true}
 	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 
-	fanoutCount := atomic.Int64{}
+	fanOutCount := atomic.Int64{}
 	processorCount := atomic.Int64{}
 	w := kwf.Create(
 		zkafka.ConsumerTopicConfig{Topic: topicName},
@@ -1420,7 +1420,7 @@ func TestWork_CircuitBreaker_WithoutBusyLoopBreaker_DoesNotWaitsForCircuitToOpen
 		},
 		zkafka.DisableBusyLoopBreaker(),
 		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
-			fanoutCount.Add(1)
+			fanOutCount.Add(1)
 		}}),
 		zkafka.CircuitBreakAfter(1),
 		zkafka.CircuitBreakFor(10*time.Second),
@@ -1435,16 +1435,16 @@ func TestWork_CircuitBreaker_WithoutBusyLoopBreaker_DoesNotWaitsForCircuitToOpen
 	})
 
 	pollWait(func() bool {
-		return fanoutCount.Load() >= 100
+		return fanOutCount.Load() >= 100
 	}, pollOpts{
 		exit: cancel,
 		timeoutExit: func() {
-			require.Failf(t, "Timed out during poll", "Fanout Count %d", fanoutCount.Load())
+			require.Failf(t, "Timed out during poll", "Fanout Count %d", fanOutCount.Load())
 		},
 		maxWait: 10 * time.Second,
 	})
 	require.LessOrEqual(t, processorCount.Load(), int64(2), "circuit breaker should prevent processor from being called after circuit break opens, since circuit breaker won't close again until after test completes. At most two messages are read prior to circuit breaker opening")
-	require.LessOrEqual(t, time.Since(start), time.Second, "without busy loop breaker we expect fanout to called rapidly. Circuit break is open for 10 seconds. So asserting that fanout was called 100 times in a second is a rough assertion that busy loop breaker is not in effect. Typically these 100 calls should be on the order of micro or nanoseconds. But with resource contention in the pipeline we're more conservative with timing based assertions")
+	require.LessOrEqual(t, time.Since(start), time.Second, "without busy loop breaker we expect fanOut to called rapidly. Circuit break is open for 10 seconds. So asserting that fanOut was called 100 times in a second is a rough assertion that busy loop breaker is not in effect. Typically these 100 calls should be on the order of micro or nanoseconds. But with resource contention in the pipeline we're more conservative with timing based assertions")
 	t.Log("begin")
 	cancel()
 	t.Log("nend")
@@ -1531,7 +1531,7 @@ func TestWork_DontDeadlockWhenCircuitBreakerIsInHalfOpen(t *testing.T) {
 		},
 	}
 
-	fanoutCount := atomic.Int64{}
+	fanOutCount := atomic.Int64{}
 	w := wf.Create(zkafka.ConsumerTopicConfig{Topic: topicName},
 		&p,
 		// go into half state almost immediately after processing the message.
@@ -1540,7 +1540,7 @@ func TestWork_DontDeadlockWhenCircuitBreakerIsInHalfOpen(t *testing.T) {
 		zkafka.CircuitBreakAfter(1),
 		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 			time.Sleep(time.Millisecond * 100)
-			fanoutCount.Add(1)
+			fanOutCount.Add(1)
 		}}),
 	)
 
@@ -1555,7 +1555,7 @@ func TestWork_DontDeadlockWhenCircuitBreakerIsInHalfOpen(t *testing.T) {
 	start := time.Now()
 	for {
 		// if we don't hit a deadlock we should get to 10 loops of Do execution quickly (especially since there's no messages to process after subsequent read)
-		if fanoutCount.Load() >= 10 {
+		if fanOutCount.Load() >= 10 {
 			cancel()
 			break
 		}
@@ -1844,12 +1844,12 @@ func TestWork_ShutdownCausesRunExit(t *testing.T) {
 	l := zkafka.NoopLogger{}
 	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 
-	fanoutCount := atomic.Int64{}
+	fanOutCount := atomic.Int64{}
 	w := kwf.Create(
 		zkafka.ConsumerTopicConfig{Topic: topicName},
 		&fakeProcessor{},
 		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
-			fanoutCount.Add(1)
+			fanOutCount.Add(1)
 		}}),
 	)
 
@@ -1858,7 +1858,7 @@ func TestWork_ShutdownCausesRunExit(t *testing.T) {
 	}
 	go func() {
 		pollWait(func() bool {
-			return fanoutCount.Load() >= 1
+			return fanOutCount.Load() >= 1
 		}, pollOpts{
 			maxWait: 10 * time.Second,
 		})

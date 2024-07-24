@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
 )
@@ -14,18 +13,19 @@ import (
 func main() {
 	ctx := context.Background()
 	writer, err := zkafka.NewClient(zkafka.Config{
-		BootstrapServers: []string{"localhost:9092"},
+		BootstrapServers: []string{"localhost:29092"},
 	}).Writer(ctx, zkafka.ProducerTopicConfig{
 		ClientID:  "example",
-		Topic:     "two-multi-partition",
+		Topic:     "zkafka-example-topic",
 		Formatter: zfmt.JSONFmt,
 	})
+	randomNames := []string{"stewy", "lydia", "asif", "mike", "justin"}
 	if err != nil {
 		log.Panic(err)
 	}
 	for {
 		event := DummyEvent{
-			Name: uuid.NewString(),
+			Name: randomNames[rand.Intn(len(randomNames))],
 			Age:  rand.Intn(100),
 		}
 

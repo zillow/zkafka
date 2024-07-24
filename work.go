@@ -33,7 +33,7 @@ import (
 //  1. Read a kafka.Message using the provided reader.
 //  2. Select the virtual partition pool allocated for a specific topic
 //  3. Select and write the `kafka.Message` to the pool's virtual partition based on a hash of the `kafka.Message.Key` (virtual partition selection)
-//  4. A goroutine is assigned for each virtual partition. Its responsibility is to continously read from its virtual partition, call the Process callback function, and then store the offset of the message.
+//  4. A goroutine is assigned for each virtual partition. Its responsibility is to continuously read from its virtual partition, call the Process callback function, and then store the offset of the message.
 //
 // Additional responsibilities includes:
 //  1. Logging
@@ -314,7 +314,8 @@ func (w *Work) processVirtualPartition(ctx context.Context, partitionIndex int, 
 
 			remainingDelay := delayCalc.remaining(w.processDelay(), msg.TimeStamp)
 			if !w.execDelay(ctx, shutdown, remainingDelay) {
-				// while waiting for processDelay we received some shutdown signal, so the message should be removed from in flight so it doesn't block during final rebalance
+				// while waiting for processDelay we received some shutdown signal, so the message should be removed from in flight,
+				// so it doesn't block during final rebalance
 				w.removeInWork(msg)
 				continue
 			}
@@ -658,6 +659,9 @@ func (f WorkFactory) Create(topicConfig ConsumerTopicConfig, processor processor
 
 	if topicConfig.DeadLetterTopicConfig != nil {
 		cfg := *topicConfig.DeadLetterTopicConfig
+		if cfg.ClientID == "" {
+			cfg.ClientID = topicConfig.ClientID
+		}
 		options = append(options, WithDeadLetterTopic(cfg))
 	}
 
@@ -754,7 +758,7 @@ func selectPartitionIndex(key string, isKeyNil bool, partitionCount int) (int, e
 }
 
 // workUnit encapsulates the work being written to a virtual partition. It includes
-// the context passed in that current iteration of fanout(), the kafka message to be processed and the
+// the context passed in that current iteration of fanOut(), the kafka message to be processed and the
 // successFunc callback to be called when the work is done (indicating success or failure)
 type workUnit struct {
 	ctx         context.Context
@@ -808,7 +812,7 @@ type delayCalculator struct {
 // now=3:53, w.processDelay=5s
 // timestamp=2:00 -> 0s delay. (delayed long enough). remainingDelay=5s - (3:53 - 2:00) => -1:52:55s. A negative processDelay doesn't end up pausing
 // timestamp=3:48 => 0s delay. remainingDelay=5s-(3:53-3:48) =>0s. A 0 (more accurately <=0) processDelay doesn't end up pausing
-// timetsamp=3:49 => 1s delay. remainingDelay=5s-(3:53-3:49) => 1s
+// timestamp=3:49 => 1s delay. remainingDelay=5s-(3:53-3:49) => 1s
 // timestamp=3:53 => 5s delay.
 // timestamp:3:54 => 5s delay.
 // timestamp:4:00 => 5s delay (the result is capped by the `targetDelay`

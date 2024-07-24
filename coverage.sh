@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -x
 
+# allows for GO test args to be passed in (Specifically added to control whether or not to pass in `--tags=integration`).
 go_tags=$GO_TAGS
 go_tags="${go_tags:---tags=unit}"
 

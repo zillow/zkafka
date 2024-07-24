@@ -1,7 +1,5 @@
 package zkafka
 
-//go:generate mockgen -package=mock_zkafka -destination=./mocks/mock_lifecycle.go -source=./lifecycle.go
-
 import (
 	"context"
 	"errors"
@@ -64,7 +62,7 @@ type LifecycleHooks struct {
 	// Called prior to executing write operation
 	PreWrite func(ctx context.Context, meta LifecyclePreWriteMeta) (LifecyclePreWriteResp, error)
 
-	// Call after the reader attempts a fanout call.
+	// Call after the reader attempts a fanOut call.
 	PostFanout func(ctx context.Context)
 }
 

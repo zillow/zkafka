@@ -2,63 +2,90 @@ package zkafka
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/zillow/zfmt"
 )
 
+// GetFakeMessage is a helper method for creating a *Message instance.
+//
+// Deprecated: As of v1.0.0, Prefer `GetMsgFromFake()`
 func GetFakeMessage(key string, value any, fmt zfmt.Formatter, doneFunc func()) *Message {
-	wrapperFunc := func(c context.Context) { doneFunc() }
-	return GetFakeMessageWithContext(key, value, fmt, wrapperFunc)
+	return getFakeMessage(key, value, fmt, doneFunc)
 }
 
-func GetFakeMessages(topic string, numMsgs int, value any, formatter zfmt.Formatter, doneFunc func()) []*Message {
-	msgs := make([]*Message, numMsgs)
+func getFakeMessage(key string, value any, fmt zfmt.Formatter, doneFunc func()) *Message {
 	wrapperFunc := func(c context.Context) { doneFunc() }
+	return GetMsgFromFake(&FakeMessage{
+		Key:       &key,
+		ValueData: value,
+		Fmt:       fmt,
+		DoneFunc:  wrapperFunc,
+	})
+}
 
-	for i := 0; i < numMsgs; i++ {
-		key := fmt.Sprint(i)
-		msgs[i] = GetFakeMessageWithContext(key, value, formatter, wrapperFunc)
-		msgs[i].Topic = topic
+// FakeMessage can be used during testing to construct Message objects.
+// The Message object has private fields which might need to be tested
+type FakeMessage struct {
+	Key   *string
+	Value []byte
+	// ValueData allows the specification of serializable instance and uses the provided formatter
+	// to create ValueData. Any error during serialization is ignored.
+	ValueData any
+	DoneFunc  func(ctx context.Context)
+	Headers   map[string][]byte
+	Offset    int64
+	Partition int32
+	Topic     string
+	GroupID   string
+	TimeStamp time.Time
+	Fmt       zfmt.Formatter
+}
+
+// GetMsgFromFake allows the construction of a Message object (allowing the specification of some private fields).
+func GetMsgFromFake(msg *FakeMessage) *Message {
+	if msg == nil {
+		return nil
 	}
-
-	return msgs
-}
-
-func GetFakeMessageWithContext(key string, value any, fmt zfmt.Formatter, doneFunc func(context.Context)) *Message {
-	if b, err := fmt.Marshall(value); err == nil {
-		return &Message{
-			Key:       key,
-			Headers:   nil,
-			value:     b,
-			fmt:       fmt,
-			doneFunc:  doneFunc,
-			doneOnce:  sync.Once{},
-			TimeStamp: time.Now(),
-		}
+	key := ""
+	if msg.Key != nil {
+		key = *msg.Key
+	}
+	timeStamp := time.Now()
+	if !msg.TimeStamp.IsZero() {
+		timeStamp = msg.TimeStamp
+	}
+	doneFunc := func(ctx context.Context) {}
+	if msg.DoneFunc != nil {
+		doneFunc = msg.DoneFunc
+	}
+	var val []byte
+	if msg.Value != nil {
+		val = msg.Value
+	}
+	if msg.ValueData != nil {
+		//nolint:errcheck // To simplify this helper function's api, we'll suppress marshalling errors.
+		val, _ = msg.Fmt.Marshall(msg.ValueData)
 	}
 	return &Message{
 		Key:       key,
-		doneFunc:  doneFunc,
-		doneOnce:  sync.Once{},
-		TimeStamp: time.Now(),
-	}
-}
-
-func GetFakeMsgFromRaw(key *string, value []byte, fmt zfmt.Formatter, doneFunc func(context.Context)) *Message {
-	k := ""
-	if key != nil {
-		k = *key
-	}
-	return &Message{
-		Key:       k,
-		Headers:   nil,
-		value:     value,
-		fmt:       fmt,
-		doneFunc:  doneFunc,
-		doneOnce:  sync.Once{},
-		TimeStamp: time.Now(),
+		isKeyNil:  msg.Key == nil,
+		Headers:   msg.Headers,
+		Offset:    msg.Offset,
+		Partition: msg.Partition,
+		Topic:     msg.Topic,
+		GroupID:   msg.GroupID,
+		TimeStamp: timeStamp,
+		value:     val,
+		topicPartition: kafka.TopicPartition{
+			Topic:     &msg.Topic,
+			Partition: msg.Partition,
+			Offset:    kafka.Offset(msg.Offset),
+		},
+		fmt:      msg.Fmt,
+		doneFunc: doneFunc,
+		doneOnce: sync.Once{},
 	}
 }

@@ -7,10 +7,10 @@ import (
 	"github.com/zillow/zfmt"
 )
 
-func TestGetFakeMessage(t *testing.T) {
+func Test_getFakeMessage(t *testing.T) {
 	defer recoverThenFail(t)
 
-	msg := GetFakeMessage("key", "value", &zfmt.JSONFormatter{}, nil)
+	msg := getFakeMessage("key", "value", &zfmt.JSONFormatter{}, nil)
 	expectedMessage := Message{
 		Key:   "key",
 		value: []byte("\"value\""),
@@ -19,13 +19,17 @@ func TestGetFakeMessage(t *testing.T) {
 	require.Equal(t, string(expectedMessage.value), string(msg.value), "Expected generated zkafka.Message to use value from arg")
 }
 
-func TestGetFakeMessageFromRaw(t *testing.T) {
+func TestGetFakeMessageFromFake(t *testing.T) {
 	defer recoverThenFail(t)
 
 	fmtr := &zfmt.JSONFormatter{}
 	val, err := fmtr.Marshall("value")
 	require.NoError(t, err)
-	msg := GetFakeMsgFromRaw(ptr("key"), val, fmtr, nil)
+	msg := GetMsgFromFake(&FakeMessage{
+		Key:   ptr("key"),
+		Value: val,
+		Fmt:   fmtr,
+	})
 	expectedMessage := Message{
 		Key:   "key",
 		value: []byte("\"value\""),
@@ -34,10 +38,13 @@ func TestGetFakeMessageFromRaw(t *testing.T) {
 	require.Equal(t, string(expectedMessage.value), string(msg.value), "Expected generated zkafka.Message to use value from arg")
 }
 
-func TestGetFakeMessage_WhenMarshallError(t *testing.T) {
-
+func TestMsgFromFake_WhenMarshallError(t *testing.T) {
 	// pass in some invalid object for marshalling
-	msg := GetFakeMessage("key", make(chan int), &zfmt.JSONFormatter{}, nil)
+	msg := GetMsgFromFake(&FakeMessage{
+		Key:       ptr("key"),
+		ValueData: make(chan int),
+		Fmt:       &zfmt.JSONFormatter{},
+	})
 	expectedMessage := Message{
 		Key:   "key",
 		value: nil,

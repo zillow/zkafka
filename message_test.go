@@ -41,13 +41,13 @@ func Test_makeProducerMessageRaw(t *testing.T) {
 				Opaque:  nil,
 				Headers: nil,
 			},
-			hasHeaders: true,
+			hasHeaders: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
-			got := makeProducerMessageRaw(tt.args.ctx, tt.args.serviceName, tt.args.topic, tt.args.key, tt.args.value)
+			got := makeProducerMessageRaw(tt.args.ctx, tt.args.topic, tt.args.key, tt.args.value)
 			require.Equal(t, tt.want.TopicPartition, got.TopicPartition)
 			require.Equal(t, tt.want.Key, got.Key)
 			require.Equal(t, tt.want.Key, got.Key)

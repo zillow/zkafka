@@ -33,7 +33,7 @@ import (
 //  1. Read a kafka.Message using the provided reader.
 //  2. Select the virtual partition pool allocated for a specific topic
 //  3. Select and write the `kafka.Message` to the pool's virtual partition based on a hash of the `kafka.Message.Key` (virtual partition selection)
-//  4. A goroutine is assigned for each virtual partition. Its responsibility is to continously read from its virtual partition, call the Process callback function, and then store the offset of the message.
+//  4. A goroutine is assigned for each virtual partition. Its responsibility is to continuously read from its virtual partition, call the Process callback function, and then store the offset of the message.
 //
 // Additional responsibilities includes:
 //  1. Logging

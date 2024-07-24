@@ -493,7 +493,7 @@ func Test_busyLoopBreaker_waitRespectsMaxPause(t *testing.T) {
 	<-blocker
 }
 
-// Test_busyLoopBreaker_waitRespectsRelease asserts that calling release() cancels that wait occuring at the wait() site
+// Test_busyLoopBreaker_waitRespectsRelease asserts that calling release() cancels that wait occurring at the wait() site
 func Test_busyLoopBreaker_waitRespectsRelease(t *testing.T) {
 	defer recoverThenFail(t)
 	blb := busyLoopBreaker{

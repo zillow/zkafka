@@ -119,7 +119,7 @@ func (d dltOption) apply(w *Work) {
 		// establish a writer to the DLT early, so when the time comes the write is fast
 		writer, err := w.kafkaProvider.Writer(ctx, d.dltConfig)
 		if err != nil {
-			w.logger.Errorw(ctx, "Failed to get writer for dlt", "error", err, "offset", message.Offset, "partition", message.Partition, "topic", message.Topic)
+			w.logger.Errorw(ctx, "Failed to get writer for dlt", "error", err, "offset", message.Offset, "partition", message.Partition, "source_topic", message.Topic, "dlt_topic", d.dltConfig.Topic)
 			return
 		}
 
@@ -136,7 +136,7 @@ func (d dltOption) apply(w *Work) {
 		}
 
 		if _, err := writer.WriteRaw(ctx, &message.Key, message.value); err != nil {
-			w.logger.Errorw(ctx, "Failed to forward to DLT", "error", err, "offset", message.Offset, "partition", message.Partition, "topic", message.Topic)
+			w.logger.Errorw(ctx, "Failed to forward to DLT", "error", err, "offset", message.Offset, "partition", message.Partition, "source_topic", message.Topic, "dlt_topic", d.dltConfig.Topic)
 		}
 	}
 	w.onDones = append(w.onDones, f)

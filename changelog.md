@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
+## 1.0.1 (Sep 3, 2024)
+
+1. Added dlt topic name in error logs on dlt write failure
+
 ## 1.0.0 (July 2024)
 
 Initial release to public github.com

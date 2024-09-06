@@ -803,6 +803,141 @@ func TestWork_WithDeadLetterTopic_MessagesWrittenToDLTSinceErrorOccurred(t *test
 	require.NoError(t, grp.Wait())
 }
 
+func TestWork_WithDeadLetterTopic_DLTWriterConfigCanBorrowFromConsumerConfig(t *testing.T) {
+	type testCase struct {
+		name              string
+		inputConfig       zkafka.ConsumerTopicConfig
+		expectedDLTConfig zkafka.ProducerTopicConfig
+	}
+
+	testCases := []testCase{
+		{
+			name: "deadletter-username-password-preferred-over-consumer-config",
+			inputConfig: zkafka.ConsumerTopicConfig{
+				Topic:        topicName,
+				SaslUsername: ptr("user_orig"),
+				SaslPassword: ptr("pw_orig"),
+				DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
+					SaslUsername: ptr("user"),
+					SaslPassword: ptr("pw"),
+					ClientID:     uuid.NewString(),
+					Topic:        "topic2",
+				},
+			},
+			expectedDLTConfig: zkafka.ProducerTopicConfig{
+				SaslUsername: ptr("user"),
+				SaslPassword: ptr("pw"),
+			},
+		},
+		{
+			name: "consumer-config-username-password-used-in-abscense-of-dlt-username-password",
+			inputConfig: zkafka.ConsumerTopicConfig{
+				Topic:        topicName,
+				SaslUsername: ptr("user_orig"),
+				SaslPassword: ptr("pw_orig"),
+				DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
+					ClientID: uuid.NewString(),
+					Topic:    "topic2",
+				},
+			},
+			expectedDLTConfig: zkafka.ProducerTopicConfig{
+				SaslUsername: ptr("user_orig"),
+				SaslPassword: ptr("pw_orig"),
+			},
+		},
+		{
+			name: "username-password-not-specified-is-okay",
+			inputConfig: zkafka.ConsumerTopicConfig{
+				ClientID: uuid.NewString(),
+				Topic:    topicName,
+				DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
+					Topic: "topic2",
+				},
+			},
+			expectedDLTConfig: zkafka.ProducerTopicConfig{
+				SaslUsername: nil,
+				SaslPassword: nil,
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer recoverThenFail(t)
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			l := zkafka.NoopLogger{}
+
+			mockReader := zkafka_mocks.NewMockReader(ctrl)
+			msg1 := getRandomMessage()
+			gomock.InOrder(
+				mockReader.EXPECT().Read(gomock.Any()).Return(msg1, nil),
+				mockReader.EXPECT().Read(gomock.Any()).Return(nil, nil).AnyTimes(),
+			)
+			mockReader.EXPECT().Close().Return(nil).AnyTimes()
+
+			mockWriter := zkafka_mocks.NewMockWriter(ctrl)
+			// each errored message gets forwarded
+			mockWriter.EXPECT().WriteRaw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+			mockWriter.EXPECT().Close().AnyTimes()
+
+			mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
+			mockClientProvider.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(mockReader, nil)
+			var gotDLTConfig zkafka.ProducerTopicConfig
+			mockClientProvider.EXPECT().Writer(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(ctx context.Context, topicConfig zkafka.ProducerTopicConfig, opts ...zkafka.WriterOption) (zkafka.Writer, error) {
+				gotDLTConfig = topicConfig
+				return mockWriter, nil
+			})
+
+			kwf := zkafka.NewWorkFactory(mockClientProvider, zkafka.WithLogger(l))
+
+			processor := fakeProcessor{
+				process: func(ctx context.Context, message *zkafka.Message) error {
+					return errors.New("processor error")
+				},
+			}
+
+			cfg := tc.inputConfig
+			w1 := kwf.Create(
+				cfg,
+				&processor,
+			)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			grp := errgroup.Group{}
+			grp.Go(func() error {
+				return w1.Run(ctx, nil)
+			})
+
+			pollWait(func() bool {
+				return len(processor.ProcessedMessages()) >= 1
+			}, pollOpts{
+				timeoutExit: func() {
+					require.Fail(t, "Timed out during poll")
+				},
+				pollPause: time.Millisecond,
+				maxWait:   10 * time.Second,
+			})
+			cancel()
+			require.NoError(t, grp.Wait())
+			if tc.expectedDLTConfig.SaslUsername == nil {
+				require.Nil(t, gotDLTConfig.SaslUsername)
+			} else {
+				require.NotNil(t, gotDLTConfig.SaslUsername)
+				require.Equal(t, *tc.expectedDLTConfig.SaslUsername, *gotDLTConfig.SaslUsername)
+			}
+			if tc.expectedDLTConfig.SaslPassword == nil {
+				require.Nil(t, gotDLTConfig.SaslPassword)
+			} else {
+				require.NotNil(t, gotDLTConfig.SaslPassword)
+				require.Equal(t, *tc.expectedDLTConfig.SaslPassword, *gotDLTConfig.SaslPassword)
+			}
+		})
+	}
+}
+
 // TestWork_WithDeadLetterTopic_FailedToGetWriterDoesntPauseProcessing shows that even if get topic writer (for DLT) returns error processing still continues.
 // This test configures a single virtual partition to process the reader. If processing halted on account of DLT write error,
 // the test wouldn't get through all 10 messages

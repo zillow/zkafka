@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
+## 1.0.2 (Sep 6, 2024)
+
+1. Updated `WithDeadLetterTopic` option to borrow username and password from ConsumerTopicConfig when those issues aren't specified on DeadLetterTopicConfig
+
 ## 1.0.1 (Sep 3, 2024)
 
 1. Added dlt topic name in error logs on dlt write failure

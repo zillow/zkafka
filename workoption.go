@@ -115,9 +115,18 @@ func (d dltOption) apply(w *Work) {
 			return
 		}
 
+		// if not specified explicitly in dlt config, use username/pw from consumerTopicConfig
+		dltConfig := d.dltConfig
+		if dltConfig.SaslUsername == nil || *d.dltConfig.SaslUsername == "" {
+			dltConfig.SaslUsername = w.topicConfig.SaslUsername
+		}
+
+		if dltConfig.SaslPassword == nil || *d.dltConfig.SaslPassword == "" {
+			dltConfig.SaslPassword = w.topicConfig.SaslPassword
+		}
 		// even if we're going to skip forwarding a message to the DLT (because there was no error),
 		// establish a writer to the DLT early, so when the time comes the write is fast
-		writer, err := w.kafkaProvider.Writer(ctx, d.dltConfig)
+		writer, err := w.kafkaProvider.Writer(ctx, dltConfig)
 		if err != nil {
 			w.logger.Errorw(ctx, "Failed to get writer for dlt", "error", err, "offset", message.Offset, "partition", message.Partition, "source_topic", message.Topic, "dlt_topic", d.dltConfig.Topic)
 			return

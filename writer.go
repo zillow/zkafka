@@ -47,6 +47,7 @@ type KWriter struct {
 	producer    KafkaProducer
 	topicConfig ProducerTopicConfig
 	fmtter      Formatter
+	cFormatter  confluentFormatter
 	logger      Logger
 	tracer      trace.Tracer
 	p           propagation.TextMapPropagator
@@ -65,13 +66,15 @@ func newWriter(conf Config, topicConfig ProducerTopicConfig, producer confluentP
 	if err != nil {
 		return nil, err
 	}
-	fmtter, err := getFormatter(topicConfig)
+	formatter, cFormatter, err := getFormatter(topicConfig.Formatter, topicConfig.SchemaID, topicConfig.SchemaRegistry)
 	if err != nil {
 		return nil, err
 	}
+
 	return &KWriter{
 		producer:    p,
-		fmtter:      fmtter,
+		fmtter:      formatter,
+		cFormatter:  cFormatter,
 		topicConfig: topicConfig,
 		logger:      NoopLogger{},
 	}, nil
@@ -191,15 +194,30 @@ func (w *KWriter) startSpan(ctx context.Context, msg *kafka.Message) spanWrapper
 }
 
 func (w *KWriter) write(ctx context.Context, msg keyValuePair, opts ...WriteOption) (Response, error) {
-	if w.fmtter == nil {
-		return Response{}, errors.New("formatter is not supplied to produce kafka message")
+	s := writeSettings{}
+	for _, opt := range opts {
+		opt2, ok := opt.(WriteOption2)
+		if !ok {
+			continue
+		}
+		opt2.applySettings(&s)
 	}
-	value, err := w.fmtter.Marshall(msg.value)
+	value, err := w.marshall(ctx, msg.value, s.avroSchema)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to marshall producer message: %w", err)
+		return Response{}, err
 	}
 
 	return w.WriteRaw(ctx, msg.key, value, opts...)
+}
+
+func (w *KWriter) marshall(_ context.Context, value any, schema string) ([]byte, error) {
+	if w.fmtter != nil {
+		return w.fmtter.Marshall(value)
+	}
+	if w.cFormatter != nil {
+		return w.cFormatter.Marshall(w.topicConfig.Topic, value, schema)
+	}
+	return nil, errors.New("formatter or confluent formatter is not supplied to produce kafka message")
 }
 
 // Close terminates the writer gracefully and mark it as closed
@@ -227,8 +245,18 @@ type WriteOption interface {
 	apply(s *kafka.Message)
 }
 
+type writeSettings struct {
+	avroSchema string
+}
+
+type WriteOption2 interface {
+	applySettings(s *writeSettings)
+}
+
 // WithHeaders allows for the specification of headers. Specified headers will override collisions.
 func WithHeaders(headers map[string]string) WriteOption { return withHeaderOption{headers: headers} }
+
+func WithAvroSchema(schema string) WriteOption { return withAvroSchema{schema: schema} }
 
 type withHeaderOption struct {
 	headers map[string]string
@@ -251,4 +279,16 @@ func (o withHeaderOption) apply(s *kafka.Message) {
 	for k, v := range o.headers {
 		updateHeaders(k, v)
 	}
+}
+
+var _ WriteOption2 = (*withAvroSchema)(nil)
+
+type withAvroSchema struct {
+	schema string
+}
+
+func (o withAvroSchema) apply(s *kafka.Message) {}
+
+func (o withAvroSchema) applySettings(s *writeSettings) {
+	s.avroSchema = o.schema
 }

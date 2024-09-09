@@ -43,7 +43,9 @@ type KReader struct {
 	topicConfig ConsumerTopicConfig
 	isClosed    bool
 
-	fmtter     Formatter
+	fmtter             Formatter
+	confluentFormatter confluentFormatter
+
 	logger     Logger
 	lifecycle  LifecycleHooks
 	once       sync.Once
@@ -58,16 +60,18 @@ func newReader(conf Config, topicConfig ConsumerTopicConfig, provider confluentC
 		return nil, err
 	}
 
-	fmtter, err := getFormatter(topicConfig)
+	formatter, cFormatter, err := getFormatter(topicConfig.Formatter, topicConfig.SchemaID, topicConfig.SchemaRegistry)
 	if err != nil {
 		return nil, err
 	}
+
 	return &KReader{
-		consumer:    consumer,
-		fmtter:      fmtter,
-		topicConfig: topicConfig,
-		logger:      logger,
-		tCommitMgr:  newTopicCommitMgr(),
+		consumer:           consumer,
+		fmtter:             formatter,
+		confluentFormatter: cFormatter,
+		topicConfig:        topicConfig,
+		logger:             logger,
+		tCommitMgr:         newTopicCommitMgr(),
 	}, nil
 }
 
@@ -197,8 +201,9 @@ func (r *KReader) mapMessage(_ context.Context, msg kafka.Message) *Message {
 				r.logger.Errorw(ctx, "Error storing offsets", "topicName", topicName, "groupID", r.topicConfig.GroupID, "partition", partition, "offset", offset, "error", err)
 			}
 		},
-		value: msg.Value,
-		fmt:   r.fmtter,
+		value:              msg.Value,
+		fmt:                r.fmtter,
+		confluentFormatter: r.confluentFormatter,
 	}
 }
 

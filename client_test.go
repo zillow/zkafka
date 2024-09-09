@@ -516,9 +516,9 @@ func TestClient_Close(t *testing.T) {
 	}
 }
 
-func Test_getFormatter(t *testing.T) {
+func Test_getFormatter_Consumer(t *testing.T) {
 	type args struct {
-		topicConfig TopicConfig
+		topicConfig ConsumerTopicConfig
 	}
 	tests := []struct {
 		name    string
@@ -556,12 +556,6 @@ func Test_getFormatter(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "confluent avro with schema ClientID",
-			args:    args{topicConfig: ProducerTopicConfig{Formatter: zfmt.FormatterType("avro_schema")}},
-			want:    &zfmt.SchematizedAvroFormatter{},
-			wantErr: false,
-		},
-		{
 			name:    "confluent avro with inferred schema ClientID",
 			args:    args{topicConfig: ConsumerTopicConfig{Formatter: zfmt.FormatterType("avro_schema"), SchemaID: 10}},
 			want:    &zfmt.SchematizedAvroFormatter{SchemaID: 10},
@@ -586,12 +580,6 @@ func Test_getFormatter(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "confluent json with inferred schema ID",
-			args:    args{topicConfig: ProducerTopicConfig{Formatter: zfmt.FormatterType("proto_schema_deprecated"), SchemaID: 10}},
-			want:    &zfmt.SchematizedProtoFormatterDeprecated{SchemaID: 10},
-			wantErr: false,
-		},
-		{
 			name:    "unsupported",
 			args:    args{topicConfig: ConsumerTopicConfig{Formatter: zfmt.FormatterType("what"), SchemaID: 10}},
 			wantErr: true,
@@ -600,7 +588,44 @@ func Test_getFormatter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
-			got, err := getFormatter(tt.args.topicConfig)
+			got, _, err := getFormatter(tt.args.topicConfig.Formatter, tt.args.topicConfig.SchemaID, SchemaRegistryConfig{})
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
+func Test_getFormatter_Producer(t *testing.T) {
+	type args struct {
+		topicConfig ProducerTopicConfig
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    zfmt.Formatter
+		wantErr bool
+	}{
+		{
+			name:    "confluent avro with schema ClientID",
+			args:    args{topicConfig: ProducerTopicConfig{Formatter: zfmt.FormatterType("avro_schema")}},
+			want:    &zfmt.SchematizedAvroFormatter{},
+			wantErr: false,
+		},
+		{
+			name:    "confluent json with inferred schema ID",
+			args:    args{topicConfig: ProducerTopicConfig{Formatter: zfmt.FormatterType("proto_schema_deprecated"), SchemaID: 10}},
+			want:    &zfmt.SchematizedProtoFormatterDeprecated{SchemaID: 10},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer recoverThenFail(t)
+			got, _, err := getFormatter(tt.args.topicConfig.Formatter, tt.args.topicConfig.SchemaID, SchemaRegistryConfig{})
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {

@@ -8,7 +8,7 @@ import (
 
 func TestNoopFormatter_Marshall_Unmarshal(t *testing.T) {
 	defer recoverThenFail(t)
-	fmtter := noopFormatter{}
+	fmtter := errFormatter{}
 	_, err := fmtter.Marshall("anything")
 	require.ErrorIs(t, err, errMissingFmtter)
 

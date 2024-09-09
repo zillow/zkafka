@@ -78,6 +78,8 @@ type ConsumerTopicConfig struct {
 	// Formatter is json if not defined
 	Formatter zfmt.FormatterType
 
+	SchemaRegistry SchemaRegistryConfig
+
 	// SchemaID defines the schema registered with Confluent Schema Registry
 	// Default value is 0, and it implies that both Writer and Reader do not care about schema validation
 	// and should encode/decode the message based on data type provided.
@@ -172,6 +174,8 @@ type ProducerTopicConfig struct {
 	// Formatter is json if not defined
 	Formatter zfmt.FormatterType
 
+	SchemaRegistry SchemaRegistryConfig
+
 	// SchemaID defines the schema registered with Confluent Schema Registry
 	// Default value is 0, and it implies that both Writer and Reader do not care about schema validation
 	// and should encode/decode the message based on data type provided.
@@ -207,9 +211,13 @@ func (p ProducerTopicConfig) GetSchemaID() int {
 	return p.SchemaID
 }
 
-type TopicConfig interface {
-	GetFormatter() zfmt.FormatterType
-	GetSchemaID() int
+type SchemaRegistryConfig struct {
+	URL           string
+	Serialization struct {
+		AutoRegisterSchemas bool
+	}
+	Deserialization struct {
+	}
 }
 
 func getDefaultConsumerTopicConfig(topicConfig *ConsumerTopicConfig) error {

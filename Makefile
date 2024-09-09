@@ -41,3 +41,9 @@ golangci-lint:
 		(cd $(mod) && \
 		echo "[lint] golangci-lint: $(mod)" && \
 		golangci-lint run --path-prefix $(mod) ./...) &&) true
+
+.PHONY: gen
+gen:
+	go run github.com/heetch/avro/cmd/avrogo@v0.4.5 -p main -d ./example/producer_avro ./example/producer_avro/dummy_event.avsc
+	#go run github.com/hamba/avro/v2/cmd/avrogen@v2.25.1 -pkg main -o ./example/producer_avro/bla.go  -tags json:snake,yaml:upper-camel ./example/producer_avro/dummy_event.avsc
+	go run github.com/hamba/avro/v2/cmd/avrogen@v2.25.1 -pkg main -o ./example/worker_avro/bla.go  -tags json:snake,yaml:upper-camel ./example/worker_avro/dummy_event.avsc

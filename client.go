@@ -4,10 +4,8 @@ package zkafka
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
-	"github.com/zillow/zfmt"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -130,19 +128,6 @@ func (c *Client) Writer(_ context.Context, topicConfig ProducerTopicConfig, opts
 	}
 	c.writers[topicConfig.ClientID] = writer
 	return c.writers[topicConfig.ClientID], nil
-}
-
-func getFormatter(topicConfig TopicConfig) (zfmt.Formatter, error) {
-	switch topicConfig.GetFormatter() {
-	case CustomFmt:
-		return &noopFormatter{}, nil
-	default:
-		f, err := zfmt.GetFormatter(topicConfig.GetFormatter(), topicConfig.GetSchemaID())
-		if err != nil {
-			return nil, fmt.Errorf("unsupported formatter %s", topicConfig.GetFormatter())
-		}
-		return f, nil
-	}
 }
 
 // Close terminates all cached readers and writers gracefully.

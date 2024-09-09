@@ -99,22 +99,22 @@ func newAvroSchemaRegistryFormatter(srConfig SchemaRegistryConfig) (avroSchemaRe
 }
 
 func (f avroSchemaRegistryFormatter) Marshall(topic string, target any, avroSchema string) ([]byte, error) {
-	if avroSchema != "" {
-		info := schemaregistry.SchemaInfo{
-			Schema: avroSchema,
-		}
-		id, err := f.ser.GetID(topic, nil, &info)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get avro schema by id: %w", err)
-		}
-		f.f.SchemaID = id
-		return f.f.Marshall(target)
+	if avroSchema == "" {
+		return nil, errors.New("avro schema is required for schema registry formatter")
 	}
-	value, err := f.ser.Serialize(topic, target)
+	info := schemaregistry.SchemaInfo{
+		Schema: avroSchema,
+	}
+	id, err := f.ser.GetID(topic, nil, &info)
 	if err != nil {
-		return nil, fmt.Errorf("failed to serialize confluent schema registry avro type: %w", err)
+		return nil, fmt.Errorf("failed to get avro schema by id for topic %s: %w", topic, err)
 	}
-	return value, nil
+	f.f.SchemaID = id
+	data, err := f.f.Marshall(target)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal avro schema for topic %s: %w", topic, err)
+	}
+	return data, nil
 }
 
 func (f avroSchemaRegistryFormatter) Unmarshal(topic string, value []byte, target any) error {

@@ -1,6 +1,3 @@
-//go:build integration
-// +build integration
-
 package test
 
 import (
@@ -35,6 +32,8 @@ import (
 // 1. Restart a consumer (being sure to reuse the same consumer group from before)
 // 1. Read another message. Assert its the second written message (first was already read and committed)
 func TestKafkaClientsCanReadOwnWritesAndBehaveProperlyAfterRestart(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	ctx := context.Background()
 	topic := "integration-test-topic-2" + uuid.NewString()
 	bootstrapServer := getBootstrap()
@@ -166,6 +165,8 @@ func TestKafkaClientsCanReadOwnWritesAndBehaveProperlyAfterRestart(t *testing.T)
 // This is in response to a noted issue where rebalance was prone to replayed messages.
 // There are multiple versions of the tests which vary the processing duration
 func Test_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	type testCase struct {
 		name               string
 		processingDuration time.Duration
@@ -350,6 +351,8 @@ func Test_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
 // when a consumer joins and starts consuming messages and later when another consumer joins
 // then there are no duplicate messages processed.
 func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	type testCase struct {
 		name               string
 		processingDuration time.Duration
@@ -523,6 +526,8 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 // The consumer's processing times are set to a range as opposed to a specific duration. This allows lookahead processing (where messages
 // of higher offsets are processed and completed, potentially, before lower offsets
 func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	type testCase struct {
 		name                        string
 		processingDurationMinMillis int
@@ -677,6 +682,8 @@ func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *test
 // The rebalances are handled during the Poll call under the hood (which is only called while a KReader is in the attempt of Reading.
 // So as we simulate two members of a group we'll need to keep calling from both consumers so the rebalance eventually occurs
 func Test_AssignmentsReflectsConsumerAssignments(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	ctx := context.Background()
 
 	groupID := uuid.NewString()
@@ -793,6 +800,8 @@ func Test_AssignmentsReflectsConsumerAssignments(t *testing.T) {
 // when the second consumer joins and causes a rebalance
 // then the first isn't infinitely blocked in its rebalance
 func Test_UnfinishableWorkDoesntBlockWorkIndefinitely(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	ctx := context.Background()
 
 	groupID := uuid.NewString()
@@ -887,6 +896,8 @@ func Test_UnfinishableWorkDoesntBlockWorkIndefinitely(t *testing.T) {
 // when processing that message errors and a deadletter is configured
 // then the errored message will be written to the dlt
 func Test_KafkaClientsCanWriteToTheirDeadLetterTopic(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	bootstrapServer := getBootstrap()
 	topic := "topic1" + uuid.NewString()
 	dlt := "deadlettertopic1" + uuid.NewString()
@@ -979,6 +990,8 @@ func Test_KafkaClientsCanWriteToTheirDeadLetterTopic(t *testing.T) {
 }
 
 func Test_WorkDelay_GuaranteesProcessingDelayedAtLeastSpecifiedDelayDurationFromWhenMessageWritten(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	ctx := context.Background()
 
 	groupID := uuid.NewString()
@@ -1085,6 +1098,8 @@ func Test_WorkDelay_GuaranteesProcessingDelayedAtLeastSpecifiedDelayDurationFrom
 // 2. It also asserts that the time between the first and last message is very short.
 // This is expected in a backlog situation, since the worker will delay once, and with monotonically increasing timestamps won't have to delay again
 func Test_WorkDelay_DoesntHaveDurationStackEffect(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	ctx := context.Background()
 
 	groupID := uuid.NewString()

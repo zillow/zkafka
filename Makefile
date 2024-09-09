@@ -10,7 +10,7 @@ setup:
 # Assumes setup has been executed. Runs go test with coverage
 .PHONY: cover
 cover:
-	export GO_TAGS=--tags=integration; ./coverage.sh
+	./coverage.sh
 
 # Runs setup and executes tests with coverage.
 .PHONY: test-local
@@ -45,5 +45,8 @@ golangci-lint:
 .PHONY: gen
 gen:
 	go run github.com/heetch/avro/cmd/avrogo@v0.4.5 -p main -d ./example/producer_avro ./example/producer_avro/dummy_event.avsc
+	go run github.com/heetch/avro/cmd/avrogo@v0.4.5 -p main -d ./example/worker_avro ./example/worker_avro/dummy_event.avsc
+	go run github.com/heetch/avro/cmd/avrogo@v0.4.5 -p heetch1 -d ./test/heetch1 ./test/dummy_event_1.avsc
+	go run github.com/heetch/avro/cmd/avrogo@v0.4.5 -p heetch2 -d ./test/heetch2 ./test/dummy_event_2.avsc
 	#go run github.com/hamba/avro/v2/cmd/avrogen@v2.25.1 -pkg main -o ./example/producer_avro/bla.go  -tags json:snake,yaml:upper-camel ./example/producer_avro/dummy_event.avsc
-	go run github.com/hamba/avro/v2/cmd/avrogen@v2.25.1 -pkg main -o ./example/worker_avro/bla.go  -tags json:snake,yaml:upper-camel ./example/worker_avro/dummy_event.avsc
+	#go run github.com/hamba/avro/v2/cmd/avrogen@v2.25.1 -pkg main -o ./example/worker_avro/bla.go  -tags json:snake,yaml:upper-camel ./example/worker_avro/dummy_event.avsc

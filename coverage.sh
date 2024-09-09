@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -x
 
-# allows for GO test args to be passed in (Specifically added to control whether or not to pass in `--tags=integration`).
-go_tags=$GO_TAGS
-go_tags="${go_tags:---tags=unit}"
-
 # golang packages that will be used for either testing or will be assessed for coverage
 pck1=github.com/zillow/zkafka
 pck2=$pck1/test
@@ -27,11 +23,11 @@ function quit() {
 }
 # change to example directory for execution (because it uses hardcoded filepaths, and the testable
 # examples don't work when executed outside of that directory
-go test $go_tags -c -coverpkg=$pck1 -covermode=atomic -o "$root_res" $pck1
+go test -c -coverpkg=$pck1 -covermode=atomic -o "$root_res" $pck1
 # convert binary to go formatted
 go tool test2json -t "$root_res" -test.v -test.coverprofile "$root_out"
 
-go test $go_tags -c -coverpkg=$pck1 -covermode=atomic -o "$source_res" $pck2
+go test -c -coverpkg=$pck1 -covermode=atomic -o "$source_res" $pck2
 go tool test2json -t "$source_res" -test.v -test.coverprofile "$source_out"
 
 # delete aggregate file

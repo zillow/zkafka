@@ -99,10 +99,6 @@ func newAvroSchemaRegistryFormatter(srConfig SchemaRegistryConfig) (avroSchemaRe
 }
 
 func (f avroSchemaRegistryFormatter) Marshall(topic string, target any, avroSchema string) ([]byte, error) {
-	//info := schemaregistry.SchemaInfo{
-	//	Schema: "",
-	//}
-	//f.ser.GetID(topic, nil, nil)
 	if avroSchema != "" {
 		info := schemaregistry.SchemaInfo{
 			Schema: avroSchema,
@@ -111,31 +107,8 @@ func (f avroSchemaRegistryFormatter) Marshall(topic string, target any, avroSche
 		if err != nil {
 			return nil, fmt.Errorf("failed to get avro schema by id: %w", err)
 		}
-		//subject, err := f.ser.SubjectNameStrategy(topic, f.ser.SerdeType, info)
-		//if err != nil {
-		//	return nil, err
-		//}
-		//target, err = f.ser.ExecuteRules(subject, topic, schemaregistry.Write, nil, &info, target)
-		//if err != nil {
-		//	return nil, err
-		//}
 		f.f.SchemaID = id
 		return f.f.Marshall(target)
-
-		//schema, err := avro.Parse(avroSchema)
-		//if err != nil {
-		//	return nil, fmt.Errorf("failed to parse avro schema: %w", err)
-		//}
-		//msgBytes, err := avro.Marshal(schema, target)
-		//if err != nil {
-		//	return nil, err
-		//}
-		//payload, err := f.ser.WriteBytes(id, msgBytes)
-		//if err != nil {
-		//	return nil, err
-		//}
-		//return payload, nil
-
 	}
 	value, err := f.ser.Serialize(topic, target)
 	if err != nil {

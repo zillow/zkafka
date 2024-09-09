@@ -212,12 +212,17 @@ func (p ProducerTopicConfig) GetSchemaID() int {
 }
 
 type SchemaRegistryConfig struct {
-	URL           string
-	Serialization struct {
-		AutoRegisterSchemas bool
-	}
-	Deserialization struct {
-	}
+	URL             string
+	Serialization   SerializationConfig
+	Deserialization DeserializationConfig
+}
+
+type SerializationConfig struct {
+	AutoRegisterSchemas bool
+	Schema              string
+}
+
+type DeserializationConfig struct {
 }
 
 func getDefaultConsumerTopicConfig(topicConfig *ConsumerTopicConfig) error {

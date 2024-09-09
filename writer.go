@@ -194,7 +194,9 @@ func (w *KWriter) startSpan(ctx context.Context, msg *kafka.Message) spanWrapper
 }
 
 func (w *KWriter) write(ctx context.Context, msg keyValuePair, opts ...WriteOption) (Response, error) {
-	s := writeSettings{}
+	s := writeSettings{
+		avroSchema: w.topicConfig.SchemaRegistry.Serialization.Schema,
+	}
 	for _, opt := range opts {
 		opt2, ok := opt.(WriteOption2)
 		if !ok {

@@ -61,7 +61,7 @@ func Test_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFro
 		Formatter: zkafka.AvroConfluentFmt,
 		SchemaRegistry: zkafka.SchemaRegistryConfig{
 			URL: "http://localhost:8081",
-			Serialization: struct{ AutoRegisterSchemas bool }{
+			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 			},
 		},

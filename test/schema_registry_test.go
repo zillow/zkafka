@@ -36,7 +36,7 @@ const enableKafkaBrokerTest = "ENABLE_KAFKA_BROKER_TESTS"
 // but this behavior is still problematic because the implicit schema resolution is used to communicate with schema registry
 // and determine the appropriate schemaID to embed. The omitted default means the correct schema isn't found.
 //
-// The two message sucesfully writing means the two schemas are registered.
+// The two message successfully writing means the two schemas are registered.
 // We then test we can use the confluent deserializer to decode the messages. For both schema1 and schema2.
 // This confirms that backwards/forward compatible evolution is possible and old schemas can still read messages from new.
 func Test_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom(t *testing.T) {
@@ -55,7 +55,7 @@ func Test_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFro
 	defer func() { require.NoError(t, client.Close()) }()
 
 	t.Log("Created writer with auto registered schemas")
-	writer, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
 		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
 		Topic:     topic,
 		Formatter: zkafka.AvroConfluentFmt,
@@ -63,6 +63,21 @@ func Test_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFro
 			URL: "http://localhost:8081",
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
+				Schema:              dummyEventSchema1,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	writer2, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.AvroConfluentFmt,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL: "http://localhost:8081",
+			Serialization: zkafka.SerializationConfig{
+				AutoRegisterSchemas: true,
+				Schema:              dummyEventSchema2,
 			},
 		},
 	})
@@ -76,7 +91,7 @@ func Test_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFro
 		BytesField:  []byte(uuid.NewString()),
 	}
 	// write msg1, and msg2
-	_, err = writer.Write(ctx, evt1, zkafka.WithAvroSchema(dummyEventSchema1))
+	_, err = writer1.Write(ctx, evt1)
 	require.NoError(t, err)
 
 	evt2 := heetch2.DummyEvent{
@@ -87,7 +102,7 @@ func Test_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFro
 		BytesField:          []byte(uuid.NewString()),
 		NewFieldWithDefault: ptr(uuid.NewString()),
 	}
-	_, err = writer.Write(ctx, evt2, zkafka.WithAvroSchema(dummyEventSchema2))
+	_, err = writer2.Write(ctx, evt2)
 	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{

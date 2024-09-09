@@ -197,13 +197,6 @@ func (w *KWriter) write(ctx context.Context, msg keyValuePair, opts ...WriteOpti
 	s := writeSettings{
 		avroSchema: w.topicConfig.SchemaRegistry.Serialization.Schema,
 	}
-	for _, opt := range opts {
-		opt2, ok := opt.(WriteOption2)
-		if !ok {
-			continue
-		}
-		opt2.applySettings(&s)
-	}
 	value, err := w.marshall(ctx, msg.value, s.avroSchema)
 	if err != nil {
 		return Response{}, err
@@ -251,14 +244,8 @@ type writeSettings struct {
 	avroSchema string
 }
 
-type WriteOption2 interface {
-	applySettings(s *writeSettings)
-}
-
 // WithHeaders allows for the specification of headers. Specified headers will override collisions.
 func WithHeaders(headers map[string]string) WriteOption { return withHeaderOption{headers: headers} }
-
-func WithAvroSchema(schema string) WriteOption { return withAvroSchema{schema: schema} }
 
 type withHeaderOption struct {
 	headers map[string]string
@@ -281,16 +268,4 @@ func (o withHeaderOption) apply(s *kafka.Message) {
 	for k, v := range o.headers {
 		updateHeaders(k, v)
 	}
-}
-
-var _ WriteOption2 = (*withAvroSchema)(nil)
-
-type withAvroSchema struct {
-	schema string
-}
-
-func (o withAvroSchema) apply(s *kafka.Message) {}
-
-func (o withAvroSchema) applySettings(s *writeSettings) {
-	s.avroSchema = o.schema
 }

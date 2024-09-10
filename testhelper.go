@@ -84,7 +84,7 @@ func GetMsgFromFake(msg *FakeMessage) *Message {
 			Partition: msg.Partition,
 			Offset:    kafka.Offset(msg.Offset),
 		},
-		fmt:      msg.Fmt,
+		fmt:      f1{F: msg.Fmt},
 		doneFunc: doneFunc,
 		doneOnce: sync.Once{},
 	}

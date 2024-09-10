@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/zillow/zfmt"
 )
 
 // Message is a container for kafka message
@@ -15,19 +14,18 @@ type Message struct {
 	Key string
 	// There's a difference between a nil key and an empty key. A nil key gets assigned a topic partition by kafka via round-robin.
 	// An empty key is treated as a key with a value of "" and is assigned to a topic partition via the hash of the key (so will consistently go to the same key)
-	isKeyNil           bool
-	Headers            map[string][]byte
-	Offset             int64
-	Partition          int32
-	Topic              string
-	GroupID            string
-	TimeStamp          time.Time
-	value              []byte
-	topicPartition     kafka.TopicPartition
-	fmt                zfmt.Formatter
-	confluentFormatter confluentFormatter
-	doneFunc           func(ctx context.Context)
-	doneOnce           sync.Once
+	isKeyNil       bool
+	Headers        map[string][]byte
+	Offset         int64
+	Partition      int32
+	Topic          string
+	GroupID        string
+	TimeStamp      time.Time
+	value          []byte
+	topicPartition kafka.TopicPartition
+	fmt            ultimateFormatter
+	doneFunc       func(ctx context.Context)
+	doneOnce       sync.Once
 }
 
 // DoneWithContext is used to alert that message processing has completed.
@@ -58,13 +56,14 @@ func (m *Message) Decode(v any) error {
 }
 
 func (m *Message) unmarshall(target any) error {
-	if m.fmt != nil {
-		return m.fmt.Unmarshal(m.value, target)
+	if m.fmt == nil {
+		return errors.New("formatter or confluent formatter is not supplied to decode kafka message")
 	}
-	if m.confluentFormatter != nil {
-		return m.confluentFormatter.Unmarshal(m.Topic, m.value, target)
-	}
-	return errors.New("formatter or confluent formatter is not supplied to decode kafka message")
+	return m.fmt.Unmarshal(unmarshReq{
+		topic:  m.Topic,
+		data:   m.value,
+		target: target,
+	})
 }
 
 // Value returns a copy of the current value byte array. Useful for debugging

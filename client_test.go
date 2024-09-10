@@ -203,7 +203,7 @@ func TestClient_Reader(t *testing.T) {
 					MaxPollIntervalMillis: ptr(61000),
 				},
 				logger: NoopLogger{},
-				fmtter: &zfmt.AvroFormatter{},
+				fmtter: f1{&zfmt.AvroFormatter{}},
 			},
 			wantErr: false,
 		},
@@ -235,7 +235,7 @@ func TestClient_Reader(t *testing.T) {
 					MaxPollIntervalMillis: ptr(21000),
 				},
 				logger: NoopLogger{},
-				fmtter: &zfmt.AvroFormatter{},
+				fmtter: f1{&zfmt.AvroFormatter{}},
 			},
 			wantErr: false,
 		},
@@ -364,7 +364,7 @@ func TestClient_Writer(t *testing.T) {
 				logger: NoopLogger{},
 				tracer: noop.TracerProvider{}.Tracer(""),
 				p:      propagation.TraceContext{},
-				fmtter: &zfmt.ProtobufRawFormatter{},
+				fmtter: f1{&zfmt.ProtobufRawFormatter{}},
 			},
 			wantErr: false,
 		},
@@ -393,7 +393,7 @@ func TestClient_Writer(t *testing.T) {
 				logger: NoopLogger{},
 				tracer: noop.TracerProvider{}.Tracer(""),
 				p:      propagation.TraceContext{},
-				fmtter: &zfmt.ProtobufRawFormatter{},
+				fmtter: f1{&zfmt.ProtobufRawFormatter{}},
 			},
 			wantErr: false,
 		},
@@ -588,12 +588,12 @@ func Test_getFormatter_Consumer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
-			got, err := getFormatter(tt.args.topicConfig.Formatter, tt.args.topicConfig.SchemaID)
+			got, err := getFormatter(tt.args.topicConfig.Formatter, tt.args.topicConfig.SchemaID, SchemaRegistryConfig{}, nil)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tt.want, got)
+				require.Equal(t, f1{tt.want}, got)
 			}
 		})
 	}
@@ -625,12 +625,12 @@ func Test_getFormatter_Producer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
-			got, err := getFormatter(tt.args.topicConfig.Formatter, tt.args.topicConfig.SchemaID)
+			got, err := getFormatter(tt.args.topicConfig.Formatter, tt.args.topicConfig.SchemaID, SchemaRegistryConfig{}, nil)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tt.want, got)
+				require.Equal(t, f1{tt.want}, got)
 			}
 		})
 	}

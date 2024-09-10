@@ -36,7 +36,7 @@ func TestWriter_Write(t *testing.T) {
 	type fields struct {
 		Mutex    *sync.Mutex
 		Producer KafkaProducer
-		fmt      zfmt.Formatter
+		fmt      ultimateFormatter
 	}
 	type args struct {
 		ctx   context.Context
@@ -50,8 +50,10 @@ func TestWriter_Write(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "formatter check at minimum",
-			fields:  fields{},
+			name: "formatter check at minimum",
+			fields: fields{
+				fmt: nil,
+			},
 			args:    args{ctx: context.TODO(), value: "1"},
 			want:    Response{Partition: 0, Offset: 0},
 			wantErr: true,
@@ -59,7 +61,7 @@ func TestWriter_Write(t *testing.T) {
 		{
 			name: "has formatter and producer",
 			fields: fields{
-				fmt:      &zfmt.StringFormatter{},
+				fmt:      f1{&zfmt.StringFormatter{}},
 				Producer: p,
 			},
 			args: args{ctx: context.TODO(), value: "1"},
@@ -68,7 +70,7 @@ func TestWriter_Write(t *testing.T) {
 		{
 			name: "has formatter, producer, incompatible message type",
 			fields: fields{
-				fmt:      &zfmt.StringFormatter{},
+				fmt:      f1{&zfmt.StringFormatter{}},
 				Producer: p,
 			},
 			args:    args{ctx: context.TODO(), value: 5},
@@ -162,7 +164,7 @@ func TestWriter_WriteKey(t *testing.T) {
 			w := &KWriter{
 				producer:    tt.fields.Producer,
 				topicConfig: tt.fields.conf,
-				fmtter:      tt.fields.fmt,
+				fmtter:      f1{tt.fields.fmt},
 				isClosed:    tt.fields.isClosed,
 				logger:      NoopLogger{},
 				tracer:      noop.TracerProvider{}.Tracer(""),
@@ -200,7 +202,7 @@ func TestWriter_WriteKeyReturnsImmediateError(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{},
 		isClosed:    false,
-		fmtter:      &zfmt.JSONFormatter{},
+		fmtter:      f1{&zfmt.JSONFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -238,7 +240,7 @@ func TestWriter_WritesMetrics(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
 		lifecycle:   hooks,
-		fmtter:      &zfmt.StringFormatter{},
+		fmtter:      f1{&zfmt.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -302,7 +304,7 @@ func TestWriter_WriteSpecialCase(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			w := &KWriter{
 				producer: tt.fields.Producer,
-				fmtter:   tt.fields.fmt,
+				fmtter:   f1{tt.fields.fmt},
 				logger:   NoopLogger{},
 				tracer:   noop.TracerProvider{}.Tracer(""),
 				p:        propagation.TraceContext{},
@@ -346,7 +348,7 @@ func TestWriter_PreWriteLifecycleHookCanAugmentHeaders(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
 		lifecycle:   hooks,
-		fmtter:      &zfmt.StringFormatter{},
+		fmtter:      f1{&zfmt.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -375,7 +377,7 @@ func TestWriter_WithHeadersWriteOptionCanAugmentHeaders(t *testing.T) {
 	wr := &KWriter{
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
-		fmtter:      &zfmt.StringFormatter{},
+		fmtter:      f1{&zfmt.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -433,7 +435,7 @@ func TestWriter_PreWriteLifecycleHookErrorDoesntHaltProcessing(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
 		lifecycle:   hooks,
-		fmtter:      &zfmt.StringFormatter{},
+		fmtter:      f1{&zfmt.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},

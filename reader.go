@@ -44,8 +44,7 @@ type KReader struct {
 	topicConfig ConsumerTopicConfig
 	isClosed    bool
 
-	fmtter             Formatter
-	confluentFormatter confluentFormatter
+	fmtter ultimateFormatter
 
 	logger     Logger
 	lifecycle  LifecycleHooks
@@ -56,32 +55,24 @@ type KReader struct {
 type srProvider func(_ SchemaRegistryConfig) (schemaregistry.Client, error)
 
 // newReader makes a new reader based on the configurations
-func newReader(conf Config, topicConfig ConsumerTopicConfig, provider confluentConsumerProvider, logger Logger, prefix string, getSR srProvider) (*KReader, error) {
+func newReader(conf Config, topicConfig ConsumerTopicConfig, provider confluentConsumerProvider, logger Logger, prefix string, srProvider srProvider) (*KReader, error) {
 	confluentConfig := makeConsumerConfig(conf, topicConfig, prefix)
 	consumer, err := provider(confluentConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	var formatter Formatter
-	var cFormatter confluentFormatter
-	switch topicConfig.Formatter {
-	case AvroConfluentFmt:
-		cFormatter, err = getFormatter2(topicConfig.Formatter, topicConfig.SchemaRegistry, getSR)
-	default:
-		formatter, err = getFormatter(topicConfig.Formatter, topicConfig.SchemaID)
-	}
+	formatter, err := getFormatter(topicConfig.Formatter, topicConfig.SchemaID, topicConfig.SchemaRegistry, srProvider)
 	if err != nil {
 		return nil, err
 	}
 
 	return &KReader{
-		consumer:           consumer,
-		fmtter:             formatter,
-		confluentFormatter: cFormatter,
-		topicConfig:        topicConfig,
-		logger:             logger,
-		tCommitMgr:         newTopicCommitMgr(),
+		consumer:    consumer,
+		fmtter:      formatter,
+		topicConfig: topicConfig,
+		logger:      logger,
+		tCommitMgr:  newTopicCommitMgr(),
 	}, nil
 }
 
@@ -211,9 +202,8 @@ func (r *KReader) mapMessage(_ context.Context, msg kafka.Message) *Message {
 				r.logger.Errorw(ctx, "Error storing offsets", "topicName", topicName, "groupID", r.topicConfig.GroupID, "partition", partition, "offset", offset, "error", err)
 			}
 		},
-		value:              msg.Value,
-		fmt:                r.fmtter,
-		confluentFormatter: r.confluentFormatter,
+		value: msg.Value,
+		fmt:   r.fmtter,
 	}
 }
 
@@ -306,7 +296,7 @@ type ReaderOption func(*KReader)
 func RFormatterOption(fmtter Formatter) ReaderOption {
 	return func(r *KReader) {
 		if fmtter != nil {
-			r.fmtter = fmtter
+			r.fmtter = f1{F: fmtter}
 		}
 	}
 }

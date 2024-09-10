@@ -24,12 +24,44 @@ type Formatter interface {
 	Unmarshal(b []byte, v any) error
 }
 
-type confluentFormatter interface {
-	Marshall(topic string, v any, schema string) ([]byte, error)
-	Unmarshal(topic string, b []byte, v any) error
+//type confluentFormatter interface {
+//	Marshall(topic string, v any, schema string) ([]byte, error)
+//	Unmarshal(topic string, b []byte, v any) error
+//}
+
+type marshReq struct {
+	topic   string
+	subject any
+	schema  string
 }
 
-func getFormatter2(formatter zfmt.FormatterType, srCfg SchemaRegistryConfig, getSR srProvider) (confluentFormatter, error) {
+type unmarshReq struct {
+	topic  string
+	data   []byte
+	target any
+}
+
+type ultimateFormatter interface {
+	Marshall(req marshReq) ([]byte, error)
+	Unmarshal(req unmarshReq) error
+}
+
+var _ ultimateFormatter = (*avroSchemaRegistryFormatter)(nil)
+var _ ultimateFormatter = (*f1)(nil)
+
+type f1 struct {
+	F zfmt.Formatter
+}
+
+func (f f1) Marshall(req marshReq) ([]byte, error) {
+	return f.F.Marshall(req.subject)
+}
+
+func (f f1) Unmarshal(req unmarshReq) error {
+	return f.F.Unmarshal(req.data, req.target)
+}
+
+func getFormatter(formatter zfmt.FormatterType, schemaID int, srCfg SchemaRegistryConfig, getSR srProvider) (ultimateFormatter, error) {
 	switch formatter {
 	case AvroConfluentFmt:
 		cl, err := getSR(srCfg)
@@ -38,13 +70,6 @@ func getFormatter2(formatter zfmt.FormatterType, srCfg SchemaRegistryConfig, get
 		}
 		cf, err := newAvroSchemaRegistryFormatter(cl, srCfg)
 		return cf, err
-	default:
-		return nil, fmt.Errorf("unsupported formatter %s", formatter)
-	}
-}
-
-func getFormatter(formatter zfmt.FormatterType, schemaID int) (Formatter, error) {
-	switch formatter {
 	case CustomFmt:
 		return &errFormatter{}, nil
 	default:
@@ -52,7 +77,7 @@ func getFormatter(formatter zfmt.FormatterType, schemaID int) (Formatter, error)
 		if err != nil {
 			return nil, fmt.Errorf("unsupported formatter %s", formatter)
 		}
-		return f, nil
+		return f1{F: f}, nil
 	}
 }
 
@@ -61,16 +86,16 @@ func getFormatter(formatter zfmt.FormatterType, schemaID int) (Formatter, error)
 type errFormatter struct{}
 
 // Marshall returns error with reminder
-func (f errFormatter) Marshall(_ any) ([]byte, error) {
+func (f errFormatter) Marshall(req marshReq) ([]byte, error) {
 	return nil, errMissingFmtter
 }
 
 // Unmarshal returns error with reminder
-func (f errFormatter) Unmarshal(_ []byte, _ any) error {
+func (f errFormatter) Unmarshal(req unmarshReq) error {
 	return errMissingFmtter
 }
 
-var _ confluentFormatter = (*avroSchemaRegistryFormatter)(nil)
+//var _ confluentFormatter = (*avroSchemaRegistryFormatter)(nil)
 
 type avroSchemaRegistryFormatter struct {
 	schemaRegistryCl schemaRegistryCl
@@ -120,24 +145,24 @@ func newAvroSchemaRegistryFormatter(cl schemaregistry.Client, srConfig SchemaReg
 	}, nil
 }
 
-func (f avroSchemaRegistryFormatter) Marshall(topic string, target any, avroSchema string) ([]byte, error) {
-	if avroSchema == "" {
+func (f avroSchemaRegistryFormatter) Marshall(req marshReq) ([]byte, error) {
+	if req.schema == "" {
 		return nil, errors.New("avro schema is required for schema registry formatter")
 	}
-	id, err := f.schemaRegistryCl.GetID(topic, avroSchema)
+	id, err := f.schemaRegistryCl.GetID(req.topic, req.schema)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get avro schema by id for topic %s: %w", topic, err)
+		return nil, fmt.Errorf("failed to get avro schema by id for topic %s: %w", req.topic, err)
 	}
 	f.f.SchemaID = id
-	data, err := f.f.Marshall(target)
+	data, err := f.f.Marshall(req.subject)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal avro schema for topic %s: %w", topic, err)
+		return nil, fmt.Errorf("failed to marshal avro schema for topic %s: %w", req.topic, err)
 	}
 	return data, nil
 }
 
-func (f avroSchemaRegistryFormatter) Unmarshal(topic string, value []byte, target any) error {
-	err := f.schemaRegistryCl.DeserializeInto(topic, value, &target)
+func (f avroSchemaRegistryFormatter) Unmarshal(req unmarshReq) error {
+	err := f.schemaRegistryCl.DeserializeInto(req.topic, req.data, &req.target)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize to confluent schema registry avro type: %w", err)
 	}

@@ -46,8 +46,7 @@ type KWriter struct {
 	mu          sync.Mutex
 	producer    KafkaProducer
 	topicConfig ProducerTopicConfig
-	fmtter      Formatter
-	cFormatter  confluentFormatter
+	fmtter      ultimateFormatter
 	logger      Logger
 	tracer      trace.Tracer
 	p           propagation.TextMapPropagator
@@ -66,14 +65,7 @@ func newWriter(conf Config, topicConfig ProducerTopicConfig, producer confluentP
 	if err != nil {
 		return nil, err
 	}
-	var formatter Formatter
-	var cFormatter confluentFormatter
-	switch topicConfig.Formatter {
-	case AvroConfluentFmt:
-		cFormatter, err = getFormatter2(topicConfig.Formatter, topicConfig.SchemaRegistry, srProvider)
-	default:
-		formatter, err = getFormatter(topicConfig.Formatter, topicConfig.SchemaID)
-	}
+	formatter, err := getFormatter(topicConfig.Formatter, topicConfig.SchemaID, topicConfig.SchemaRegistry, srProvider)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +73,6 @@ func newWriter(conf Config, topicConfig ProducerTopicConfig, producer confluentP
 	return &KWriter{
 		producer:    p,
 		fmtter:      formatter,
-		cFormatter:  cFormatter,
 		topicConfig: topicConfig,
 		logger:      NoopLogger{},
 	}, nil
@@ -213,13 +204,14 @@ func (w *KWriter) write(ctx context.Context, msg keyValuePair, opts ...WriteOpti
 }
 
 func (w *KWriter) marshall(_ context.Context, value any, schema string) ([]byte, error) {
-	if w.fmtter != nil {
-		return w.fmtter.Marshall(value)
+	if w.fmtter == nil {
+		return nil, errors.New("formatter or confluent formatter is not supplied to produce kafka message")
 	}
-	if w.cFormatter != nil {
-		return w.cFormatter.Marshall(w.topicConfig.Topic, value, schema)
-	}
-	return nil, errors.New("formatter or confluent formatter is not supplied to produce kafka message")
+	return w.fmtter.Marshall(marshReq{
+		topic:   w.topicConfig.Topic,
+		subject: value,
+		schema:  schema,
+	})
 }
 
 // Close terminates the writer gracefully and mark it as closed
@@ -237,7 +229,7 @@ type WriterOption func(*KWriter)
 func WFormatterOption(fmtter Formatter) WriterOption {
 	return func(w *KWriter) {
 		if fmtter != nil {
-			w.fmtter = fmtter
+			w.fmtter = f1{F: fmtter}
 		}
 	}
 }

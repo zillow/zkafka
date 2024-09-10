@@ -9,10 +9,10 @@ import (
 func TestNoopFormatter_Marshall_Unmarshal(t *testing.T) {
 	defer recoverThenFail(t)
 	fmtter := errFormatter{}
-	_, err := fmtter.Marshall("anything")
+	_, err := fmtter.Marshall(marshReq{subject: "anything"})
 	require.ErrorIs(t, err, errMissingFmtter)
 
 	var someInt int32
-	err = fmtter.Unmarshal([]byte("test"), &someInt)
+	err = fmtter.Unmarshal(unmarshReq{data: []byte("test"), target: &someInt})
 	require.ErrorIs(t, err, errMissingFmtter)
 }

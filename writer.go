@@ -46,7 +46,7 @@ type KWriter struct {
 	mu          sync.Mutex
 	producer    KafkaProducer
 	topicConfig ProducerTopicConfig
-	fmtter      ultimateFormatter
+	fmtter      kFormatter
 	logger      Logger
 	tracer      trace.Tracer
 	p           propagation.TextMapPropagator
@@ -207,7 +207,7 @@ func (w *KWriter) marshall(_ context.Context, value any, schema string) ([]byte,
 	if w.fmtter == nil {
 		return nil, errors.New("formatter or confluent formatter is not supplied to produce kafka message")
 	}
-	return w.fmtter.Marshall(marshReq{
+	return w.fmtter.marshall(marshReq{
 		topic:   w.topicConfig.Topic,
 		subject: value,
 		schema:  schema,
@@ -229,7 +229,7 @@ type WriterOption func(*KWriter)
 func WFormatterOption(fmtter Formatter) WriterOption {
 	return func(w *KWriter) {
 		if fmtter != nil {
-			w.fmtter = f1{F: fmtter}
+			w.fmtter = zfmtShim{F: fmtter}
 		}
 	}
 }

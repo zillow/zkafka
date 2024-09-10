@@ -203,7 +203,7 @@ func TestClient_Reader(t *testing.T) {
 					MaxPollIntervalMillis: ptr(61000),
 				},
 				logger: NoopLogger{},
-				fmtter: f1{&zfmt.AvroFormatter{}},
+				fmtter: zfmtShim{&zfmt.AvroFormatter{}},
 			},
 			wantErr: false,
 		},
@@ -235,7 +235,7 @@ func TestClient_Reader(t *testing.T) {
 					MaxPollIntervalMillis: ptr(21000),
 				},
 				logger: NoopLogger{},
-				fmtter: f1{&zfmt.AvroFormatter{}},
+				fmtter: zfmtShim{&zfmt.AvroFormatter{}},
 			},
 			wantErr: false,
 		},
@@ -364,7 +364,7 @@ func TestClient_Writer(t *testing.T) {
 				logger: NoopLogger{},
 				tracer: noop.TracerProvider{}.Tracer(""),
 				p:      propagation.TraceContext{},
-				fmtter: f1{&zfmt.ProtobufRawFormatter{}},
+				fmtter: zfmtShim{&zfmt.ProtobufRawFormatter{}},
 			},
 			wantErr: false,
 		},
@@ -393,7 +393,7 @@ func TestClient_Writer(t *testing.T) {
 				logger: NoopLogger{},
 				tracer: noop.TracerProvider{}.Tracer(""),
 				p:      propagation.TraceContext{},
-				fmtter: f1{&zfmt.ProtobufRawFormatter{}},
+				fmtter: zfmtShim{&zfmt.ProtobufRawFormatter{}},
 			},
 			wantErr: false,
 		},
@@ -593,7 +593,7 @@ func Test_getFormatter_Consumer(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, f1{tt.want}, got)
+				require.Equal(t, zfmtShim{tt.want}, got)
 			}
 		})
 	}
@@ -630,7 +630,7 @@ func Test_getFormatter_Producer(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, f1{tt.want}, got)
+				require.Equal(t, zfmtShim{tt.want}, got)
 			}
 		})
 	}

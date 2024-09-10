@@ -44,7 +44,7 @@ type KReader struct {
 	topicConfig ConsumerTopicConfig
 	isClosed    bool
 
-	fmtter ultimateFormatter
+	fmtter kFormatter
 
 	logger     Logger
 	lifecycle  LifecycleHooks
@@ -296,7 +296,7 @@ type ReaderOption func(*KReader)
 func RFormatterOption(fmtter Formatter) ReaderOption {
 	return func(r *KReader) {
 		if fmtter != nil {
-			r.fmtter = f1{F: fmtter}
+			r.fmtter = zfmtShim{F: fmtter}
 		}
 	}
 }

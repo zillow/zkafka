@@ -23,7 +23,7 @@ type Message struct {
 	TimeStamp      time.Time
 	value          []byte
 	topicPartition kafka.TopicPartition
-	fmt            ultimateFormatter
+	fmt            kFormatter
 	doneFunc       func(ctx context.Context)
 	doneOnce       sync.Once
 }
@@ -59,7 +59,7 @@ func (m *Message) unmarshall(target any) error {
 	if m.fmt == nil {
 		return errors.New("formatter or confluent formatter is not supplied to decode kafka message")
 	}
-	return m.fmt.Unmarshal(unmarshReq{
+	return m.fmt.unmarshal(unmarshReq{
 		topic:  m.Topic,
 		data:   m.value,
 		target: target,

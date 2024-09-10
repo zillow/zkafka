@@ -104,7 +104,7 @@ func TestMessage_Headers(t *testing.T) {
 func TestMessage_Decode(t *testing.T) {
 	type fields struct {
 		value []byte
-		fmt   ultimateFormatter
+		fmt   kFormatter
 	}
 	type args struct {
 		v any
@@ -133,7 +133,7 @@ func TestMessage_Decode(t *testing.T) {
 			name: "valid message, formatter, empty input => error",
 			fields: fields{
 				value: []byte("test"),
-				fmt:   f1{&zfmt.StringFormatter{}},
+				fmt:   zfmtShim{&zfmt.StringFormatter{}},
 			},
 			args:    args{},
 			wantErr: true,
@@ -142,7 +142,7 @@ func TestMessage_Decode(t *testing.T) {
 			name: "valid message, formatter, valid input => no error",
 			fields: fields{
 				value: []byte("test"),
-				fmt:   f1{&zfmt.StringFormatter{}},
+				fmt:   zfmtShim{&zfmt.StringFormatter{}},
 			},
 			args: args{
 				v: &bytes.Buffer{},
@@ -194,7 +194,7 @@ func TestMessage_Done(t *testing.T) {
 				Key:     tt.fields.Key,
 				Headers: tt.fields.Headers,
 				value:   tt.fields.value,
-				fmt:     f1{F: tt.fields.fmt},
+				fmt:     zfmtShim{F: tt.fields.fmt},
 				doneFunc: func(ctx context.Context) {
 					isCalled = true
 				},

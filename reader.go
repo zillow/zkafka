@@ -53,10 +53,10 @@ type KReader struct {
 	tCommitMgr *topicCommitMgr
 }
 
-type srFunc func(_ SchemaRegistryConfig) (schemaregistry.Client, error)
+type srProvider func(_ SchemaRegistryConfig) (schemaregistry.Client, error)
 
 // newReader makes a new reader based on the configurations
-func newReader(conf Config, topicConfig ConsumerTopicConfig, provider confluentConsumerProvider, logger Logger, prefix string, getSR srFunc) (*KReader, error) {
+func newReader(conf Config, topicConfig ConsumerTopicConfig, provider confluentConsumerProvider, logger Logger, prefix string, getSR srProvider) (*KReader, error) {
 	confluentConfig := makeConsumerConfig(conf, topicConfig, prefix)
 	consumer, err := provider(confluentConfig)
 	if err != nil {

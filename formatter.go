@@ -29,7 +29,7 @@ type confluentFormatter interface {
 	Unmarshal(topic string, b []byte, v any) error
 }
 
-func getFormatter2(formatter zfmt.FormatterType, srCfg SchemaRegistryConfig, getSR srFunc) (confluentFormatter, error) {
+func getFormatter2(formatter zfmt.FormatterType, srCfg SchemaRegistryConfig, getSR srProvider) (confluentFormatter, error) {
 	switch formatter {
 	case AvroConfluentFmt:
 		cl, err := getSR(srCfg)

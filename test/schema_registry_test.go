@@ -39,8 +39,8 @@ const enableKafkaBrokerTest = "ENABLE_KAFKA_BROKER_TESTS"
 // The two message successfully writing means the two schemas are registered.
 // We then test we can use the confluent deserializer to decode the messages. For both schema1 and schema2.
 // This confirms that backwards/forward compatible evolution is possible and old schemas can still read messages from new.
-func Test_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom(t *testing.T) {
-	checkShouldSkipTest(t, enableSchemaRegistryTest)
+func Test_SchemaRegistryReal_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest, enableSchemaRegistryTest)
 
 	ctx := context.Background()
 	topic := "integration-test-topic-2" + uuid.NewString()
@@ -150,90 +150,9 @@ func Test_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFro
 	assertEqual(t, evt2, receivedEvt2Schema2)
 }
 
-func Test_AutoRegisterSchemasFalse_WillNotWriteMessage(t *testing.T) {
-	checkShouldSkipTest(t, enableSchemaRegistryTest)
+func Test_SchemaRegistry_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest, enableSchemaRegistryTest)
 
-	ctx := context.Background()
-	topic := "integration-test-topic-2" + uuid.NewString()
-	bootstrapServer := getBootstrap()
-
-	createTopic(t, bootstrapServer, topic, 1)
-	t.Logf("Created topic: %s", topic)
-
-	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
-	defer func() { require.NoError(t, client.Close()) }()
-
-	t.Log("Created writer with auto registered schemas")
-	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.AvroConfluentFmt,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
-			URL: "http://localhost:8081",
-			Serialization: zkafka.SerializationConfig{
-				AutoRegisterSchemas: false,
-				Schema:              dummyEventSchema1,
-			},
-		},
-	})
-	require.NoError(t, err)
-
-	evt1 := heetch1.DummyEvent{
-		IntField:    int(rand.Int31()),
-		DoubleField: rand.Float64(),
-		StringField: uuid.NewString(),
-		BoolField:   true,
-		BytesField:  []byte(uuid.NewString()),
-	}
-	// write msg1, and msg2
-	_, err = writer1.Write(ctx, evt1)
-	require.ErrorContains(t, err, "failed to get avro schema by id")
-}
-
-// Its possible not specify a schema for your producer.
-// In this case, the underlying lib does
-func Test_AutoRegisterSchemas_RequiresSchemaSpecification(t *testing.T) {
-	checkShouldSkipTest(t, enableSchemaRegistryTest)
-
-	ctx := context.Background()
-	topic := "integration-test-topic-2" + uuid.NewString()
-	bootstrapServer := getBootstrap()
-
-	createTopic(t, bootstrapServer, topic, 1)
-	t.Logf("Created topic: %s", topic)
-
-	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
-	defer func() { require.NoError(t, client.Close()) }()
-
-	t.Log("Created writer with auto registered schemas")
-	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.AvroConfluentFmt,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
-			URL: "http://localhost:8081",
-			Serialization: zkafka.SerializationConfig{
-				AutoRegisterSchemas: true,
-				// don't specify schema uses implicit handling
-				Schema: "",
-			},
-		},
-	})
-	require.NoError(t, err)
-
-	evt1 := heetch1.DummyEvent{
-		IntField:    int(rand.Int31()),
-		DoubleField: rand.Float64(),
-		StringField: uuid.NewString(),
-		BoolField:   true,
-		BytesField:  []byte(uuid.NewString()),
-	}
-	// write msg1, and msg2
-	_, err = writer1.Write(ctx, evt1)
-	require.ErrorContains(t, err, "avro schema is required for schema registry formatter")
-}
-
-func TestXXXX(t *testing.T) {
 	ctx := context.Background()
 	topic := "integration-test-topic-2" + uuid.NewString()
 	bootstrapServer := getBootstrap()
@@ -261,6 +180,20 @@ func TestXXXX(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	writer2, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.AvroConfluentFmt,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL: "mock://",
+			Serialization: zkafka.SerializationConfig{
+				AutoRegisterSchemas: true,
+				Schema:              dummyEventSchema2,
+			},
+		},
+	})
+	require.NoError(t, err)
+
 	evt1 := heetch1.DummyEvent{
 		IntField:    int(rand.Int31()),
 		DoubleField: rand.Float64(),
@@ -270,6 +203,17 @@ func TestXXXX(t *testing.T) {
 	}
 	// write msg1, and msg2
 	_, err = writer1.Write(ctx, evt1)
+	require.NoError(t, err)
+
+	evt2 := heetch2.DummyEvent{
+		IntField:            int(rand.Int31()),
+		DoubleField:         rand.Float64(),
+		StringField:         uuid.NewString(),
+		BoolField:           true,
+		BytesField:          []byte(uuid.NewString()),
+		NewFieldWithDefault: ptr(uuid.NewString()),
+	}
+	_, err = writer2.Write(ctx, evt2)
 	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
@@ -288,10 +232,11 @@ func TestXXXX(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Log("Begin reading messages")
-	results, err := readMessages(reader, 1)
+	results, err := readMessages(reader, 2)
 	require.NoError(t, err)
 
 	msg1 := <-results
+	msg2 := <-results
 	t.Log("Close reader")
 
 	require.NoError(t, reader.Close())
@@ -299,6 +244,104 @@ func TestXXXX(t *testing.T) {
 	receivedEvt1 := heetch1.DummyEvent{}
 	require.NoError(t, msg1.Decode(&receivedEvt1))
 	assertEqual(t, evt1, receivedEvt1)
+
+	receivedEvt2Schema1 := heetch1.DummyEvent{}
+	require.NoError(t, msg2.Decode(&receivedEvt2Schema1))
+	expectedEvt2 := heetch1.DummyEvent{
+		IntField:    evt2.IntField,
+		DoubleField: evt2.DoubleField,
+		StringField: evt2.StringField,
+		BoolField:   evt2.BoolField,
+		BytesField:  evt2.BytesField,
+	}
+	assertEqual(t, expectedEvt2, receivedEvt2Schema1)
+
+	receivedEvt2Schema2 := heetch2.DummyEvent{}
+	require.NoError(t, msg2.Decode(&receivedEvt2Schema2))
+	assertEqual(t, evt2, receivedEvt2Schema2)
+}
+
+func Test_SchemaRegistry_AutoRegisterSchemasFalse_WillNotWriteMessage(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
+	ctx := context.Background()
+	topic := "integration-test-topic-2" + uuid.NewString()
+	bootstrapServer := getBootstrap()
+
+	createTopic(t, bootstrapServer, topic, 1)
+	t.Logf("Created topic: %s", topic)
+
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
+	defer func() { require.NoError(t, client.Close()) }()
+
+	t.Log("Created writer with auto registered schemas")
+	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.AvroConfluentFmt,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL: "mock://",
+			Serialization: zkafka.SerializationConfig{
+				AutoRegisterSchemas: false,
+				Schema:              dummyEventSchema1,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	evt1 := heetch1.DummyEvent{
+		IntField:    int(rand.Int31()),
+		DoubleField: rand.Float64(),
+		StringField: uuid.NewString(),
+		BoolField:   true,
+		BytesField:  []byte(uuid.NewString()),
+	}
+	// write msg1, and msg2
+	_, err = writer1.Write(ctx, evt1)
+	require.ErrorContains(t, err, "failed to get avro schema by id")
+}
+
+// Its possible not specify a schema for your producer.
+// In this case, the underlying lib does
+func Test_SchemaRegistry_AutoRegisterSchemas_RequiresSchemaSpecification(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
+	ctx := context.Background()
+	topic := "integration-test-topic-2" + uuid.NewString()
+	bootstrapServer := getBootstrap()
+
+	createTopic(t, bootstrapServer, topic, 1)
+	t.Logf("Created topic: %s", topic)
+
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
+	defer func() { require.NoError(t, client.Close()) }()
+
+	t.Log("Created writer with auto registered schemas")
+	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.AvroConfluentFmt,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL: "mock://",
+			Serialization: zkafka.SerializationConfig{
+				AutoRegisterSchemas: true,
+				// don't specify schema uses implicit handling
+				Schema: "",
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	evt1 := heetch1.DummyEvent{
+		IntField:    int(rand.Int31()),
+		DoubleField: rand.Float64(),
+		StringField: uuid.NewString(),
+		BoolField:   true,
+		BytesField:  []byte(uuid.NewString()),
+	}
+	// write msg1, and msg2
+	_, err = writer1.Write(ctx, evt1)
+	require.ErrorContains(t, err, "avro schema is required for schema registry formatter")
 }
 
 func checkShouldSkipTest(t *testing.T, flags ...string) {

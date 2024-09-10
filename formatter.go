@@ -29,19 +29,30 @@ type confluentFormatter interface {
 	Unmarshal(topic string, b []byte, v any) error
 }
 
-func getFormatter(formatter zfmt.FormatterType, schemaID int, srCfg SchemaRegistryConfig) (Formatter, confluentFormatter, error) {
+func getFormatter2(formatter zfmt.FormatterType, srCfg SchemaRegistryConfig, getSR srFunc) (confluentFormatter, error) {
 	switch formatter {
 	case AvroConfluentFmt:
-		cf, err := newAvroSchemaRegistryFormatter(srCfg)
-		return nil, cf, err
+		cl, err := getSR(srCfg)
+		if err != nil {
+			return nil, err
+		}
+		cf, err := newAvroSchemaRegistryFormatter(cl, srCfg)
+		return cf, err
+	default:
+		return nil, fmt.Errorf("unsupported formatter %s", formatter)
+	}
+}
+
+func getFormatter(formatter zfmt.FormatterType, schemaID int) (Formatter, error) {
+	switch formatter {
 	case CustomFmt:
-		return &errFormatter{}, nil, nil
+		return &errFormatter{}, nil
 	default:
 		f, err := zfmt.GetFormatter(formatter, schemaID)
 		if err != nil {
-			return nil, nil, fmt.Errorf("unsupported formatter %s", formatter)
+			return nil, fmt.Errorf("unsupported formatter %s", formatter)
 		}
-		return f, nil, nil
+		return f, nil
 	}
 }
 
@@ -62,24 +73,32 @@ func (f errFormatter) Unmarshal(_ []byte, _ any) error {
 var _ confluentFormatter = (*avroSchemaRegistryFormatter)(nil)
 
 type avroSchemaRegistryFormatter struct {
-	deser *avrov2.Deserializer
-	ser   *avrov2.Serializer
-	f     zfmt.SchematizedAvroFormatter
+	schemaRegistryCl schemaRegistryCl
+	//deser *avrov2.Deserializer
+	//ser   *avrov2.Serializer
+	f zfmt.SchematizedAvroFormatter
 }
 
-func newAvroSchemaRegistryFormatter(srConfig SchemaRegistryConfig) (avroSchemaRegistryFormatter, error) {
+//	func newAvroConfig(srConfig SchemaRegistryConfig) (*avro.SerializerConfig, *avro.DeserializerConfig, error) {
+//		url := srConfig.URL
+//		if url == "" {
+//			return nil, nil, errors.New("no schema registry url provided")
+//		}
+//		deserConfig := avrov2.NewDeserializerConfig()
+//
+//		serConfig := avrov2.NewSerializerConfig()
+//		serConfig.AutoRegisterSchemas = srConfig.Serialization.AutoRegisterSchemas
+//		serConfig.NormalizeSchemas = true
+//
+// }
+func newAvroSchemaRegistryFormatter(cl schemaregistry.Client, srConfig SchemaRegistryConfig) (avroSchemaRegistryFormatter, error) {
 	url := srConfig.URL
 	if url == "" {
 		return avroSchemaRegistryFormatter{}, errors.New("no schema registry url provided")
-
-	}
-	client, err := schemaregistry.NewClient(schemaregistry.NewConfig(url))
-	if err != nil {
-		return avroSchemaRegistryFormatter{}, fmt.Errorf("failed to create schema registry client: %w", err)
 	}
 
 	deserConfig := avrov2.NewDeserializerConfig()
-	deser, err := avrov2.NewDeserializer(client, serde.ValueSerde, deserConfig)
+	deser, err := avrov2.NewDeserializer(cl, serde.ValueSerde, deserConfig)
 	if err != nil {
 		return avroSchemaRegistryFormatter{}, fmt.Errorf("failed to create deserializer: %w", err)
 	}
@@ -88,13 +107,16 @@ func newAvroSchemaRegistryFormatter(srConfig SchemaRegistryConfig) (avroSchemaRe
 	serConfig.AutoRegisterSchemas = srConfig.Serialization.AutoRegisterSchemas
 	serConfig.NormalizeSchemas = true
 
-	ser, err := avrov2.NewSerializer(client, serde.ValueSerde, serConfig)
+	ser, err := avrov2.NewSerializer(cl, serde.ValueSerde, serConfig)
 	if err != nil {
 		return avroSchemaRegistryFormatter{}, fmt.Errorf("failed to create serializer: %w", err)
 	}
-	return avroSchemaRegistryFormatter{
-		deser: deser,
+	shimcl := shim{
 		ser:   ser,
+		deser: deser,
+	}
+	return avroSchemaRegistryFormatter{
+		schemaRegistryCl: shimcl,
 	}, nil
 }
 
@@ -102,10 +124,7 @@ func (f avroSchemaRegistryFormatter) Marshall(topic string, target any, avroSche
 	if avroSchema == "" {
 		return nil, errors.New("avro schema is required for schema registry formatter")
 	}
-	info := schemaregistry.SchemaInfo{
-		Schema: avroSchema,
-	}
-	id, err := f.ser.GetID(topic, nil, &info)
+	id, err := f.schemaRegistryCl.GetID(topic, avroSchema)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get avro schema by id for topic %s: %w", topic, err)
 	}
@@ -118,9 +137,29 @@ func (f avroSchemaRegistryFormatter) Marshall(topic string, target any, avroSche
 }
 
 func (f avroSchemaRegistryFormatter) Unmarshal(topic string, value []byte, target any) error {
-	err := f.deser.DeserializeInto(topic, value, &target)
+	err := f.schemaRegistryCl.DeserializeInto(topic, value, &target)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize to confluent schema registry avro type: %w", err)
 	}
 	return nil
+}
+
+type schemaRegistryCl interface {
+	GetID(topic string, avroSchema string) (int, error)
+	DeserializeInto(topic string, value []byte, target any) error
+}
+
+var _ schemaRegistryCl = (*shim)(nil)
+
+type shim struct {
+	ser   *avrov2.Serializer
+	deser *avrov2.Deserializer
+}
+
+func (s shim) GetID(topic string, avroSchema string) (int, error) {
+	return s.ser.GetID(topic, nil, &schemaregistry.SchemaInfo{Schema: avroSchema})
+}
+
+func (s shim) DeserializeInto(topic string, value []byte, target any) error {
+	return s.deser.DeserializeInto(topic, value, target)
 }

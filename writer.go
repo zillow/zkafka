@@ -60,13 +60,24 @@ type keyValuePair struct {
 	value any
 }
 
-func newWriter(conf Config, topicConfig ProducerTopicConfig, producer confluentProducerProvider) (*KWriter, error) {
+func newWriter(conf Config, topicConfig ProducerTopicConfig, producer confluentProducerProvider, getSR srFunc) (*KWriter, error) {
 	confluentConfig := makeProducerConfig(conf, topicConfig)
 	p, err := producer(confluentConfig)
 	if err != nil {
 		return nil, err
 	}
-	formatter, cFormatter, err := getFormatter(topicConfig.Formatter, topicConfig.SchemaID, topicConfig.SchemaRegistry)
+	//formatter, cFormatter, err := getFormatter(topicConfig.Formatter, topicConfig.SchemaID, topicConfig.SchemaRegistry)
+	//if err != nil {
+	//	return nil, err
+	//}
+	var formatter Formatter
+	var cFormatter confluentFormatter
+	switch topicConfig.Formatter {
+	case AvroConfluentFmt:
+		cFormatter, err = getFormatter2(topicConfig.Formatter, topicConfig.SchemaRegistry, getSR)
+	default:
+		formatter, err = getFormatter(topicConfig.Formatter, topicConfig.SchemaID)
+	}
 	if err != nil {
 		return nil, err
 	}

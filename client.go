@@ -4,8 +4,11 @@ package zkafka
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 
+	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -34,6 +37,9 @@ type Client struct {
 	tp          trace.TracerProvider
 	p           propagation.TextMapPropagator
 
+	mmu   sync.Mutex
+	srCls map[string]schemaregistry.Client
+
 	// confluent dependencies
 	producerProvider confluentProducerProvider
 	consumerProvider confluentConsumerProvider
@@ -45,6 +51,7 @@ func NewClient(conf Config, opts ...Option) *Client {
 		conf:    conf,
 		readers: make(map[string]*KReader),
 		writers: make(map[string]*KWriter),
+		srCls:   make(map[string]schemaregistry.Client),
 		logger:  NoopLogger{},
 
 		producerProvider: defaultConfluentProducerProvider{}.NewProducer,
@@ -77,7 +84,7 @@ func (c *Client) Reader(_ context.Context, topicConfig ConsumerTopicConfig, opts
 		return r, nil
 	}
 
-	reader, err := newReader(c.conf, topicConfig, c.consumerProvider, c.logger, c.groupPrefix)
+	reader, err := newReader(c.conf, topicConfig, c.consumerProvider, c.logger, c.groupPrefix, c.schemaCl)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +119,7 @@ func (c *Client) Writer(_ context.Context, topicConfig ProducerTopicConfig, opts
 	if exist && !w.isClosed {
 		return w, nil
 	}
-	writer, err := newWriter(c.conf, topicConfig, c.producerProvider)
+	writer, err := newWriter(c.conf, topicConfig, c.producerProvider, c.schemaCl)
 	if err != nil {
 		return nil, err
 	}
@@ -148,6 +155,22 @@ func (c *Client) Close() error {
 		}
 	}
 	return err
+}
+
+func (c *Client) schemaCl(srConfig SchemaRegistryConfig) (schemaregistry.Client, error) {
+	url := srConfig.URL
+	if url == "" {
+		return nil, errors.New("no schema registry url provided")
+	}
+	if srCl, ok := c.srCls[url]; ok {
+		return srCl, nil
+	}
+	client, err := schemaregistry.NewClient(schemaregistry.NewConfig(url))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create schema registry client: %w", err)
+	}
+	c.srCls[url] = client
+	return client, nil
 }
 
 func getTracer(tp trace.TracerProvider) trace.Tracer {

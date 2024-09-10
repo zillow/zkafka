@@ -542,7 +542,7 @@ func Test_newWriter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			recoverThenFail(t)
-			w, err := newWriter(tt.args.conf, tt.args.topicConfig, tt.args.producerP)
+			w, err := newWriter(tt.args.conf, tt.args.topicConfig, tt.args.producerP, nil)
 			if tt.wantErr {
 				require.Error(t, err, "expected error for newWriter()")
 			} else {

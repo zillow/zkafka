@@ -233,6 +233,74 @@ func Test_AutoRegisterSchemas_RequiresSchemaSpecification(t *testing.T) {
 	require.ErrorContains(t, err, "avro schema is required for schema registry formatter")
 }
 
+func TestXXXX(t *testing.T) {
+	ctx := context.Background()
+	topic := "integration-test-topic-2" + uuid.NewString()
+	bootstrapServer := getBootstrap()
+
+	createTopic(t, bootstrapServer, topic, 1)
+	t.Logf("Created topic: %s", topic)
+
+	groupID := uuid.NewString()
+
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
+	defer func() { require.NoError(t, client.Close()) }()
+
+	t.Log("Created writer with auto registered schemas")
+	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.AvroConfluentFmt,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL: "mock://",
+			Serialization: zkafka.SerializationConfig{
+				AutoRegisterSchemas: true,
+				Schema:              dummyEventSchema1,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	evt1 := heetch1.DummyEvent{
+		IntField:    int(rand.Int31()),
+		DoubleField: rand.Float64(),
+		StringField: uuid.NewString(),
+		BoolField:   true,
+		BytesField:  []byte(uuid.NewString()),
+	}
+	// write msg1, and msg2
+	_, err = writer1.Write(ctx, evt1)
+	require.NoError(t, err)
+
+	consumerTopicConfig := zkafka.ConsumerTopicConfig{
+		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.AvroConfluentFmt,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL: "mock://",
+		},
+		GroupID: groupID,
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+	reader, err := client.Reader(ctx, consumerTopicConfig)
+	require.NoError(t, err)
+
+	t.Log("Begin reading messages")
+	results, err := readMessages(reader, 1)
+	require.NoError(t, err)
+
+	msg1 := <-results
+	t.Log("Close reader")
+
+	require.NoError(t, reader.Close())
+
+	receivedEvt1 := heetch1.DummyEvent{}
+	require.NoError(t, msg1.Decode(&receivedEvt1))
+	assertEqual(t, evt1, receivedEvt1)
+}
+
 func checkShouldSkipTest(t *testing.T, flags ...string) {
 	t.Helper()
 	for _, flag := range flags {

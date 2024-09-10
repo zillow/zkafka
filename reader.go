@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry"
 )
 
 //// go:generate mockgen -destination=./mocks/mock_metrics.go -source=reader.go
@@ -52,15 +53,24 @@ type KReader struct {
 	tCommitMgr *topicCommitMgr
 }
 
+type srFunc func(_ SchemaRegistryConfig) (schemaregistry.Client, error)
+
 // newReader makes a new reader based on the configurations
-func newReader(conf Config, topicConfig ConsumerTopicConfig, provider confluentConsumerProvider, logger Logger, prefix string) (*KReader, error) {
+func newReader(conf Config, topicConfig ConsumerTopicConfig, provider confluentConsumerProvider, logger Logger, prefix string, getSR srFunc) (*KReader, error) {
 	confluentConfig := makeConsumerConfig(conf, topicConfig, prefix)
 	consumer, err := provider(confluentConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	formatter, cFormatter, err := getFormatter(topicConfig.Formatter, topicConfig.SchemaID, topicConfig.SchemaRegistry)
+	var formatter Formatter
+	var cFormatter confluentFormatter
+	switch topicConfig.Formatter {
+	case AvroConfluentFmt:
+		cFormatter, err = getFormatter2(topicConfig.Formatter, topicConfig.SchemaRegistry, getSR)
+	default:
+		formatter, err = getFormatter(topicConfig.Formatter, topicConfig.SchemaID)
+	}
 	if err != nil {
 		return nil, err
 	}

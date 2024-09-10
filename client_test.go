@@ -462,11 +462,11 @@ func TestClient_Close(t *testing.T) {
 	}.NewConsumer
 	r1, err := newReader(Config{}, ConsumerTopicConfig{
 		Formatter: zfmt.StringFmt,
-	}, m, &NoopLogger{}, "")
+	}, m, &NoopLogger{}, "", nil)
 	require.NoError(t, err)
 	r2, err := newReader(Config{}, ConsumerTopicConfig{
 		Formatter: zfmt.StringFmt,
-	}, m, &NoopLogger{}, "")
+	}, m, &NoopLogger{}, "", nil)
 	require.NoError(t, err)
 	tests := []struct {
 		name    string
@@ -588,7 +588,7 @@ func Test_getFormatter_Consumer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
-			got, _, err := getFormatter(tt.args.topicConfig.Formatter, tt.args.topicConfig.SchemaID, SchemaRegistryConfig{})
+			got, err := getFormatter(tt.args.topicConfig.Formatter, tt.args.topicConfig.SchemaID)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -625,7 +625,7 @@ func Test_getFormatter_Producer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
-			got, _, err := getFormatter(tt.args.topicConfig.Formatter, tt.args.topicConfig.SchemaID, SchemaRegistryConfig{})
+			got, err := getFormatter(tt.args.topicConfig.Formatter, tt.args.topicConfig.SchemaID)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {

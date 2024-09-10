@@ -31,7 +31,7 @@ func TestReader_Read_NilReturn(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &NoopLogger{}, "")
+	r, _ := newReader(Config{}, topicConfig, m, &NoopLogger{}, "", nil)
 
 	got, err := r.Read(context.TODO())
 	require.NoError(t, err)
@@ -59,7 +59,8 @@ func TestReader_Read(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &NoopLogger{}, "")
+	r, err := newReader(Config{}, topicConfig, m, &NoopLogger{}, "", nil)
+	require.NoError(t, err)
 
 	got, err := r.Read(context.TODO())
 	require.NoError(t, err)
@@ -95,7 +96,8 @@ func TestReader_Read_Error(t *testing.T) {
 			m := mockConfluentConsumerProvider{
 				c: mockConsumer,
 			}.NewConsumer
-			r, _ := newReader(Config{}, topicConfig, m, &NoopLogger{}, "")
+			r, err := newReader(Config{}, topicConfig, m, &NoopLogger{}, "", nil)
+			require.NoError(t, err)
 
 			got, err := r.Read(context.TODO())
 			require.Error(t, err)
@@ -127,7 +129,8 @@ func TestReader_Read_TimeoutError(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &NoopLogger{}, "")
+	r, err := newReader(Config{}, topicConfig, m, &NoopLogger{}, "", nil)
+	require.NoError(t, err)
 
 	got, err := r.Read(context.TODO())
 	require.NoError(t, err, "expect no error to be returned on timeout")
@@ -146,9 +149,10 @@ func TestReader_Read_SubscriberError(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &NoopLogger{}, "")
+	r, err := newReader(Config{}, topicConfig, m, &NoopLogger{}, "", nil)
+	require.NoError(t, err)
 
-	_, err := r.Read(context.TODO())
+	_, err = r.Read(context.TODO())
 	require.Error(t, err, "expect an error to bubble up on Read because of subscribe error")
 }
 
@@ -166,10 +170,10 @@ func TestReader_Read_CloseError(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &l, "")
+	r, err := newReader(Config{}, topicConfig, m, &l, "", nil)
+	require.NoError(t, err)
 
-	err := r.Close()
-
+	err = r.Close()
 	require.Error(t, err)
 }
 
@@ -187,9 +191,10 @@ func TestReader_ReadWhenConnectionIsClosed(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &NoopLogger{}, "")
+	r, err := newReader(Config{}, topicConfig, m, &NoopLogger{}, "", nil)
+	require.NoError(t, err)
 
-	err := r.Close()
+	err = r.Close()
 	require.NoError(t, err)
 	_, err = r.Read(context.TODO())
 	require.Error(t, err, "KReader.Read() message should return error due to connection lost")
@@ -247,7 +252,7 @@ func Test_newReader(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
-			_, err := newReader(tt.args.conf, tt.args.topicConfig, tt.args.consumeProvider, &NoopLogger{}, "")
+			_, err := newReader(tt.args.conf, tt.args.topicConfig, tt.args.consumeProvider, &NoopLogger{}, "", nil)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -279,7 +284,9 @@ func Test_ProcessMessage(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mock_confluent.NewMockKafkaConsumer(ctrl),
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &l, "")
+	r, err := newReader(Config{}, topicConfig, m, &l, "", nil)
+	require.NoError(t, err)
+
 	got := r.mapMessage(context.Background(), dupMessage)
 
 	require.Equal(t, got.Partition, dupMessage.TopicPartition.Partition)
@@ -310,7 +317,9 @@ func Test_ProcessMultipleMessagesFromDifferentTopics_UpdatesInternalStateProperl
 	m := mockConfluentConsumerProvider{
 		c: mock_confluent.NewMockKafkaConsumer(ctrl),
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &l, "")
+	r, err := newReader(Config{}, topicConfig, m, &l, "", nil)
+	require.NoError(t, err)
+
 	for _, msg := range msgs {
 		got := r.mapMessage(context.Background(), msg)
 		require.Equal(t, got.Partition, msg.TopicPartition.Partition)
@@ -350,7 +359,8 @@ func Test_ProcessMessage_StoreOffsetError(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &l, "")
+	r, err := newReader(Config{}, topicConfig, m, &l, "", nil)
+	require.NoError(t, err)
 
 	mgr := newTopicCommitMgr()
 	cmgr := mgr.get(*dupMessage.TopicPartition.Topic)
@@ -397,7 +407,9 @@ func Test_ProcessMessage_SetError(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &l, "")
+	r, err := newReader(Config{}, topicConfig, m, &l, "", nil)
+	require.NoError(t, err)
+
 	mgr := newTopicCommitMgr()
 	cmgr := mgr.get(*dupMessage.TopicPartition.Topic)
 	cmgr.PushInWork(dupMessage.TopicPartition)

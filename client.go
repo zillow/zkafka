@@ -9,6 +9,8 @@ import (
 	"sync"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry"
+	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde"
+	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde/avrov2"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -27,18 +29,22 @@ const instrumentationName = "github.com/zillow/zkafka"
 
 // Client helps instantiate usable readers and writers
 type Client struct {
-	mu          sync.RWMutex
-	conf        Config
-	readers     map[string]*KReader
-	writers     map[string]*KWriter
-	logger      Logger
-	lifecycle   LifecycleHooks
-	groupPrefix string
-	tp          trace.TracerProvider
-	p           propagation.TextMapPropagator
+	mu           sync.RWMutex
+	conf         Config
+	readers      map[string]Reader
+	writers      map[string]Writer
+	logger       Logger
+	lifecycle    LifecycleHooks
+	groupPrefix  string
+	tp           trace.TracerProvider
+	p            propagation.TextMapPropagator
+	srClProvider srProvider2
+	//writerProvider writerProvider
+	//readerProvider readerProvider
 
-	mmu   sync.Mutex
-	srCls map[string]schemaregistry.Client
+	srf *schemaRegistryFactory
+	//mmu   sync.Mutex
+	//srCls map[string]schemaregistry.Client
 
 	// confluent dependencies
 	producerProvider confluentProducerProvider
@@ -47,15 +53,16 @@ type Client struct {
 
 // NewClient instantiates a kafka client to get readers and writers
 func NewClient(conf Config, opts ...Option) *Client {
+	srf := newSchemaRegistryFactory()
 	c := &Client{
 		conf:    conf,
-		readers: make(map[string]*KReader),
-		writers: make(map[string]*KWriter),
-		srCls:   make(map[string]schemaregistry.Client),
+		readers: make(map[string]Reader),
+		writers: make(map[string]Writer),
 		logger:  NoopLogger{},
 
 		producerProvider: defaultConfluentProducerProvider{}.NewProducer,
 		consumerProvider: defaultConfluentConsumerProvider{}.NewConsumer,
+		srClProvider:     srf.create,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -71,7 +78,12 @@ func (c *Client) Reader(_ context.Context, topicConfig ConsumerTopicConfig, opts
 	}
 	c.mu.RLock()
 	r, exist := c.readers[topicConfig.ClientID]
-	if exist && !r.isClosed {
+	kr, ok := r.(*KReader)
+	// is kr -> isClosed = true -> true
+	// is kr -> isClosed = false -> false
+	// is not kr -> false
+	isClosed := ok && kr.isClosed
+	if exist && !isClosed {
 		c.mu.RUnlock()
 		return r, nil
 	}
@@ -80,20 +92,31 @@ func (c *Client) Reader(_ context.Context, topicConfig ConsumerTopicConfig, opts
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	r, exist = c.readers[topicConfig.ClientID]
-	if exist && !r.isClosed {
+	if exist && !isClosed {
 		return r, nil
 	}
 
-	reader, err := newReader(c.conf, topicConfig, c.consumerProvider, c.logger, c.groupPrefix, c.schemaCl)
+	formatter, err := getFormatter(formatterArgs{
+		formatter: topicConfig.Formatter,
+		schemaID:  topicConfig.SchemaID,
+		srCfg:     topicConfig.SchemaRegistry,
+		getSR:     c.srClProvider,
+	})
 	if err != nil {
 		return nil, err
 	}
-	// copy settings from client first
-	reader.lifecycle = c.lifecycle
-
-	// overwrite options if given
-	for _, opt := range opts {
-		opt(reader)
+	reader, err := newReader(readerArgs{
+		cfg:              c.conf,
+		cCfg:             topicConfig,
+		consumerProvider: c.consumerProvider,
+		f:                formatter,
+		l:                c.logger,
+		prefix:           c.groupPrefix,
+		hooks:            c.lifecycle,
+		opts:             opts,
+	})
+	if err != nil {
+		return nil, err
 	}
 	c.readers[topicConfig.ClientID] = reader
 	return c.readers[topicConfig.ClientID], nil
@@ -107,7 +130,9 @@ func (c *Client) Writer(_ context.Context, topicConfig ProducerTopicConfig, opts
 	}
 	c.mu.RLock()
 	w, exist := c.writers[topicConfig.ClientID]
-	if exist && !w.isClosed {
+	kr, ok := w.(*KWriter)
+	isClosed := ok && kr.isClosed
+	if exist && !isClosed {
 		c.mu.RUnlock()
 		return w, nil
 	}
@@ -116,23 +141,34 @@ func (c *Client) Writer(_ context.Context, topicConfig ProducerTopicConfig, opts
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	w, exist = c.writers[topicConfig.ClientID]
-	if exist && !w.isClosed {
+	if exist && !isClosed {
 		return w, nil
 	}
-	writer, err := newWriter(c.conf, topicConfig, c.producerProvider, c.schemaCl)
+	formatter, err := getFormatter(formatterArgs{
+		formatter: topicConfig.Formatter,
+		schemaID:  topicConfig.SchemaID,
+		srCfg:     topicConfig.SchemaRegistry,
+		getSR:     c.srClProvider,
+	})
+
 	if err != nil {
 		return nil, err
 	}
-	// copy settings from client first
-	writer.logger = c.logger
-	writer.tracer = getTracer(c.tp)
-	writer.p = c.p
-	writer.lifecycle = c.lifecycle
-
-	// overwrite options if given
-	for _, opt := range opts {
-		opt(writer)
+	writer, err := newWriter(writerArgs{
+		cfg:              c.conf,
+		pCfg:             topicConfig,
+		producerProvider: c.producerProvider,
+		f:                formatter,
+		l:                c.logger,
+		t:                getTracer(c.tp),
+		p:                c.p,
+		hooks:            c.lifecycle,
+		opts:             opts,
+	})
+	if err != nil {
+		return nil, err
 	}
+
 	c.writers[topicConfig.ClientID] = writer
 	return c.writers[topicConfig.ClientID], nil
 }
@@ -157,7 +193,44 @@ func (c *Client) Close() error {
 	return err
 }
 
-func (c *Client) schemaCl(srConfig SchemaRegistryConfig) (schemaregistry.Client, error) {
+type schemaRegistryFactory struct {
+	mmu   sync.Mutex
+	srCls map[string]schemaregistry.Client
+}
+
+func newSchemaRegistryFactory() *schemaRegistryFactory {
+	return &schemaRegistryFactory{
+		srCls: make(map[string]schemaregistry.Client),
+	}
+}
+
+func (c *schemaRegistryFactory) create(srConfig SchemaRegistryConfig) (schemaRegistryCl, error) {
+	cl, err := c.getSchemaClient(srConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	deserConfig := avrov2.NewDeserializerConfig()
+	deser, err := avrov2.NewDeserializer(cl, serde.ValueSerde, deserConfig)
+	if err != nil {
+		return shim{}, fmt.Errorf("failed to create deserializer: %w", err)
+	}
+
+	serConfig := avrov2.NewSerializerConfig()
+	serConfig.AutoRegisterSchemas = srConfig.Serialization.AutoRegisterSchemas
+	serConfig.NormalizeSchemas = true
+
+	ser, err := avrov2.NewSerializer(cl, serde.ValueSerde, serConfig)
+	if err != nil {
+		return shim{}, fmt.Errorf("failed to create serializer: %w", err)
+	}
+	return shim{
+		ser:   ser,
+		deser: deser,
+	}, nil
+}
+
+func (c *schemaRegistryFactory) getSchemaClient(srConfig SchemaRegistryConfig) (schemaregistry.Client, error) {
 	url := srConfig.URL
 	if url == "" {
 		return nil, errors.New("no schema registry url provided")

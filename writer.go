@@ -59,23 +59,47 @@ type keyValuePair struct {
 	value any
 }
 
-func newWriter(conf Config, topicConfig ProducerTopicConfig, producer confluentProducerProvider, srProvider srProvider) (*KWriter, error) {
+type writerArgs struct {
+	cfg              Config
+	pCfg             ProducerTopicConfig
+	producerProvider confluentProducerProvider
+	f                kFormatter
+	l                Logger
+	t                trace.Tracer
+	p                propagation.TextMapPropagator
+	hooks            LifecycleHooks
+	opts             []WriterOption
+}
+
+func newWriter(args writerArgs) (*KWriter, error) {
+	conf := args.cfg
+	topicConfig := args.pCfg
+	producer := args.producerProvider
+	formatter := args.f
+
 	confluentConfig := makeProducerConfig(conf, topicConfig)
 	p, err := producer(confluentConfig)
 	if err != nil {
 		return nil, err
 	}
-	formatter, err := getFormatter(topicConfig.Formatter, topicConfig.SchemaID, topicConfig.SchemaRegistry, srProvider)
-	if err != nil {
-		return nil, err
-	}
 
-	return &KWriter{
+	w := &KWriter{
 		producer:    p,
-		fmtter:      formatter,
 		topicConfig: topicConfig,
-		logger:      NoopLogger{},
-	}, nil
+		fmtter:      formatter,
+		logger:      args.l,
+		tracer:      args.t,
+		p:           args.p,
+		lifecycle:   args.hooks,
+	}
+	s := WriterSettings{}
+	for _, opt := range args.opts {
+		opt(&s)
+	}
+	if s.fmtter != nil {
+		w.fmtter = s.fmtter
+	}
+	return w, nil
 }
 
 // Write sends messages to kafka with message key set as nil.
@@ -222,14 +246,18 @@ func (w *KWriter) Close() {
 	w.isClosed = true
 }
 
+type WriterSettings struct {
+	fmtter kFormatter
+}
+
 // WriterOption is a function that modify the writer configurations
-type WriterOption func(*KWriter)
+type WriterOption func(*WriterSettings)
 
 // WFormatterOption sets the formatter for this writer
 func WFormatterOption(fmtter Formatter) WriterOption {
-	return func(w *KWriter) {
+	return func(s *WriterSettings) {
 		if fmtter != nil {
-			w.fmtter = zfmtShim{F: fmtter}
+			s.fmtter = zfmtShim{F: fmtter}
 		}
 	}
 }

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry"
 )
 
 //// go:generate mockgen -destination=./mocks/mock_metrics.go -source=reader.go
@@ -52,28 +51,52 @@ type KReader struct {
 	tCommitMgr *topicCommitMgr
 }
 
-type srProvider func(_ SchemaRegistryConfig) (schemaregistry.Client, error)
+type srProvider2 func(_ SchemaRegistryConfig) (schemaRegistryCl, error)
+
+type readerArgs struct {
+	cfg              Config
+	cCfg             ConsumerTopicConfig
+	consumerProvider confluentConsumerProvider
+	f                kFormatter
+	l                Logger
+	prefix           string
+	hooks            LifecycleHooks
+	opts             []ReaderOption
+}
+
+//type readerProvider func(args readerArgs) (Reader, error)
 
 // newReader makes a new reader based on the configurations
-func newReader(conf Config, topicConfig ConsumerTopicConfig, provider confluentConsumerProvider, logger Logger, prefix string, srProvider srProvider) (*KReader, error) {
+func newReader(args readerArgs) (*KReader, error) {
+	conf := args.cfg
+	topicConfig := args.cCfg
+	prefix := args.prefix
+	provider := args.consumerProvider
+	formatter := args.f
+	logger := args.l
+
 	confluentConfig := makeConsumerConfig(conf, topicConfig, prefix)
 	consumer, err := provider(confluentConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	formatter, err := getFormatter(topicConfig.Formatter, topicConfig.SchemaID, topicConfig.SchemaRegistry, srProvider)
-	if err != nil {
-		return nil, err
-	}
-
-	return &KReader{
+	r := &KReader{
 		consumer:    consumer,
-		fmtter:      formatter,
 		topicConfig: topicConfig,
+		fmtter:      formatter,
 		logger:      logger,
+		lifecycle:   args.hooks,
 		tCommitMgr:  newTopicCommitMgr(),
-	}, nil
+	}
+	s := ReaderSettings{}
+	for _, opt := range args.opts {
+		opt(&s)
+	}
+	if s.fmtter != nil {
+		r.fmtter = s.fmtter
+	}
+	return r, nil
 }
 
 // Read consumes a single message at a time. Blocks until a message is returned or some
@@ -92,8 +115,9 @@ func (r *KReader) Read(ctx context.Context) (*Message, error) {
 	}
 	kmsg, err := r.consumer.ReadMessage(time.Duration(*r.topicConfig.ReadTimeoutMillis) * time.Millisecond)
 	if err != nil {
-		switch v := err.(type) {
-		case kafka.Error:
+		var v kafka.Error
+		switch {
+		case errors.As(err, &v):
 			// timeouts occur (because the assigned partitions aren't being written to, lack of activity, etc.). We'll
 			// log them for debugging purposes
 			if v.Code() == kafka.ErrTimedOut {
@@ -289,14 +313,18 @@ func getTopicName(topicName *string) string {
 	return topic
 }
 
+type ReaderSettings struct {
+	fmtter kFormatter
+}
+
 // ReaderOption is a function that modify the KReader configurations
-type ReaderOption func(*KReader)
+type ReaderOption func(*ReaderSettings)
 
 // RFormatterOption sets the formatter for this reader
 func RFormatterOption(fmtter Formatter) ReaderOption {
-	return func(r *KReader) {
+	return func(s *ReaderSettings) {
 		if fmtter != nil {
-			r.fmtter = zfmtShim{F: fmtter}
+			s.fmtter = zfmtShim{F: fmtter}
 		}
 	}
 }

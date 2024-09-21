@@ -783,14 +783,17 @@ func (m *timeDelayProcessor) Process(_ context.Context, message *Message) error 
 	return nil
 }
 
-type mockClientProvider struct{}
-
-func (mockClientProvider) Reader(ctx context.Context, topicConfig ConsumerTopicConfig, opts ...ReaderOption) (Reader, error) {
-	return nil, nil
+type mockClientProvider struct {
+	r Reader
+	w Writer
 }
 
-func (mockClientProvider) Writer(ctx context.Context, topicConfig ProducerTopicConfig, opts ...WriterOption) (Writer, error) {
-	return nil, nil
+func (m mockClientProvider) Reader(ctx context.Context, topicConfig ConsumerTopicConfig, opts ...ReaderOption) (Reader, error) {
+	return m.r, nil
+}
+
+func (m mockClientProvider) Writer(ctx context.Context, topicConfig ProducerTopicConfig, opts ...WriterOption) (Writer, error) {
+	return m.w, nil
 }
 
 func (mockClientProvider) Close() error {
@@ -814,4 +817,15 @@ type workSettings struct {
 
 func (w *workSettings) ShutdownSig() <-chan struct{} {
 	return w.shutdownSig
+}
+
+type fakeProcessor struct {
+	process func(context.Context, *Message) error
+}
+
+func (p *fakeProcessor) Process(ctx context.Context, msg *Message) error {
+	if p.process != nil {
+		return p.process(ctx, msg)
+	}
+	return nil
 }

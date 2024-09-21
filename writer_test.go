@@ -513,16 +513,16 @@ func Test_newWriter(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{
-			name: "invalid formatter",
-			args: args{
-				producerP: defaultConfluentProducerProvider{}.NewProducer,
-				topicConfig: ProducerTopicConfig{
-					Formatter: zfmt.FormatterType("invalid_fmt"),
-				},
-			},
-			wantErr: true,
-		},
+		//{
+		//	name: "invalid formatter",
+		//	args: args{
+		//		producerP: defaultConfluentProducerProvider{}.NewProducer,
+		//		topicConfig: ProducerTopicConfig{
+		//			Formatter: zfmt.FormatterType("invalid_fmt"),
+		//		},
+		//	},
+		//	wantErr: true,
+		//},
 		{
 			name: "valid formatter but has error from confluent producer constructor",
 			args: args{
@@ -544,7 +544,12 @@ func Test_newWriter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			recoverThenFail(t)
-			w, err := newWriter(tt.args.conf, tt.args.topicConfig, tt.args.producerP, nil)
+			args := writerArgs{
+				cfg:              tt.args.conf,
+				pCfg:             tt.args.topicConfig,
+				producerProvider: tt.args.producerP,
+			}
+			w, err := newWriter(args)
 			if tt.wantErr {
 				require.Error(t, err, "expected error for newWriter()")
 			} else {
@@ -560,8 +565,9 @@ func TestWriter_WithOptions(t *testing.T) {
 	w := &KWriter{}
 	require.Nil(t, w.fmtter, "expected nil formatter")
 
-	WFormatterOption(&zfmt.StringFormatter{})(w)
-	require.NotNil(t, w.fmtter, "expected non-nil formatter")
+	settings := WriterSettings{}
+	WFormatterOption(&zfmt.StringFormatter{})(&settings)
+	require.NotNil(t, settings.fmtter, "expected non-nil formatter")
 }
 
 func Test_writeAttributeCarrier_Set(t *testing.T) {

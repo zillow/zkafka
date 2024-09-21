@@ -409,7 +409,7 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 				Val: "sdfds",
 			}
 
-			t.Log("Begin writing to Test Topic")
+			t.Log("Begin writing to Test topic")
 			// write N messages to topic1
 			msgCount := tc.messageCount
 			for i := 0; i < msgCount; i++ {

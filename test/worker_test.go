@@ -82,8 +82,7 @@ func TestWork_Run_FailsWithLogsWhenGotNilReader(t *testing.T) {
 	l.EXPECT().Warnw(gomock.Any(), "Kafka worker read message failed", "error", gomock.Any(), "topics", gomock.Any()).Times(1)
 	l.EXPECT().Debugw(gomock.Any(), gomock.Any()).AnyTimes()
 
-	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
-	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
+	kcp := zkafka.FakeClient{R: nil}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -111,8 +110,7 @@ func TestWork_Run_FailsWithLogsForReadError(t *testing.T) {
 
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Times(1).Return(nil, errors.New("error occurred during read"))
-	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
-	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
+	kcp := zkafka.FakeClient{R: r}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -139,8 +137,7 @@ func TestWork_Run_CircuitBreakerOpensOnReadError(t *testing.T) {
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(nil, errors.New("error occurred during read"))
 
-	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
-	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
+	kcp := zkafka.FakeClient{R: r}
 
 	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 
@@ -192,8 +189,7 @@ func TestWork_Run_CircuitBreaksOnProcessError(t *testing.T) {
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
 
-	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
-	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).AnyTimes().Return(r, nil)
+	kcp := zkafka.FakeClient{R: r}
 
 	kproc := &fakeProcessor{
 		process: func(ctx context.Context, message *zkafka.Message) error {
@@ -251,8 +247,7 @@ func TestWork_Run_DoNotSkipCircuitBreak(t *testing.T) {
 
 	r.EXPECT().Read(gomock.Any()).Return(failureMessage, nil).AnyTimes()
 
-	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
-	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).AnyTimes().Return(r, nil)
+	kcp := zkafka.FakeClient{R: r}
 
 	kproc := &fakeProcessor{
 		process: func(ctx context.Context, message *zkafka.Message) error {
@@ -314,8 +309,7 @@ func TestWork_Run_DoSkipCircuitBreak(t *testing.T) {
 
 	r.EXPECT().Read(gomock.Any()).Return(failureMessage, nil).AnyTimes()
 
-	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
-	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).AnyTimes().Return(r, nil)
+	kcp := zkafka.FakeClient{R: r}
 
 	kproc := fakeProcessor{
 		process: func(ctx context.Context, message *zkafka.Message) error {
@@ -376,8 +370,7 @@ func TestWork_Run_CircuitBreaksOnProcessPanicInsideProcessorGoRoutine(t *testing
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
 
-	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
-	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).AnyTimes().Return(r, nil)
+	kcp := zkafka.FakeClient{R: r}
 
 	kproc := &fakeProcessor{
 		process: func(ctx context.Context, message *zkafka.Message) error {
@@ -442,8 +435,7 @@ func TestWork_Run_DisabledCircuitBreakerContinueReadError(t *testing.T) {
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).MinTimes(4).Return(nil, errors.New("error occurred on read"))
 
-	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
-	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
+	kcp := zkafka.FakeClient{R: r}
 
 	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 
@@ -1162,8 +1154,7 @@ func TestWork_Run_OnDoneCallbackCalledOnProcessorError(t *testing.T) {
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
 
-	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
-	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
+	kcp := zkafka.FakeClient{R: r}
 
 	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 
@@ -1224,8 +1215,7 @@ func TestWork_Run_WritesMetrics(t *testing.T) {
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).MinTimes(1).Return(msg, nil)
 
-	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
-	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
+	kcp := zkafka.FakeClient{R: r}
 
 	lhMtx := sync.Mutex{}
 	lhState := FakeLifecycleState{
@@ -1286,8 +1276,7 @@ func TestWork_LifecycleHooksCalledForEachItem_Reader(t *testing.T) {
 		r.EXPECT().Read(gomock.Any()).AnyTimes().Return(nil, nil),
 	)
 
-	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
-	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
+	kcp := zkafka.FakeClient{R: r}
 
 	lhMtx := sync.Mutex{}
 	lhState := FakeLifecycleState{
@@ -1349,8 +1338,7 @@ func TestWork_LifecycleHooksPostReadCanUpdateContext(t *testing.T) {
 		r.EXPECT().Read(gomock.Any()).AnyTimes().Return(nil, nil),
 	)
 
-	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
-	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
+	kcp := zkafka.FakeClient{R: r}
 
 	lhMtx := sync.Mutex{}
 	lhState := FakeLifecycleState{
@@ -1410,8 +1398,7 @@ func TestWork_LifecycleHooksPostReadErrorDoesntHaltProcessing(t *testing.T) {
 		r.EXPECT().Read(gomock.Any()).AnyTimes().Return(nil, nil),
 	)
 
-	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
-	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(r, nil)
+	kcp := zkafka.FakeClient{R: r}
 
 	lhMtx := sync.Mutex{}
 	lhState := FakeLifecycleState{

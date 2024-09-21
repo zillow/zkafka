@@ -80,7 +80,7 @@ type ConsumerTopicConfig struct {
 
 	SchemaRegistry SchemaRegistryConfig
 
-	// SchemaID defines the schema registered with Confluent Schema Registry
+	// SchemaID defines the schema registered with Confluent schema Registry
 	// Default value is 0, and it implies that both Writer and Reader do not care about schema validation
 	// and should encode/decode the message based on data type provided.
 	// Currently, this only works with SchematizedAvroFormatter
@@ -176,7 +176,7 @@ type ProducerTopicConfig struct {
 
 	SchemaRegistry SchemaRegistryConfig
 
-	// SchemaID defines the schema registered with Confluent Schema Registry
+	// SchemaID defines the schema registered with Confluent schema Registry
 	// Default value is 0, and it implies that both Writer and Reader do not care about schema validation
 	// and should encode/decode the message based on data type provided.
 	// Currently, this only works with SchematizedAvroFormatter

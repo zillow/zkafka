@@ -645,6 +645,10 @@ func NewWorkFactory(
 	return factory
 }
 
+func (f WorkFactory) CreateWithFunc(topicConfig ConsumerTopicConfig, p func(_ context.Context, msg *Message) error, options ...WorkOption) *Work {
+	return f.Create(topicConfig, processorAdapter{p: p}, options...)
+}
+
 // Create creates a new Work instance.
 func (f WorkFactory) Create(topicConfig ConsumerTopicConfig, processor processor, options ...WorkOption) *Work {
 	work := &Work{
@@ -824,4 +828,14 @@ func (c *delayCalculator) remaining(targetDelay time.Duration, msgTimeStamp time
 	observedDelay := now.Sub(msgTimeStamp)
 	// this piece makes sure the return isn't possibly greater than the target
 	return min(targetDelay-observedDelay, targetDelay)
+}
+
+var _ processor = (*processorAdapter)(nil)
+
+type processorAdapter struct {
+	p func(_ context.Context, msg *Message) error
+}
+
+func (a processorAdapter) Process(ctx context.Context, message *Message) error {
+	return a.p(ctx, message)
 }

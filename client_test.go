@@ -33,8 +33,8 @@ func TestNewClient(t *testing.T) {
 		{
 			name: "empty config",
 			want: &Client{
-				readers:          make(map[string]*KReader),
-				writers:          make(map[string]*KWriter),
+				readers:          make(map[string]Reader),
+				writers:          make(map[string]Writer),
 				logger:           NoopLogger{},
 				producerProvider: defaultConfluentProducerProvider{}.NewProducer,
 				consumerProvider: defaultConfluentConsumerProvider{}.NewConsumer,
@@ -51,8 +51,8 @@ func TestNewClient(t *testing.T) {
 				conf: Config{
 					BootstrapServers: []string{"test"},
 				},
-				readers:          make(map[string]*KReader),
-				writers:          make(map[string]*KWriter),
+				readers:          make(map[string]Reader),
+				writers:          make(map[string]Writer),
 				logger:           NoopLogger{},
 				producerProvider: defaultConfluentProducerProvider{}.NewProducer,
 				consumerProvider: defaultConfluentConsumerProvider{}.NewConsumer,
@@ -124,8 +124,8 @@ func TestClient_WithOptions(t *testing.T) {
 func TestClient_Reader(t *testing.T) {
 	type fields struct {
 		conf             Config
-		readers          map[string]*KReader
-		writers          map[string]*KWriter
+		readers          map[string]Reader
+		writers          map[string]Writer
 		logger           Logger
 		producerProvider confluentProducerProvider
 		consumerProvider confluentConsumerProvider
@@ -146,7 +146,7 @@ func TestClient_Reader(t *testing.T) {
 			name: "create new KReader with overridden Brokers, error from consumer provider",
 			fields: fields{
 				consumerProvider: mockConfluentConsumerProvider{err: true}.NewConsumer,
-				readers:          make(map[string]*KReader),
+				readers:          make(map[string]Reader),
 			},
 			args: args{
 				topicConfig: ConsumerTopicConfig{
@@ -162,7 +162,7 @@ func TestClient_Reader(t *testing.T) {
 			name: "create new KReader with bad formatter",
 			fields: fields{
 				consumerProvider: mockConfluentConsumerProvider{err: false}.NewConsumer,
-				readers:          make(map[string]*KReader),
+				readers:          make(map[string]Reader),
 			},
 			args: args{
 				topicConfig: ConsumerTopicConfig{
@@ -178,8 +178,8 @@ func TestClient_Reader(t *testing.T) {
 		{
 			name: "create new KReader for closed KReader",
 			fields: fields{
-				readers: map[string]*KReader{
-					"test-config": {isClosed: true},
+				readers: map[string]Reader{
+					"test-config": &KReader{isClosed: true},
 				},
 				consumerProvider: mockConfluentConsumerProvider{c: MockKafkaConsumer{ID: "stew"}}.NewConsumer,
 				logger:           NoopLogger{},
@@ -210,8 +210,8 @@ func TestClient_Reader(t *testing.T) {
 		{
 			name: "create new KReader for closed KReader with default overrides",
 			fields: fields{
-				readers: map[string]*KReader{
-					"test-config": {isClosed: true},
+				readers: map[string]Reader{
+					"test-config": &KReader{isClosed: true},
 				},
 				consumerProvider: mockConfluentConsumerProvider{c: MockKafkaConsumer{ID: "stew"}}.NewConsumer,
 				logger:           NoopLogger{},
@@ -250,8 +250,8 @@ func TestClient_Reader(t *testing.T) {
 		{
 			name: "get from cache",
 			fields: fields{
-				readers: map[string]*KReader{
-					"test-config": {},
+				readers: map[string]Reader{
+					"test-config": &KReader{},
 				},
 			},
 			args: args{
@@ -303,8 +303,8 @@ func TestClient_Reader(t *testing.T) {
 func TestClient_Writer(t *testing.T) {
 	type fields struct {
 		conf             Config
-		readers          map[string]*KReader
-		writers          map[string]*KWriter
+		readers          map[string]Reader
+		writers          map[string]Writer
 		logger           Logger
 		producerProvider confluentProducerProvider
 	}
@@ -324,7 +324,7 @@ func TestClient_Writer(t *testing.T) {
 			name: "create new KWriter with overridden Brokers, error from producer provider",
 			fields: fields{
 				producerProvider: mockConfluentProducerProvider{err: true}.NewProducer,
-				writers:          make(map[string]*KWriter),
+				writers:          make(map[string]Writer),
 				conf: Config{
 					SaslUsername: ptr("test-user"),
 					SaslPassword: ptr("test-password"),
@@ -342,8 +342,8 @@ func TestClient_Writer(t *testing.T) {
 		{
 			name: "create new KWriter for closed writer",
 			fields: fields{
-				writers: map[string]*KWriter{
-					"test-id": {isClosed: true},
+				writers: map[string]Writer{
+					"test-id": &KWriter{isClosed: true},
 				},
 				producerProvider: mockConfluentProducerProvider{}.NewProducer,
 				logger:           NoopLogger{},
@@ -371,8 +371,8 @@ func TestClient_Writer(t *testing.T) {
 		{
 			name: "create new KWriter for closed writer with default overrides",
 			fields: fields{
-				writers: map[string]*KWriter{
-					"test-id": {isClosed: true},
+				writers: map[string]Writer{
+					"test-id": &KWriter{isClosed: true},
 				},
 				producerProvider: mockConfluentProducerProvider{}.NewProducer,
 				logger:           NoopLogger{},
@@ -407,8 +407,8 @@ func TestClient_Writer(t *testing.T) {
 		{
 			name: "get from cache",
 			fields: fields{
-				writers: map[string]*KWriter{
-					"test-id": {},
+				writers: map[string]Writer{
+					"test-id": &KWriter{},
 				},
 			},
 			args: args{
@@ -453,20 +453,32 @@ func TestClient_Close(t *testing.T) {
 	type fields struct {
 		Mutex   *sync.Mutex
 		conf    Config
-		readers map[string]*KReader
-		writers map[string]*KWriter
+		readers map[string]Reader
+		writers map[string]Writer
 	}
 
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r1, err := newReader(Config{}, ConsumerTopicConfig{
-		Formatter: zfmt.StringFmt,
-	}, m, &NoopLogger{}, "", nil)
+	r1, err := newReader(readerArgs{
+		cfg: Config{},
+		cCfg: ConsumerTopicConfig{
+			Formatter: zfmt.StringFmt,
+		},
+		consumerProvider: m,
+		f:                zfmtShim{F: &zfmt.StringFormatter{}},
+		l:                &NoopLogger{},
+	})
 	require.NoError(t, err)
-	r2, err := newReader(Config{}, ConsumerTopicConfig{
-		Formatter: zfmt.StringFmt,
-	}, m, &NoopLogger{}, "", nil)
+	r2, err := newReader(readerArgs{
+		cfg: Config{},
+		cCfg: ConsumerTopicConfig{
+			Formatter: zfmt.StringFmt,
+		},
+		consumerProvider: m,
+		f:                zfmtShim{F: &zfmt.StringFormatter{}},
+		l:                &NoopLogger{},
+	})
 	require.NoError(t, err)
 	tests := []struct {
 		name    string
@@ -481,13 +493,13 @@ func TestClient_Close(t *testing.T) {
 			name:    "with readers/writers => no error",
 			wantErr: true,
 			fields: fields{
-				readers: map[string]*KReader{
+				readers: map[string]Reader{
 					"r1": r1,
 					"r2": r2,
 				},
-				writers: map[string]*KWriter{
-					"w1": {producer: p},
-					"w2": {producer: p},
+				writers: map[string]Writer{
+					"w1": &KWriter{producer: p},
+					"w2": &KWriter{producer: p},
 				},
 			},
 		},
@@ -507,10 +519,14 @@ func TestClient_Close(t *testing.T) {
 				require.NoError(t, err)
 			}
 			for _, w := range c.writers {
-				require.True(t, w.isClosed, "clients writer should be closed")
+				kw, ok := w.(*KWriter)
+				require.True(t, ok, "Expected writer to be KWriter")
+				require.True(t, kw.isClosed, "clients writer should be closed")
 			}
-			for _, reader := range c.readers {
-				require.True(t, reader.isClosed, "clients reader should be closed")
+			for _, r := range c.readers {
+				kr, ok := r.(*KReader)
+				require.True(t, ok, "Expected reader to be KReader")
+				require.True(t, kr.isClosed, "clients reader should be closed")
 			}
 		})
 	}
@@ -588,7 +604,11 @@ func Test_getFormatter_Consumer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
-			got, err := getFormatter(tt.args.topicConfig.Formatter, tt.args.topicConfig.SchemaID, SchemaRegistryConfig{}, nil)
+			args := formatterArgs{
+				formatter: tt.args.topicConfig.Formatter,
+				schemaID:  tt.args.topicConfig.SchemaID,
+			}
+			got, err := getFormatter(args)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -625,7 +645,11 @@ func Test_getFormatter_Producer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
-			got, err := getFormatter(tt.args.topicConfig.Formatter, tt.args.topicConfig.SchemaID, SchemaRegistryConfig{}, nil)
+			args := formatterArgs{
+				formatter: tt.args.topicConfig.Formatter,
+				schemaID:  tt.args.topicConfig.SchemaID,
+			}
+			got, err := getFormatter(args)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {

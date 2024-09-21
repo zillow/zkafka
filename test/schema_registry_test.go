@@ -344,6 +344,13 @@ func Test_SchemaRegistry_AutoRegisterSchemas_RequiresSchemaSpecification(t *test
 	require.ErrorContains(t, err, "avro schema is required for schema registry formatter")
 }
 
+func Test_ProtoSchemaRegistry(t *testing.T) {
+	require.Fail(t, "implement")
+}
+
+func Test_JsonSchemaRegistry(t *testing.T) {
+	require.Fail(t, "implement")
+}
 func checkShouldSkipTest(t *testing.T, flags ...string) {
 	t.Helper()
 	for _, flag := range flags {

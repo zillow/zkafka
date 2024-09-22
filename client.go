@@ -33,8 +33,8 @@ const instrumentationName = "github.com/zillow/zkafka"
 type Client struct {
 	mu          sync.RWMutex
 	conf        Config
-	readers     map[string]Reader
-	writers     map[string]Writer
+	readers     map[string]*KReader
+	writers     map[string]*KWriter
 	logger      Logger
 	lifecycle   LifecycleHooks
 	groupPrefix string
@@ -52,8 +52,8 @@ func NewClient(conf Config, opts ...Option) *Client {
 	srf := newSchemaRegistryFactory()
 	c := &Client{
 		conf:    conf,
-		readers: make(map[string]Reader),
-		writers: make(map[string]Writer),
+		readers: make(map[string]*KReader),
+		writers: make(map[string]*KWriter),
 		logger:  NoopLogger{},
 
 		producerProvider: defaultConfluentProducerProvider{}.NewProducer,
@@ -74,12 +74,7 @@ func (c *Client) Reader(_ context.Context, topicConfig ConsumerTopicConfig, opts
 	}
 	c.mu.RLock()
 	r, exist := c.readers[topicConfig.ClientID]
-	kr, ok := r.(*KReader)
-	// is kr -> isClosed = true -> true
-	// is kr -> isClosed = false -> false
-	// is not kr -> false
-	isClosed := ok && kr.isClosed
-	if exist && !isClosed {
+	if exist && !r.isClosed {
 		c.mu.RUnlock()
 		return r, nil
 	}
@@ -88,7 +83,7 @@ func (c *Client) Reader(_ context.Context, topicConfig ConsumerTopicConfig, opts
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	r, exist = c.readers[topicConfig.ClientID]
-	if exist && !isClosed {
+	if exist && !r.isClosed {
 		return r, nil
 	}
 
@@ -125,9 +120,7 @@ func (c *Client) Writer(_ context.Context, topicConfig ProducerTopicConfig, opts
 	}
 	c.mu.RLock()
 	w, exist := c.writers[topicConfig.ClientID]
-	kr, ok := w.(*KWriter)
-	isClosed := ok && kr.isClosed
-	if exist && !isClosed {
+	if exist && !w.isClosed {
 		c.mu.RUnlock()
 		return w, nil
 	}
@@ -136,7 +129,7 @@ func (c *Client) Writer(_ context.Context, topicConfig ProducerTopicConfig, opts
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	w, exist = c.writers[topicConfig.ClientID]
-	if exist && !isClosed {
+	if exist && !w.isClosed {
 		return w, nil
 	}
 	formatter, err := c.getFormatter(formatterArgs{

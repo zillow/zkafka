@@ -23,7 +23,7 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
   schemaregistry:
-    image: confluentinc/cp-schema-registry:5.3.2
+    image: confluentinc/cp-schema-registry:7.7.1
     depends_on:
       - kafka
       - zookeeper
@@ -34,4 +34,6 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: schemaregistry
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
       SCHEMA_REGISTRY_DEBUG: true
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
+
 

@@ -51,8 +51,6 @@ type KReader struct {
 	tCommitMgr *topicCommitMgr
 }
 
-type srProvider2 func(_ SchemaRegistryConfig) (schemaRegistryCl, error)
-
 type readerArgs struct {
 	cfg              Config
 	cCfg             ConsumerTopicConfig
@@ -63,8 +61,6 @@ type readerArgs struct {
 	hooks            LifecycleHooks
 	opts             []ReaderOption
 }
-
-//type readerProvider func(args readerArgs) (Reader, error)
 
 // newReader makes a new reader based on the configurations
 func newReader(args readerArgs) (*KReader, error) {

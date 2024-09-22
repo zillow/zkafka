@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -x
 
+# Protobuf schema registry schema evolution tests register the same message type
+# in the same package. These are compiled in the same binary (the test), and by default
+# proto panics in such a situation. Setting this envvar ignores that check
+export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
 # golang packages that will be used for either testing or will be assessed for coverage
 pck1=github.com/zillow/zkafka
 pck2=$pck1/test

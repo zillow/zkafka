@@ -6,13 +6,18 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry"
 	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde/avrov2"
+	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde/protobuf"
 	"github.com/zillow/zfmt"
+	//"k8s.io/apimachinery/pkg/runtime/serializer/protobuf"
 )
 
 const (
 	// CustomFmt indicates that the user would pass in their own Formatter later
-	CustomFmt        zfmt.FormatterType = "custom"
-	AvroConfluentFmt zfmt.FormatterType = "avro_confluent"
+	CustomFmt zfmt.FormatterType = "custom"
+	// AvroSchemaRegistry uses confluent's schema registry. It encodes a schemaID as the first 5 bytes and then avro serializes (binary)
+	// for the remaining part of the payload. It is the successor to `avro_schema` which ships with zfmt,
+	AvroSchemaRegistry  zfmt.FormatterType = "avro_schema_registry"
+	ProtoSchemaRegistry zfmt.FormatterType = "proto_schema_registry"
 )
 
 var errMissingFmtter = errors.New("custom formatter is missing, did you forget to call WithFormatter()")
@@ -61,56 +66,30 @@ type formatterArgs struct {
 	formatter zfmt.FormatterType
 	schemaID  int
 	srCfg     SchemaRegistryConfig
-	getSR     srProvider2
-}
-
-func getFormatter(args formatterArgs) (kFormatter, error) {
-	formatter := args.formatter
-	schemaID := args.schemaID
-
-	switch formatter {
-	case AvroConfluentFmt:
-		srCfg := args.srCfg
-		getSR := args.getSR
-		scl, err := getSR(srCfg)
-		if err != nil {
-			return nil, err
-		}
-		cf, err := NewAvroSchemaRegistryFormatter(scl)
-		return cf, err
-	case CustomFmt:
-		return &errFormatter{}, nil
-	default:
-		f, err := zfmt.GetFormatter(formatter, schemaID)
-		if err != nil {
-			return nil, fmt.Errorf("unsupported formatter %s", formatter)
-		}
-		return zfmtShim{F: f}, nil
-	}
 }
 
 // errFormatter is a formatter that returns error when called. The error will remind the user
 // to provide appropriate implementation
 type errFormatter struct{}
 
-// Marshall returns error with reminder
+// marshall returns error with reminder
 func (f errFormatter) marshall(req marshReq) ([]byte, error) {
 	return nil, errMissingFmtter
 }
 
-// Unmarshal returns error with reminder
+// unmarshal returns error with reminder
 func (f errFormatter) unmarshal(req unmarshReq) error {
 	return errMissingFmtter
 }
 
 type avroSchemaRegistryFormatter struct {
-	schemaRegistryCl schemaRegistryCl
-	f                zfmt.SchematizedAvroFormatter
+	afmt avroFmt
+	f    zfmt.SchematizedAvroFormatter
 }
 
-func NewAvroSchemaRegistryFormatter(shimCl schemaRegistryCl) (avroSchemaRegistryFormatter, error) {
+func newAvroSchemaRegistryFormatter(afmt avroFmt) (avroSchemaRegistryFormatter, error) {
 	return avroSchemaRegistryFormatter{
-		schemaRegistryCl: shimCl,
+		afmt: afmt,
 	}, nil
 }
 
@@ -118,7 +97,7 @@ func (f avroSchemaRegistryFormatter) marshall(req marshReq) ([]byte, error) {
 	if req.schema == "" {
 		return nil, errors.New("avro schema is required for schema registry formatter")
 	}
-	id, err := f.schemaRegistryCl.GetID(req.topic, req.schema)
+	id, err := f.afmt.GetID(req.topic, req.schema)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get avro schema by id for topic %s: %w", req.topic, err)
 	}
@@ -131,29 +110,52 @@ func (f avroSchemaRegistryFormatter) marshall(req marshReq) ([]byte, error) {
 }
 
 func (f avroSchemaRegistryFormatter) unmarshal(req unmarshReq) error {
-	err := f.schemaRegistryCl.Deserialize(req.topic, req.data, &req.target)
+	err := f.afmt.Deserialize(req.topic, req.data, &req.target)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize to confluent schema registry avro type: %w", err)
 	}
 	return nil
 }
 
-type schemaRegistryCl interface {
-	GetID(topic string, avroSchema string) (int, error)
-	Deserialize(topic string, value []byte, target any) error
+type protoSchemaRegistryFormatter struct {
+	pfmt protoFmt
 }
 
-var _ schemaRegistryCl = (*shim)(nil)
+func newProtoSchemaRegistryFormatter(pfmt protoFmt) protoSchemaRegistryFormatter {
+	return protoSchemaRegistryFormatter{
+		pfmt: pfmt,
+	}
+}
 
-type shim struct {
+func (f protoSchemaRegistryFormatter) marshall(req marshReq) ([]byte, error) {
+	msgBytes, err := f.pfmt.ser.Serialize(req.topic, req.subject)
+	if err != nil {
+		return nil, fmt.Errorf("failed to proto serialize: %w", err)
+	}
+	return msgBytes, nil
+}
+
+func (f protoSchemaRegistryFormatter) unmarshal(req unmarshReq) error {
+	if err := f.pfmt.deser.DeserializeInto(req.topic, req.data, req.target); err != nil {
+		return fmt.Errorf("failed to proto deserialize: %w", err)
+	}
+	return nil
+}
+
+type avroFmt struct {
 	ser   *avrov2.Serializer
 	deser *avrov2.Deserializer
 }
 
-func (s shim) GetID(topic string, avroSchema string) (int, error) {
+func (s avroFmt) GetID(topic string, avroSchema string) (int, error) {
 	return s.ser.GetID(topic, nil, &schemaregistry.SchemaInfo{Schema: avroSchema})
 }
 
-func (s shim) Deserialize(topic string, value []byte, target any) error {
+func (s avroFmt) Deserialize(topic string, value []byte, target any) error {
 	return s.deser.DeserializeInto(topic, value, target)
+}
+
+type protoFmt struct {
+	ser   *protobuf.Serializer
+	deser *protobuf.Deserializer
 }

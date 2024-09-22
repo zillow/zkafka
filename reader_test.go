@@ -66,7 +66,8 @@ func TestReader_Read(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	f, err := getFormatter(formatterArgs{formatter: topicConfig.Formatter})
+	c := Client{}
+	f, err := c.getFormatter(formatterArgs{formatter: topicConfig.Formatter})
 	require.NoError(t, err)
 
 	args := readerArgs{

@@ -11,6 +11,8 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry"
 	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde"
 	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde/avrov2"
+	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde/protobuf"
+	"github.com/zillow/zfmt"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -29,24 +31,18 @@ const instrumentationName = "github.com/zillow/zkafka"
 
 // Client helps instantiate usable readers and writers
 type Client struct {
-	mu           sync.RWMutex
-	conf         Config
-	readers      map[string]Reader
-	writers      map[string]Writer
-	logger       Logger
-	lifecycle    LifecycleHooks
-	groupPrefix  string
-	tp           trace.TracerProvider
-	p            propagation.TextMapPropagator
-	srClProvider srProvider2
-	//writerProvider writerProvider
-	//readerProvider readerProvider
+	mu          sync.RWMutex
+	conf        Config
+	readers     map[string]Reader
+	writers     map[string]Writer
+	logger      Logger
+	lifecycle   LifecycleHooks
+	groupPrefix string
+	tp          trace.TracerProvider
+	p           propagation.TextMapPropagator
 
 	srf *schemaRegistryFactory
-	//mmu   sync.Mutex
-	//srCls map[string]schemaregistry.Client
 
-	// confluent dependencies
 	producerProvider confluentProducerProvider
 	consumerProvider confluentConsumerProvider
 }
@@ -62,7 +58,7 @@ func NewClient(conf Config, opts ...Option) *Client {
 
 		producerProvider: defaultConfluentProducerProvider{}.NewProducer,
 		consumerProvider: defaultConfluentConsumerProvider{}.NewConsumer,
-		srClProvider:     srf.create,
+		srf:              srf,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -96,11 +92,10 @@ func (c *Client) Reader(_ context.Context, topicConfig ConsumerTopicConfig, opts
 		return r, nil
 	}
 
-	formatter, err := getFormatter(formatterArgs{
+	formatter, err := c.getFormatter(formatterArgs{
 		formatter: topicConfig.Formatter,
 		schemaID:  topicConfig.SchemaID,
 		srCfg:     topicConfig.SchemaRegistry,
-		getSR:     c.srClProvider,
 	})
 	if err != nil {
 		return nil, err
@@ -144,11 +139,10 @@ func (c *Client) Writer(_ context.Context, topicConfig ProducerTopicConfig, opts
 	if exist && !isClosed {
 		return w, nil
 	}
-	formatter, err := getFormatter(formatterArgs{
+	formatter, err := c.getFormatter(formatterArgs{
 		formatter: topicConfig.Formatter,
 		schemaID:  topicConfig.SchemaID,
 		srCfg:     topicConfig.SchemaRegistry,
-		getSR:     c.srClProvider,
 	})
 
 	if err != nil {
@@ -193,6 +187,36 @@ func (c *Client) Close() error {
 	return err
 }
 
+func (c *Client) getFormatter(args formatterArgs) (kFormatter, error) {
+	formatter := args.formatter
+	schemaID := args.schemaID
+
+	switch formatter {
+	case AvroSchemaRegistry:
+		scl, err := c.srf.createAvro(args.srCfg)
+		if err != nil {
+			return nil, err
+		}
+		cf, err := newAvroSchemaRegistryFormatter(scl)
+		return cf, err
+	case ProtoSchemaRegistry:
+		scl, err := c.srf.createProto(args.srCfg)
+		if err != nil {
+			return nil, err
+		}
+		cf := newProtoSchemaRegistryFormatter(scl)
+		return cf, nil
+	case CustomFmt:
+		return &errFormatter{}, nil
+	default:
+		f, err := zfmt.GetFormatter(formatter, schemaID)
+		if err != nil {
+			return nil, fmt.Errorf("unsupported formatter %s", formatter)
+		}
+		return zfmtShim{F: f}, nil
+	}
+}
+
 type schemaRegistryFactory struct {
 	mmu   sync.Mutex
 	srCls map[string]schemaregistry.Client
@@ -204,16 +228,16 @@ func newSchemaRegistryFactory() *schemaRegistryFactory {
 	}
 }
 
-func (c *schemaRegistryFactory) create(srConfig SchemaRegistryConfig) (schemaRegistryCl, error) {
+func (c *schemaRegistryFactory) createAvro(srConfig SchemaRegistryConfig) (avroFmt, error) {
 	cl, err := c.getSchemaClient(srConfig)
 	if err != nil {
-		return nil, err
+		return avroFmt{}, err
 	}
 
 	deserConfig := avrov2.NewDeserializerConfig()
 	deser, err := avrov2.NewDeserializer(cl, serde.ValueSerde, deserConfig)
 	if err != nil {
-		return shim{}, fmt.Errorf("failed to create deserializer: %w", err)
+		return avroFmt{}, fmt.Errorf("failed to create deserializer: %w", err)
 	}
 
 	serConfig := avrov2.NewSerializerConfig()
@@ -222,12 +246,39 @@ func (c *schemaRegistryFactory) create(srConfig SchemaRegistryConfig) (schemaReg
 
 	ser, err := avrov2.NewSerializer(cl, serde.ValueSerde, serConfig)
 	if err != nil {
-		return shim{}, fmt.Errorf("failed to create serializer: %w", err)
+		return avroFmt{}, fmt.Errorf("failed to create serializer: %w", err)
 	}
-	return shim{
+	return avroFmt{
 		ser:   ser,
 		deser: deser,
 	}, nil
+}
+
+func (c *schemaRegistryFactory) createProto(srConfig SchemaRegistryConfig) (protoFmt, error) {
+	cl, err := c.getSchemaClient(srConfig)
+	if err != nil {
+		return protoFmt{}, err
+	}
+
+	deserConfig := protobuf.NewDeserializerConfig()
+	deser, err := protobuf.NewDeserializer(cl, serde.ValueSerde, deserConfig)
+	if err != nil {
+		return protoFmt{}, fmt.Errorf("failed to create deserializer: %w", err)
+	}
+
+	serConfig := protobuf.NewSerializerConfig()
+	serConfig.AutoRegisterSchemas = srConfig.Serialization.AutoRegisterSchemas
+	serConfig.NormalizeSchemas = true
+
+	ser, err := protobuf.NewSerializer(cl, serde.ValueSerde, serConfig)
+	if err != nil {
+		return protoFmt{}, fmt.Errorf("failed to create serializer: %w", err)
+	}
+	return protoFmt{
+		ser:   ser,
+		deser: deser,
+	}, nil
+
 }
 
 func (c *schemaRegistryFactory) getSchemaClient(srConfig SchemaRegistryConfig) (schemaregistry.Client, error) {

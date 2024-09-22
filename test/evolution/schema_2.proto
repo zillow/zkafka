@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package evolution;
+
+option go_package = "proto2/";
+
+message DummyEvent {
+  int64 IntField = 1;
+  float DoubleField = 2;
+  string StringField = 3;
+  bool BoolField = 4;
+  bytes BytesField = 5;
+  string NewField = 6;
+}

@@ -608,7 +608,8 @@ func Test_getFormatter_Consumer(t *testing.T) {
 				formatter: tt.args.topicConfig.Formatter,
 				schemaID:  tt.args.topicConfig.SchemaID,
 			}
-			got, err := getFormatter(args)
+			c := Client{}
+			got, err := c.getFormatter(args)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -649,7 +650,8 @@ func Test_getFormatter_Producer(t *testing.T) {
 				formatter: tt.args.topicConfig.Formatter,
 				schemaID:  tt.args.topicConfig.SchemaID,
 			}
-			got, err := getFormatter(args)
+			c := Client{}
+			got, err := c.getFormatter(args)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {

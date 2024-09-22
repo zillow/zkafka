@@ -20,7 +20,7 @@ func main() {
 	}).Writer(ctx, zkafka.ProducerTopicConfig{
 		ClientID:  "example",
 		Topic:     "zkafka-example-topic",
-		Formatter: zkafka.AvroConfluentFmt,
+		Formatter: zkafka.AvroSchemaRegistry,
 		SchemaRegistry: zkafka.SchemaRegistryConfig{
 			URL: "http://localhost:8081",
 			Serialization: struct{ AutoRegisterSchemas bool }{

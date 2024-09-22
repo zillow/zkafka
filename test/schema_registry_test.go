@@ -221,13 +221,6 @@ func Test_SchemaRegistry_Avro_AutoRegisterSchemas_RequiresSchemaSpecification(t 
 func Test_SchemaNotRegistered_ImpactToWorker(t *testing.T) {
 	require.Fail(t, "implement")
 }
-func Test_JsonSchemaRegistry(t *testing.T) {
-	require.Fail(t, "implement")
-}
-
-//func Test_AlternateSubjectNamingStrategy(t *testing.T) {
-//	require.Fail(t, "implement")
-//}
 
 func checkShouldSkipTest(t *testing.T, flags ...string) {
 	t.Helper()

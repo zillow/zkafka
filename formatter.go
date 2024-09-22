@@ -4,9 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry"
-	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde/avrov2"
-	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde/protobuf"
 	"github.com/zillow/zfmt"
 	//"k8s.io/apimachinery/pkg/runtime/serializer/protobuf"
 )
@@ -18,6 +15,7 @@ const (
 	// for the remaining part of the payload. It is the successor to `avro_schema` which ships with zfmt,
 	AvroSchemaRegistry  zfmt.FormatterType = "avro_schema_registry"
 	ProtoSchemaRegistry zfmt.FormatterType = "proto_schema_registry"
+	JSONSchemaRegistry  zfmt.FormatterType = "json_schema_registry"
 )
 
 var errMissingFmtter = errors.New("custom formatter is missing, did you forget to call WithFormatter()")
@@ -142,20 +140,27 @@ func (f protoSchemaRegistryFormatter) unmarshal(req unmarshReq) error {
 	return nil
 }
 
-type avroFmt struct {
-	ser   *avrov2.Serializer
-	deser *avrov2.Deserializer
+type jsonSchemaRegistryFormatter struct {
+	jfmt jsonFmt
 }
 
-func (s avroFmt) GetID(topic string, avroSchema string) (int, error) {
-	return s.ser.GetID(topic, nil, &schemaregistry.SchemaInfo{Schema: avroSchema})
+func newJsonSchemaRegistryFormatter(jfmt jsonFmt) jsonSchemaRegistryFormatter {
+	return jsonSchemaRegistryFormatter{
+		jfmt: jfmt,
+	}
 }
 
-func (s avroFmt) Deserialize(topic string, value []byte, target any) error {
-	return s.deser.DeserializeInto(topic, value, target)
+func (f jsonSchemaRegistryFormatter) marshall(req marshReq) ([]byte, error) {
+	msgBytes, err := f.jfmt.ser.Serialize(req.topic, req.subject)
+	if err != nil {
+		return nil, fmt.Errorf("failed to json schema serialize: %w", err)
+	}
+	return msgBytes, nil
 }
 
-type protoFmt struct {
-	ser   *protobuf.Serializer
-	deser *protobuf.Deserializer
+func (f jsonSchemaRegistryFormatter) unmarshal(req unmarshReq) error {
+	if err := f.jfmt.deser.DeserializeInto(req.topic, req.data, req.target); err != nil {
+		return fmt.Errorf("failed to json schema deserialize: %w", err)
+	}
+	return nil
 }

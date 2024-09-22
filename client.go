@@ -194,6 +194,13 @@ func (c *Client) getFormatter(args formatterArgs) (kFormatter, error) {
 		}
 		cf := newProtoSchemaRegistryFormatter(scl)
 		return cf, nil
+	case JSONSchemaRegistry:
+		scl, err := c.srf.createJson(args.srCfg)
+		if err != nil {
+			return nil, err
+		}
+		cf := newJsonSchemaRegistryFormatter(scl)
+		return cf, nil
 	case CustomFmt:
 		return &errFormatter{}, nil
 	default:

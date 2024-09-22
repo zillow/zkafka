@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/zillow/zfmt"
-	//"k8s.io/apimachinery/pkg/runtime/serializer/protobuf"
 )
 
 const (
@@ -13,9 +12,16 @@ const (
 	CustomFmt zfmt.FormatterType = "custom"
 	// AvroSchemaRegistry uses confluent's schema registry. It encodes a schemaID as the first 5 bytes and then avro serializes (binary)
 	// for the remaining part of the payload. It is the successor to `avro_schema` which ships with zfmt,
-	AvroSchemaRegistry  zfmt.FormatterType = "avro_schema_registry"
+	AvroSchemaRegistry zfmt.FormatterType = "avro_schema_registry"
+
+	// ProtoSchemaRegistry uses confluent's schema registry. It encodes a schemaID as well as the message types as
+	// a payload prefix and then proto serializes (binary) for the remaining part of the payload.
+	// zfmt.ProtoSchemaDeprecatedFmt had a bug in its implementation and didn't work properly with confluent
 	ProtoSchemaRegistry zfmt.FormatterType = "proto_schema_registry"
-	JSONSchemaRegistry  zfmt.FormatterType = "json_schema_registry"
+
+	// JSONSchemaRegistry uses confluent's schema registry. It encodes a schemaID as the first 5 bytes and then json serializes (human readable)
+	// for the remaining part of the payload. It is the successor to `json_schema` which ships with zfmt,
+	JSONSchemaRegistry zfmt.FormatterType = "json_schema_registry"
 )
 
 var errMissingFmtter = errors.New("custom formatter is missing, did you forget to call WithFormatter()")

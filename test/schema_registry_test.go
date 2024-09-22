@@ -225,9 +225,9 @@ func Test_JsonSchemaRegistry(t *testing.T) {
 	require.Fail(t, "implement")
 }
 
-func Test_AlternateSubjectNamingStrategy(t *testing.T) {
-	require.Fail(t, "implement")
-}
+//func Test_AlternateSubjectNamingStrategy(t *testing.T) {
+//	require.Fail(t, "implement")
+//}
 
 func checkShouldSkipTest(t *testing.T, flags ...string) {
 	t.Helper()

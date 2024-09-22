@@ -2060,17 +2060,6 @@ func TestWork_ShutdownCausesRunExit(t *testing.T) {
 	require.NoError(t, err)
 }
 
-//	func Test_DeadeletterClientDoesntCollidWithProducer(t *testing.T) {
-//		// work with deadletter clientid=123
-//		// producer  clientid=123
-//		// This is a classic pattern. connecetor style. Shouldn't have issues with writes
-//		t.Fail()
-//	}
-
-func Test_MissingBootstrap_ShouldGiveClearError(t *testing.T) {
-	t.Fail()
-}
-
 func Test_FailedAuthentication(t *testing.T) {
 	// not sure if we can even do this with the local broker
 	// See if can require username/password for dynamically provisioned topic

@@ -33,8 +33,8 @@ func TestNewClient(t *testing.T) {
 		{
 			name: "empty config",
 			want: &Client{
-				readers:          make(map[string]Reader),
-				writers:          make(map[string]Writer),
+				readers:          make(map[string]*KReader),
+				writers:          make(map[string]*KWriter),
 				logger:           NoopLogger{},
 				producerProvider: defaultConfluentProducerProvider{}.NewProducer,
 				consumerProvider: defaultConfluentConsumerProvider{}.NewConsumer,
@@ -51,8 +51,8 @@ func TestNewClient(t *testing.T) {
 				conf: Config{
 					BootstrapServers: []string{"test"},
 				},
-				readers:          make(map[string]Reader),
-				writers:          make(map[string]Writer),
+				readers:          make(map[string]*KReader),
+				writers:          make(map[string]*KWriter),
 				logger:           NoopLogger{},
 				producerProvider: defaultConfluentProducerProvider{}.NewProducer,
 				consumerProvider: defaultConfluentConsumerProvider{}.NewConsumer,
@@ -124,8 +124,8 @@ func TestClient_WithOptions(t *testing.T) {
 func TestClient_Reader(t *testing.T) {
 	type fields struct {
 		conf             Config
-		readers          map[string]Reader
-		writers          map[string]Writer
+		readers          map[string]*KReader
+		writers          map[string]*KWriter
 		logger           Logger
 		producerProvider confluentProducerProvider
 		consumerProvider confluentConsumerProvider
@@ -146,7 +146,7 @@ func TestClient_Reader(t *testing.T) {
 			name: "create new KReader with overridden Brokers, error from consumer provider",
 			fields: fields{
 				consumerProvider: mockConfluentConsumerProvider{err: true}.NewConsumer,
-				readers:          make(map[string]Reader),
+				readers:          make(map[string]*KReader),
 			},
 			args: args{
 				topicConfig: ConsumerTopicConfig{
@@ -162,7 +162,7 @@ func TestClient_Reader(t *testing.T) {
 			name: "create new KReader with bad formatter",
 			fields: fields{
 				consumerProvider: mockConfluentConsumerProvider{err: false}.NewConsumer,
-				readers:          make(map[string]Reader),
+				readers:          make(map[string]*KReader),
 			},
 			args: args{
 				topicConfig: ConsumerTopicConfig{
@@ -178,7 +178,8 @@ func TestClient_Reader(t *testing.T) {
 		{
 			name: "create new KReader for closed KReader",
 			fields: fields{
-				readers: map[string]Reader{
+				conf: Config{BootstrapServers: []string{"localhost:9092"}},
+				readers: map[string]*KReader{
 					"test-config": &KReader{isClosed: true},
 				},
 				consumerProvider: mockConfluentConsumerProvider{c: MockKafkaConsumer{ID: "stew"}}.NewConsumer,
@@ -210,7 +211,8 @@ func TestClient_Reader(t *testing.T) {
 		{
 			name: "create new KReader for closed KReader with default overrides",
 			fields: fields{
-				readers: map[string]Reader{
+				conf: Config{BootstrapServers: []string{"localhost:9092"}},
+				readers: map[string]*KReader{
 					"test-config": &KReader{isClosed: true},
 				},
 				consumerProvider: mockConfluentConsumerProvider{c: MockKafkaConsumer{ID: "stew"}}.NewConsumer,
@@ -250,7 +252,7 @@ func TestClient_Reader(t *testing.T) {
 		{
 			name: "get from cache",
 			fields: fields{
-				readers: map[string]Reader{
+				readers: map[string]*KReader{
 					"test-config": &KReader{},
 				},
 			},
@@ -303,8 +305,8 @@ func TestClient_Reader(t *testing.T) {
 func TestClient_Writer(t *testing.T) {
 	type fields struct {
 		conf             Config
-		readers          map[string]Reader
-		writers          map[string]Writer
+		readers          map[string]*KReader
+		writers          map[string]*KWriter
 		logger           Logger
 		producerProvider confluentProducerProvider
 	}
@@ -324,7 +326,7 @@ func TestClient_Writer(t *testing.T) {
 			name: "create new KWriter with overridden Brokers, error from producer provider",
 			fields: fields{
 				producerProvider: mockConfluentProducerProvider{err: true}.NewProducer,
-				writers:          make(map[string]Writer),
+				writers:          make(map[string]*KWriter),
 				conf: Config{
 					SaslUsername: ptr("test-user"),
 					SaslPassword: ptr("test-password"),
@@ -342,7 +344,7 @@ func TestClient_Writer(t *testing.T) {
 		{
 			name: "create new KWriter for closed writer",
 			fields: fields{
-				writers: map[string]Writer{
+				writers: map[string]*KWriter{
 					"test-id": &KWriter{isClosed: true},
 				},
 				producerProvider: mockConfluentProducerProvider{}.NewProducer,
@@ -371,7 +373,7 @@ func TestClient_Writer(t *testing.T) {
 		{
 			name: "create new KWriter for closed writer with default overrides",
 			fields: fields{
-				writers: map[string]Writer{
+				writers: map[string]*KWriter{
 					"test-id": &KWriter{isClosed: true},
 				},
 				producerProvider: mockConfluentProducerProvider{}.NewProducer,
@@ -407,7 +409,7 @@ func TestClient_Writer(t *testing.T) {
 		{
 			name: "get from cache",
 			fields: fields{
-				writers: map[string]Writer{
+				writers: map[string]*KWriter{
 					"test-id": &KWriter{},
 				},
 			},
@@ -453,15 +455,15 @@ func TestClient_Close(t *testing.T) {
 	type fields struct {
 		Mutex   *sync.Mutex
 		conf    Config
-		readers map[string]Reader
-		writers map[string]Writer
+		readers map[string]*KReader
+		writers map[string]*KWriter
 	}
 
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
 	r1, err := newReader(readerArgs{
-		cfg: Config{},
+		cfg: Config{BootstrapServers: []string{"localhost:9092"}},
 		cCfg: ConsumerTopicConfig{
 			Formatter: zfmt.StringFmt,
 		},
@@ -471,7 +473,7 @@ func TestClient_Close(t *testing.T) {
 	})
 	require.NoError(t, err)
 	r2, err := newReader(readerArgs{
-		cfg: Config{},
+		cfg: Config{BootstrapServers: []string{"localhost:9092"}},
 		cCfg: ConsumerTopicConfig{
 			Formatter: zfmt.StringFmt,
 		},
@@ -493,11 +495,11 @@ func TestClient_Close(t *testing.T) {
 			name:    "with readers/writers => no error",
 			wantErr: true,
 			fields: fields{
-				readers: map[string]Reader{
+				readers: map[string]*KReader{
 					"r1": r1,
 					"r2": r2,
 				},
-				writers: map[string]Writer{
+				writers: map[string]*KWriter{
 					"w1": &KWriter{producer: p},
 					"w2": &KWriter{producer: p},
 				},
@@ -519,14 +521,10 @@ func TestClient_Close(t *testing.T) {
 				require.NoError(t, err)
 			}
 			for _, w := range c.writers {
-				kw, ok := w.(*KWriter)
-				require.True(t, ok, "Expected writer to be KWriter")
-				require.True(t, kw.isClosed, "clients writer should be closed")
+				require.True(t, w.isClosed, "clients writer should be closed")
 			}
 			for _, r := range c.readers {
-				kr, ok := r.(*KReader)
-				require.True(t, ok, "Expected reader to be KReader")
-				require.True(t, kr.isClosed, "clients reader should be closed")
+				require.True(t, r.isClosed, "clients reader should be closed")
 			}
 		})
 	}
@@ -997,7 +995,8 @@ func Test_makeConfig_Consumer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
-			got := makeConsumerConfig(tt.args.conf, tt.args.topicConfig, tt.args.prefix)
+			got, err := makeConsumerConfig(tt.args.conf, tt.args.topicConfig, tt.args.prefix)
+			require.NoError(t, err)
 			assertEqual(t, got, tt.want)
 		})
 	}

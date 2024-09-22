@@ -204,6 +204,14 @@ func (w *Work) fanOut(ctx context.Context, shutdown <-chan struct{}) {
 		return
 	}
 	msg, err := w.readMessage(ctx, shutdown)
+
+	if w.lifecycle.PostReadImmediate != nil {
+		w.lifecycle.PostReadImmediate(ctx, LifecyclePostReadImmediateMeta{
+			Message: msg,
+			Err:     err,
+		})
+	}
+
 	if err != nil {
 		w.logger.Warnw(ctx, "Kafka worker read message failed",
 			"error", err,

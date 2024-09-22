@@ -284,7 +284,7 @@ func getDefaultProducerTopicConfig(topicConfig *ProducerTopicConfig) error {
 // makeConsumerConfig creates a kafka configMap from the specified strongly typed Config and TopicConfig.
 // TopicConfig specifies a way to specify config values that aren't strongly typed via AdditionalProps field.
 // Those values are overwritten if specified in strongly typed TopicConfig fields.
-func makeConsumerConfig(conf Config, topicConfig ConsumerTopicConfig, prefix string) kafka.ConfigMap {
+func makeConsumerConfig(conf Config, topicConfig ConsumerTopicConfig, prefix string) (kafka.ConfigMap, error) {
 	configMap := kafka.ConfigMap{}
 
 	configMap[clientID] = topicConfig.ClientID
@@ -322,6 +322,9 @@ func makeConsumerConfig(conf Config, topicConfig ConsumerTopicConfig, prefix str
 	if len(topicConfig.BootstrapServers) != 0 {
 		addresses = topicConfig.BootstrapServers
 	}
+	if len(addresses) == 0 {
+		return nil, errors.New("invalid config, missing bootstrap server addresses")
+	}
 	configMap[bootstrapServers] = strings.Join(addresses, ",")
 
 	saslUname := conf.SaslUsername
@@ -353,7 +356,7 @@ func makeConsumerConfig(conf Config, topicConfig ConsumerTopicConfig, prefix str
 			configMap[key] = kafka.ConfigValue(v)
 		}
 	}
-	return configMap
+	return configMap, nil
 }
 
 // makeProducerConfig creates a kafka configMap from the specified strongly typed Config and TopicConfig.

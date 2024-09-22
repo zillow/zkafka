@@ -32,7 +32,7 @@ func TestReader_Read_NilReturn(t *testing.T) {
 		c: mockConsumer,
 	}.NewConsumer
 	args := readerArgs{
-		cfg:              Config{},
+		cfg:              Config{BootstrapServers: []string{"localhost:9092"}},
 		cCfg:             topicConfig,
 		consumerProvider: m,
 		l:                &NoopLogger{},
@@ -71,8 +71,7 @@ func TestReader_Read(t *testing.T) {
 	require.NoError(t, err)
 
 	args := readerArgs{
-		cfg:              Config{},
-		cCfg:             topicConfig,
+		cfg: Config{BootstrapServers: []string{"localhost:9092"}}, cCfg: topicConfig,
 		consumerProvider: m,
 		l:                &NoopLogger{},
 		f:                f,
@@ -115,7 +114,7 @@ func TestReader_Read_Error(t *testing.T) {
 				c: mockConsumer,
 			}.NewConsumer
 			args := readerArgs{
-				cfg:              Config{},
+				cfg:              Config{BootstrapServers: []string{"localhost:9092"}},
 				cCfg:             topicConfig,
 				consumerProvider: m,
 				l:                &NoopLogger{},
@@ -154,7 +153,7 @@ func TestReader_Read_TimeoutError(t *testing.T) {
 		c: mockConsumer,
 	}.NewConsumer
 	args := readerArgs{
-		cfg:              Config{},
+		cfg:              Config{BootstrapServers: []string{"localhost:9092"}},
 		cCfg:             topicConfig,
 		consumerProvider: m,
 		l:                &NoopLogger{},
@@ -180,8 +179,7 @@ func TestReader_Read_SubscriberError(t *testing.T) {
 		c: mockConsumer,
 	}.NewConsumer
 	args := readerArgs{
-		cfg:              Config{},
-		cCfg:             topicConfig,
+		cfg: Config{BootstrapServers: []string{"localhost:9092"}}, cCfg: topicConfig,
 		consumerProvider: m,
 		l:                &NoopLogger{},
 	}
@@ -207,8 +205,7 @@ func TestReader_Read_CloseError(t *testing.T) {
 		c: mockConsumer,
 	}.NewConsumer
 	args := readerArgs{
-		cfg:              Config{},
-		cCfg:             topicConfig,
+		cfg: Config{BootstrapServers: []string{"localhost:9092"}}, cCfg: topicConfig,
 		consumerProvider: m,
 		l:                &l,
 	}
@@ -234,8 +231,7 @@ func TestReader_ReadWhenConnectionIsClosed(t *testing.T) {
 		c: mockConsumer,
 	}.NewConsumer
 	args := readerArgs{
-		cfg:              Config{},
-		cCfg:             topicConfig,
+		cfg: Config{BootstrapServers: []string{"localhost:9092"}}, cCfg: topicConfig,
 		consumerProvider: m,
 		l:                &NoopLogger{},
 	}
@@ -262,6 +258,7 @@ func Test_newReader(t *testing.T) {
 		{
 			name: "custom formatter, no error. It is implied that user will supply formatter later",
 			args: args{
+				conf: Config{BootstrapServers: []string{"localhost:9092"}},
 				topicConfig: ConsumerTopicConfig{
 					Formatter: zfmt.FormatterType("custom"),
 				},
@@ -269,16 +266,6 @@ func Test_newReader(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		//{
-		//	name: "invalid formatter",
-		//	args: args{
-		//		consumeProvider: defaultConfluentConsumerProvider{}.NewConsumer,
-		//		topicConfig: ConsumerTopicConfig{
-		//			Formatter: zfmt.FormatterType("invalid_fmt"),
-		//		},
-		//	},
-		//	wantErr: true,
-		//},
 		{
 			name: "valid formatter but has error when creating NewConsumer",
 			args: args{
@@ -289,6 +276,7 @@ func Test_newReader(t *testing.T) {
 		{
 			name: "minimum config with formatter",
 			args: args{
+				conf:            Config{BootstrapServers: []string{"localhost:9092"}},
 				consumeProvider: defaultConfluentConsumerProvider{}.NewConsumer,
 				topicConfig: ConsumerTopicConfig{
 					Formatter: zfmt.StringFmt,
@@ -340,7 +328,7 @@ func Test_ProcessMessage(t *testing.T) {
 		c: mock_confluent.NewMockKafkaConsumer(ctrl),
 	}.NewConsumer
 	args := readerArgs{
-		cfg:              Config{},
+		cfg:              Config{BootstrapServers: []string{"localhost:9092"}},
 		cCfg:             topicConfig,
 		consumerProvider: m,
 		l:                &NoopLogger{},
@@ -380,6 +368,7 @@ func Test_ProcessMultipleMessagesFromDifferentTopics_UpdatesInternalStateProperl
 	}.NewConsumer
 
 	args := readerArgs{
+		cfg:              Config{BootstrapServers: []string{"localhost:9092"}},
 		cCfg:             topicConfig,
 		consumerProvider: m,
 		l:                &l,
@@ -427,6 +416,7 @@ func Test_ProcessMessage_StoreOffsetError(t *testing.T) {
 		c: mockConsumer,
 	}.NewConsumer
 	args := readerArgs{
+		cfg:              Config{BootstrapServers: []string{"localhost:9092"}},
 		cCfg:             topicConfig,
 		consumerProvider: m,
 		l:                &l,
@@ -480,6 +470,7 @@ func Test_ProcessMessage_SetError(t *testing.T) {
 		c: mockConsumer,
 	}.NewConsumer
 	args := readerArgs{
+		cfg:              Config{BootstrapServers: []string{"localhost:9092"}},
 		cCfg:             topicConfig,
 		consumerProvider: m,
 		l:                &l,

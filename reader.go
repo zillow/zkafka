@@ -71,7 +71,10 @@ func newReader(args readerArgs) (*KReader, error) {
 	formatter := args.f
 	logger := args.l
 
-	confluentConfig := makeConsumerConfig(conf, topicConfig, prefix)
+	confluentConfig, err := makeConsumerConfig(conf, topicConfig, prefix)
+	if err != nil {
+		return nil, err
+	}
 	consumer, err := provider(confluentConfig)
 	if err != nil {
 		return nil, err

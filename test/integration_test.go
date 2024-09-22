@@ -1336,6 +1336,49 @@ func Test_DeadletterClientDoesntCollideWithProducer(t *testing.T) {
 	require.Equal(t, int64(1), dltCount.Load(), "Expected a message to be written to the DLT topic")
 }
 
+func Test_MissingBootstrap_ShouldGiveClearError(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
+	topic := "integration-test-topic-2" + uuid.NewString()
+	bootstrapServer := getBootstrap()
+
+	createTopic(t, bootstrapServer, topic, 1)
+
+	groupID := uuid.NewString()
+
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{}},
+		zkafka.LoggerOption(stdLogger{}),
+	)
+	defer func() { require.NoError(t, client.Close()) }()
+
+	consumerTopicConfig := zkafka.ConsumerTopicConfig{
+		ClientID: fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		GroupID:  groupID,
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
+
+	var readErr error
+	wf := zkafka.NewWorkFactory(client, zkafka.WithLogger(stdLogger{}),
+		zkafka.WithWorkLifecycleHooks(zkafka.LifecycleHooks{
+			PostReadImmediate: func(ctx context.Context, meta zkafka.LifecyclePostReadImmediateMeta) {
+				readErr = meta.Err
+				cancel()
+			},
+		}),
+	)
+	w := wf.CreateWithFunc(consumerTopicConfig, func(_ context.Context, msg *zkafka.Message) error {
+		return nil
+	})
+	err := w.Run(context.Background(), ctx.Done())
+	require.NoError(t, err)
+	require.ErrorContains(t, readErr, "invalid config, missing bootstrap server addresses")
+}
+
 func createTopic(t *testing.T, bootstrapServer, topic string, partitions int) {
 	t.Helper()
 	aclient, err := kafka.NewAdminClient(&kafka.ConfigMap{"bootstrap.servers": bootstrapServer})

@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
 	"github.com/zillow/zkafka/test/evolution/avro1"
 	"github.com/zillow/zkafka/test/evolution/avro2"
@@ -218,8 +219,70 @@ func Test_SchemaRegistry_Avro_AutoRegisterSchemas_RequiresSchemaSpecification(t 
 	require.ErrorContains(t, err, "avro schema is required for schema registry formatter")
 }
 
-func Test_SchemaNotRegistered_ImpactToWorker(t *testing.T) {
-	require.Fail(t, "implement")
+// Test_SchemaNotRegistered_ResultsInWorkerDecodeError demonstrates the behavior when a worker reads
+// a message for a schema that doesn't exist in shcema registry. This test shows that such a situation would result in a decode error
+func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	topic := "integration-test-topic-2" + uuid.NewString()
+	bootstrapServer := getBootstrap()
+
+	createTopic(t, bootstrapServer, topic, 1)
+	t.Logf("Created topic: %s", topic)
+
+	groupID := uuid.NewString()
+
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
+	defer func() { require.NoError(t, client.Close()) }()
+
+	t.Log("Created writer - no schema registration")
+	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zfmt.AvroSchemaFmt,
+		SchemaID:  1,
+	})
+	require.NoError(t, err)
+
+	evt1 := avro1.DummyEvent{
+		IntField:    int(rand.Int31()),
+		DoubleField: rand.Float64(),
+		StringField: uuid.NewString(),
+		BoolField:   true,
+		BytesField:  []byte(uuid.NewString()),
+	}
+	// write msg1
+	_, err = writer1.Write(ctx, evt1)
+	require.NoError(t, err)
+
+	consumerTopicConfig := zkafka.ConsumerTopicConfig{
+		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.AvroSchemaRegistry,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL: "mock://",
+		},
+		GroupID: groupID,
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+	var gotErr error
+	wf := zkafka.NewWorkFactory(client)
+	w := wf.CreateWithFunc(consumerTopicConfig, func(_ context.Context, msg *zkafka.Message) error {
+		defer cancel()
+		gotErr = msg.Decode(&avro1.DummyEvent{})
+		return gotErr
+	})
+
+	t.Log("Begin reading messages")
+	err = w.Run(ctx, nil)
+	require.NoError(t, err)
+	require.ErrorContains(t, gotErr, "Subject Not Found")
 }
 
 func checkShouldSkipTest(t *testing.T, flags ...string) {

@@ -8,6 +8,7 @@ import (
 	"os"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1198,6 +1199,141 @@ func Test_WorkDelay_DoesntHaveDurationStackEffect(t *testing.T) {
 	first := results[0]
 	last := results[len(results)-1]
 	require.WithinDuration(t, last.processingInstant, first.processingInstant, time.Duration(processDelayMillis/2)*time.Millisecond, "Time since first and last processed message should be very short, since processing just updates an in memory slice. This should take on the order of microseconds, but to account for scheduling drift the assertion is half the delay")
+}
+
+// Test_DeadletterClientDoesntCollideWithProducer tests a common configuration scenario
+// where a worker consumer has a clientID and the dead letter producer is implicitily configured
+// with a clientid. For example, say the client id waw `service-x`, previously, the deadletter producer
+// inherited the same clientID and would create a publisher with that name.
+// The issue was if the processor was acting as a connector and published to another topic, it might be
+// common to have explicitly configured a producer with the name `service-x`. This
+// resulted in a collission for the cached producer clients, and the effect was that all messages
+// would be written to the topic that happened to be registered in the cient cache first (this would have
+// been the dead letter producer).
+//
+// This test shows that when a connector processes N messages half of which error (deadletter) and half of which connect
+// to an egress topic, that messages end up in both targets (as opposed to exclusively in the deadletter)
+func Test_DeadletterClientDoesntCollideWithProducer(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
+	ctx := context.Background()
+
+	bootstrapServer := getBootstrap()
+
+	topicIngress := "integration-test-topic-1" + uuid.NewString()
+	createTopic(t, bootstrapServer, topicIngress, 1)
+	topicEgress := "integration-test-topic-2" + uuid.NewString()
+	createTopic(t, bootstrapServer, topicEgress, 1)
+	topicDLT := "integration-test-topic-dlt" + uuid.NewString()
+	createTopic(t, bootstrapServer, topicDLT, 1)
+
+	groupID := uuid.NewString()
+
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
+	defer func() { require.NoError(t, client.Close()) }()
+
+	writer, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topicIngress,
+	})
+	clientID1 := fmt.Sprintf("service-x-%s-%s", t.Name(), uuid.NewString())
+	ingressTopicReaderConfig := zkafka.ConsumerTopicConfig{
+		ClientID: clientID1,
+		Topic:    topicIngress,
+		GroupID:  groupID,
+		// deadlettertopic uses implicit clientid
+		DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
+			Topic: topicDLT,
+		},
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+	processorWriter, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID: clientID1,
+		Topic:    topicEgress,
+	})
+
+	// start the reader before we write messages (otherwise, since its a new consumer group, auto.offset.reset=latest will be started at an offset later than the just written messages).
+	// Loop in the reader until msg1 appears
+	msg := Msg{Val: "1"}
+
+	// write 3 messages to ingress topic
+	_, err = writer.Write(ctx, msg)
+	require.NoError(t, err)
+	_, err = writer.Write(ctx, msg)
+	require.NoError(t, err)
+	_, err = writer.Write(ctx, msg)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	msgCount := atomic.Int64{}
+	wf := zkafka.NewWorkFactory(client, zkafka.WithWorkLifecycleHooks(zkafka.LifecycleHooks{
+		PostProcessing: func(ctx context.Context, meta zkafka.LifecyclePostProcessingMeta) error {
+			if msgCount.Load() == 3 {
+				cancel()
+			}
+
+			return nil
+		},
+	}))
+	w := wf.CreateWithFunc(ingressTopicReaderConfig, func(ctx context.Context, msg *zkafka.Message) error {
+		t.Log("Processing message from ingress topic")
+		msgCount.Add(1)
+		if msgCount.Load()%2 == 0 {
+			return errors.New("random error occurred")
+		}
+		_, err := processorWriter.WriteRaw(ctx, nil, msg.Value())
+
+		return err
+	})
+
+	t.Log("Begin primary work loop")
+	err = w.Run(ctx, nil)
+	require.NoError(t, err)
+	t.Log("Exit primary work loop. Assess proper side effects")
+
+	egressTopicReaderConfig := zkafka.ConsumerTopicConfig{
+		ClientID: uuid.NewString(),
+		Topic:    topicEgress,
+		GroupID:  uuid.NewString(),
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+
+	ctx1, cancel1 := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel1()
+	egressCount := atomic.Int64{}
+	w1 := wf.CreateWithFunc(egressTopicReaderConfig, func(_ context.Context, msg *zkafka.Message) error {
+		egressCount.Add(1)
+		cancel1()
+		return nil
+	})
+
+	dltTopicReaderConfig := zkafka.ConsumerTopicConfig{
+		ClientID: uuid.NewString(),
+		Topic:    topicDLT,
+		GroupID:  uuid.NewString(),
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+	ctx2, cancel2 := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel2()
+	dltCount := atomic.Int64{}
+	w2 := wf.CreateWithFunc(dltTopicReaderConfig, func(_ context.Context, msg *zkafka.Message) error {
+		dltCount.Add(1)
+		cancel2()
+		return nil
+	})
+
+	t.Log("Start work running. Looking for egress event and DLT topic event")
+	require.NoError(t, w1.Run(ctx1, nil))
+	require.NoError(t, w2.Run(ctx2, nil))
+	require.Equal(t, int64(1), egressCount.Load(), "Expected a message to be written to the egress topic")
+	require.Equal(t, int64(1), dltCount.Load(), "Expected a message to be written to the DLT topic")
 }
 
 func createTopic(t *testing.T, bootstrapServer, topic string, partitions int) {

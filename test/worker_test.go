@@ -2060,13 +2060,6 @@ func TestWork_ShutdownCausesRunExit(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func Test_FailedAuthentication(t *testing.T) {
-	// not sure if we can even do this with the local broker
-	// See if can require username/password for dynamically provisioned topic
-	t.Fail()
-
-}
-
 // $ go test -run=XXX -bench=BenchmarkWork_Run_CircuitBreaker_BusyLoopBreaker -cpuprofile profile_cpu.out
 // $ go tool pprof --web profile_cpu.out
 // $ go tool pprof -http=":8000" test.test ./profile_cpu.out

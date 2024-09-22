@@ -410,7 +410,7 @@ func TestClient_Writer(t *testing.T) {
 			name: "get from cache",
 			fields: fields{
 				writers: map[string]*KWriter{
-					"test-id": &KWriter{},
+					"test-id-topic": &KWriter{},
 				},
 			},
 			args: args{
@@ -1020,9 +1020,7 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:    "clientid",
-					Topic:       "",
-					Formatter:   "",
-					SchemaID:    0,
+					Topic:       "yyy",
 					Transaction: true,
 				},
 			},
@@ -1031,7 +1029,7 @@ func Test_makeConfig_Producer(t *testing.T) {
 				"enable.idempotence":                    true,
 				"request.required.acks":                 -1,
 				"max.in.flight.requests.per.connection": 1,
-				"client.id":                             "clientid",
+				"client.id":                             "clientid-yyy",
 				"linger.ms":                             0,
 			},
 		},
@@ -1043,12 +1041,13 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:          "clientid",
+					Topic:             "zzz",
 					DeliveryTimeoutMs: ptr(100),
 				},
 			},
 			want: kafka.ConfigMap{
 				"bootstrap.servers":   "http://localhost:8080,https://localhost:8081",
-				"client.id":           "clientid",
+				"client.id":           "clientid-zzz",
 				"delivery.timeout.ms": 100,
 				"enable.idempotence":  true,
 				"linger.ms":           0,
@@ -1062,6 +1061,7 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:          "clientid",
+					Topic:             "zzz",
 					DeliveryTimeoutMs: ptr(100),
 					AdditionalProps: map[string]any{
 						"stewarts.random.property.not.included.in.topicconfig": 123,
@@ -1071,7 +1071,7 @@ func Test_makeConfig_Producer(t *testing.T) {
 			want: kafka.ConfigMap{
 				"bootstrap.servers":   "http://localhost:8080",
 				"enable.idempotence":  true,
-				"client.id":           "clientid",
+				"client.id":           "clientid-zzz",
 				"delivery.timeout.ms": 100,
 				"stewarts.random.property.not.included.in.topicconfig": 123,
 				"linger.ms": 0,
@@ -1087,6 +1087,7 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:            "clientid",
+					Topic:               "abc",
 					DeliveryTimeoutMs:   ptr(100),
 					EnableIdempotence:   ptr(false),
 					RequestRequiredAcks: ptr("all"),
@@ -1098,7 +1099,7 @@ func Test_makeConfig_Producer(t *testing.T) {
 			},
 			want: kafka.ConfigMap{
 				"bootstrap.servers":       "http://localhost:8080",
-				"client.id":               "clientid",
+				"client.id":               "clientid-abc",
 				"enable.idempotence":      false,
 				"delivery.timeout.ms":     100,
 				"auto.commit.interval.ms": 20,
@@ -1120,12 +1121,13 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:     "clientid",
+					Topic:        "xxx",
 					SaslUsername: ptr(""),
 				},
 			},
 			want: kafka.ConfigMap{
 				"bootstrap.servers":  "http://localhost:8080",
-				"client.id":          "clientid",
+				"client.id":          "clientid-xxx",
 				"enable.idempotence": true,
 				"linger.ms":          0,
 			},
@@ -1140,12 +1142,13 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:     "clientid",
+					Topic:        "xxx",
 					SaslUsername: ptr("usernameOverride"),
 				},
 			},
 			want: kafka.ConfigMap{
 				"bootstrap.servers":  "http://localhost:8080",
-				"client.id":          "clientid",
+				"client.id":          "clientid-xxx",
 				"enable.idempotence": true,
 				"sasl.mechanism":     "SCRAM-SHA-256",
 				"sasl.password":      "password",
@@ -1164,12 +1167,13 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:     "clientid",
+					Topic:        "xxx",
 					SaslPassword: ptr("passwordOverride"),
 				},
 			},
 			want: kafka.ConfigMap{
 				"bootstrap.servers":  "http://localhost:8080",
-				"client.id":          "clientid",
+				"client.id":          "clientid-xxx",
 				"enable.idempotence": true,
 				"sasl.mechanism":     "SCRAM-SHA-256",
 				"sasl.password":      "passwordOverride",
@@ -1188,13 +1192,14 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:     "clientid",
+					Topic:        "xxx",
 					SaslUsername: ptr("usernameOverride"),
 					SaslPassword: ptr("passwordOverride"),
 				},
 			},
 			want: kafka.ConfigMap{
 				"bootstrap.servers":  "http://localhost:8080",
-				"client.id":          "clientid",
+				"client.id":          "clientid-xxx",
 				"enable.idempotence": true,
 				"sasl.mechanism":     "SCRAM-SHA-256",
 				"sasl.password":      "passwordOverride",

@@ -113,8 +113,9 @@ func (c *Client) Writer(_ context.Context, topicConfig ProducerTopicConfig, opts
 	if err != nil {
 		return nil, err
 	}
+	writerKey := getWriterKey(topicConfig)
 	c.mu.RLock()
-	w, exist := c.writers[topicConfig.ClientID]
+	w, exist := c.writers[writerKey]
 	if exist && !w.isClosed {
 		c.mu.RUnlock()
 		return w, nil
@@ -123,7 +124,7 @@ func (c *Client) Writer(_ context.Context, topicConfig ProducerTopicConfig, opts
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	w, exist = c.writers[topicConfig.ClientID]
+	w, exist = c.writers[writerKey]
 	if exist && !w.isClosed {
 		return w, nil
 	}
@@ -151,8 +152,8 @@ func (c *Client) Writer(_ context.Context, topicConfig ProducerTopicConfig, opts
 		return nil, err
 	}
 
-	c.writers[topicConfig.ClientID] = writer
-	return c.writers[topicConfig.ClientID], nil
+	c.writers[writerKey] = writer
+	return c.writers[writerKey], nil
 }
 
 // Close terminates all cached readers and writers gracefully.
@@ -217,4 +218,8 @@ func getTracer(tp trace.TracerProvider) trace.Tracer {
 		return nil
 	}
 	return tp.Tracer(instrumentationName, trace.WithInstrumentationVersion("v1.0.0"))
+}
+
+func getWriterKey(cfg ProducerTopicConfig) string {
+	return cfg.ClientID + "-" + cfg.Topic
 }

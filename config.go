@@ -365,7 +365,7 @@ func makeConsumerConfig(conf Config, topicConfig ConsumerTopicConfig, prefix str
 func makeProducerConfig(conf Config, topicConfig ProducerTopicConfig) kafka.ConfigMap {
 	configMap := kafka.ConfigMap{}
 
-	configMap[clientID] = topicConfig.ClientID
+	configMap[clientID] = getWriterKey(topicConfig)
 
 	if topicConfig.RequestRequiredAcks != nil {
 		configMap[requestRequiredAcks] = *topicConfig.RequestRequiredAcks

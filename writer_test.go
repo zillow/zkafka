@@ -83,11 +83,11 @@ func TestWriter_Write(t *testing.T) {
 			defer recoverThenFail(t)
 
 			w := &KWriter{
-				producer: tt.fields.Producer,
-				fmtter:   tt.fields.fmt,
-				logger:   NoopLogger{},
-				tracer:   noop.TracerProvider{}.Tracer(""),
-				p:        propagation.TraceContext{},
+				producer:  tt.fields.Producer,
+				formatter: tt.fields.fmt,
+				logger:    NoopLogger{},
+				tracer:    noop.TracerProvider{}.Tracer(""),
+				p:         propagation.TraceContext{},
 			}
 			got, err := w.Write(tt.args.ctx, tt.args.value)
 			if tt.wantErr {
@@ -164,7 +164,7 @@ func TestWriter_WriteKey(t *testing.T) {
 			w := &KWriter{
 				producer:    tt.fields.Producer,
 				topicConfig: tt.fields.conf,
-				fmtter:      zfmtShim{tt.fields.fmt},
+				formatter:   zfmtShim{tt.fields.fmt},
 				isClosed:    tt.fields.isClosed,
 				logger:      NoopLogger{},
 				tracer:      noop.TracerProvider{}.Tracer(""),
@@ -202,7 +202,7 @@ func TestWriter_WriteKeyReturnsImmediateError(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{},
 		isClosed:    false,
-		fmtter:      zfmtShim{&zfmt.JSONFormatter{}},
+		formatter:   zfmtShim{&zfmt.JSONFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -240,7 +240,7 @@ func TestWriter_WritesMetrics(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
 		lifecycle:   hooks,
-		fmtter:      zfmtShim{&zfmt.StringFormatter{}},
+		formatter:   zfmtShim{&zfmt.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -303,11 +303,11 @@ func TestWriter_WriteSpecialCase(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := &KWriter{
-				producer: tt.fields.Producer,
-				fmtter:   zfmtShim{tt.fields.fmt},
-				logger:   NoopLogger{},
-				tracer:   noop.TracerProvider{}.Tracer(""),
-				p:        propagation.TraceContext{},
+				producer:  tt.fields.Producer,
+				formatter: zfmtShim{tt.fields.fmt},
+				logger:    NoopLogger{},
+				tracer:    noop.TracerProvider{}.Tracer(""),
+				p:         propagation.TraceContext{},
 			}
 			got, err := w.Write(tt.args.ctx, tt.args.value)
 			if tt.wantErr {
@@ -348,7 +348,7 @@ func TestWriter_PreWriteLifecycleHookCanAugmentHeaders(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
 		lifecycle:   hooks,
-		fmtter:      zfmtShim{&zfmt.StringFormatter{}},
+		formatter:   zfmtShim{&zfmt.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -377,7 +377,7 @@ func TestWriter_WithHeadersWriteOptionCanAugmentHeaders(t *testing.T) {
 	wr := &KWriter{
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
-		fmtter:      zfmtShim{&zfmt.StringFormatter{}},
+		formatter:   zfmtShim{&zfmt.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -435,7 +435,7 @@ func TestWriter_PreWriteLifecycleHookErrorDoesntHaltProcessing(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
 		lifecycle:   hooks,
-		fmtter:      zfmtShim{&zfmt.StringFormatter{}},
+		formatter:   zfmtShim{&zfmt.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -566,7 +566,7 @@ func Test_newWriter(t *testing.T) {
 func TestWriter_WithOptions(t *testing.T) {
 	recoverThenFail(t)
 	w := &KWriter{}
-	require.Nil(t, w.fmtter, "expected nil formatter")
+	require.Nil(t, w.formatter, "expected nil formatter")
 
 	settings := WriterSettings{}
 	WFormatterOption(&zfmt.StringFormatter{})(&settings)

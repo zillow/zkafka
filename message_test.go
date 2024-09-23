@@ -26,7 +26,7 @@ func Test_makeProducerMessageRaw(t *testing.T) {
 		hasHeaders bool
 	}{
 		{
-			name: "has fmtter with valid input, no key, no partition",
+			name: "has formatter with valid input, no key, no partition",
 			args: args{
 				serviceName: "concierge/test/test_group",
 				topic:       "test_topic",

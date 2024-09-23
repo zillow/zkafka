@@ -43,7 +43,7 @@ type KReader struct {
 	topicConfig ConsumerTopicConfig
 	isClosed    bool
 
-	fmtter kFormatter
+	formatter kFormatter
 
 	logger     Logger
 	lifecycle  LifecycleHooks
@@ -83,7 +83,7 @@ func newReader(args readerArgs) (*KReader, error) {
 	r := &KReader{
 		consumer:    consumer,
 		topicConfig: topicConfig,
-		fmtter:      formatter,
+		formatter:   formatter,
 		logger:      logger,
 		lifecycle:   args.hooks,
 		tCommitMgr:  newTopicCommitMgr(),
@@ -92,8 +92,8 @@ func newReader(args readerArgs) (*KReader, error) {
 	for _, opt := range args.opts {
 		opt(&s)
 	}
-	if s.fmtter != nil {
-		r.fmtter = s.fmtter
+	if s.formatter != nil {
+		r.formatter = s.formatter
 	}
 	return r, nil
 }
@@ -226,7 +226,7 @@ func (r *KReader) mapMessage(_ context.Context, msg kafka.Message) *Message {
 			}
 		},
 		value: msg.Value,
-		fmt:   r.fmtter,
+		fmt:   r.formatter,
 	}
 }
 
@@ -313,17 +313,17 @@ func getTopicName(topicName *string) string {
 }
 
 type ReaderSettings struct {
-	fmtter kFormatter
+	formatter kFormatter
 }
 
 // ReaderOption is a function that modify the KReader configurations
 type ReaderOption func(*ReaderSettings)
 
 // RFormatterOption sets the formatter for this reader
-func RFormatterOption(fmtter Formatter) ReaderOption {
+func RFormatterOption(formatter Formatter) ReaderOption {
 	return func(s *ReaderSettings) {
-		if fmtter != nil {
-			s.fmtter = zfmtShim{F: fmtter}
+		if formatter != nil {
+			s.formatter = zfmtShim{F: formatter}
 		}
 	}
 }

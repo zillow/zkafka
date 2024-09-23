@@ -24,7 +24,7 @@ const (
 	JSONSchemaRegistry zfmt.FormatterType = "json_schema_registry"
 )
 
-var errMissingFmtter = errors.New("custom formatter is missing, did you forget to call WithFormatter()")
+var errMissingFormatter = errors.New("custom formatter is missing, did you forget to call WithFormatter()")
 
 // Formatter allows the user to extend formatting capability to unsupported data types
 type Formatter interface {
@@ -83,12 +83,12 @@ type errFormatter struct{}
 
 // marshall returns error with reminder
 func (f errFormatter) marshall(req marshReq) ([]byte, error) {
-	return nil, errMissingFmtter
+	return nil, errMissingFormatter
 }
 
 // unmarshal returns error with reminder
 func (f errFormatter) unmarshal(req unmarshReq) error {
-	return errMissingFmtter
+	return errMissingFormatter
 }
 
 type avroSchemaRegistryFormatter struct {

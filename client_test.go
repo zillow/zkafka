@@ -203,8 +203,8 @@ func TestClient_Reader(t *testing.T) {
 					SessionTimeoutMillis:  ptr(61000),
 					MaxPollIntervalMillis: ptr(61000),
 				},
-				logger: NoopLogger{},
-				fmtter: zfmtShim{&zfmt.AvroFormatter{}},
+				logger:    NoopLogger{},
+				formatter: zfmtShim{&zfmt.AvroFormatter{}},
 			},
 			wantErr: false,
 		},
@@ -236,8 +236,8 @@ func TestClient_Reader(t *testing.T) {
 					SessionTimeoutMillis:  ptr(20000),
 					MaxPollIntervalMillis: ptr(21000),
 				},
-				logger: NoopLogger{},
-				fmtter: zfmtShim{&zfmt.AvroFormatter{}},
+				logger:    NoopLogger{},
+				formatter: zfmtShim{&zfmt.AvroFormatter{}},
 			},
 			wantErr: false,
 		},
@@ -296,7 +296,7 @@ func TestClient_Reader(t *testing.T) {
 					assertEqual(t, a, b, cmpopts.IgnoreUnexported(MockKafkaConsumer{}))
 				}
 				assertEqual(t, gotReader.logger, tt.want.logger)
-				assertEqual(t, gotReader.fmtter, tt.want.fmtter)
+				assertEqual(t, gotReader.formatter, tt.want.formatter)
 			}
 		})
 	}
@@ -364,10 +364,10 @@ func TestClient_Writer(t *testing.T) {
 					NagleDisable: ptr(true),
 					LingerMillis: 0,
 				},
-				logger: NoopLogger{},
-				tracer: noop.TracerProvider{}.Tracer(""),
-				p:      propagation.TraceContext{},
-				fmtter: zfmtShim{&zfmt.ProtobufRawFormatter{}},
+				logger:    NoopLogger{},
+				tracer:    noop.TracerProvider{}.Tracer(""),
+				p:         propagation.TraceContext{},
+				formatter: zfmtShim{&zfmt.ProtobufRawFormatter{}},
 			},
 			wantErr: false,
 		},
@@ -394,10 +394,10 @@ func TestClient_Writer(t *testing.T) {
 					NagleDisable: ptr(false),
 					LingerMillis: 1,
 				},
-				logger: NoopLogger{},
-				tracer: noop.TracerProvider{}.Tracer(""),
-				p:      propagation.TraceContext{},
-				fmtter: zfmtShim{&zfmt.ProtobufRawFormatter{}},
+				logger:    NoopLogger{},
+				tracer:    noop.TracerProvider{}.Tracer(""),
+				p:         propagation.TraceContext{},
+				formatter: zfmtShim{&zfmt.ProtobufRawFormatter{}},
 			},
 			wantErr: false,
 		},
@@ -446,7 +446,7 @@ func TestClient_Writer(t *testing.T) {
 
 			assertEqual(t, gotKWriter.topicConfig, tt.want.topicConfig)
 			assertEqual(t, gotKWriter.logger, tt.want.logger)
-			assertEqual(t, gotKWriter.fmtter, tt.want.fmtter)
+			assertEqual(t, gotKWriter.formatter, tt.want.formatter)
 		})
 	}
 }

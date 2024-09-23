@@ -8,12 +8,17 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
 	"github.com/zillow/zkafka/test/evolution/avro1"
 	"github.com/zillow/zkafka/test/evolution/avro2"
+	"github.com/zillow/zkafka/test/evolution/json1"
+	"github.com/zillow/zkafka/test/evolution/json2"
+	"github.com/zillow/zkafka/test/evolution/proto1"
+	"github.com/zillow/zkafka/test/evolution/proto2"
 )
 
 //go:embed evolution/schema_1.avsc
@@ -25,7 +30,7 @@ var dummyEventSchema2 string
 const enableSchemaRegistryTest = "ENABLE_SCHEMA_REGISTRY_TESTS"
 const enableKafkaBrokerTest = "ENABLE_KAFKA_BROKER_TESTS"
 
-func Test_SchemaRegistry_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom(t *testing.T) {
+func Test_SchemaRegistry_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom(t *testing.T) {
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	ctx := context.Background()
@@ -134,6 +139,223 @@ func Test_SchemaRegistry_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegis
 	receivedEvt2Schema2 := avro2.DummyEvent{}
 	require.NoError(t, msg2.Decode(&receivedEvt2Schema2))
 	assertEqual(t, evt2, receivedEvt2Schema2)
+}
+
+func Test_SchemaRegistry_Proto_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
+	ctx := context.Background()
+	topic := "integration-test-topic-2" + uuid.NewString()
+	bootstrapServer := getBootstrap()
+
+	createTopic(t, bootstrapServer, topic, 1)
+	t.Logf("Created topic: %s", topic)
+
+	groupID := uuid.NewString()
+
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
+	defer func() { require.NoError(t, client.Close()) }()
+
+	t.Log("Created writer with auto registered schemas")
+	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.ProtoSchemaRegistry,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL: "mock://",
+			Serialization: zkafka.SerializationConfig{
+				AutoRegisterSchemas: true,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	writer2, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.ProtoSchemaRegistry,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL: "mock://",
+			Serialization: zkafka.SerializationConfig{
+				AutoRegisterSchemas: true,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	evt1 := proto1.DummyEvent{
+		IntField:    rand.Int63(),
+		DoubleField: rand.Float32(),
+		StringField: uuid.NewString(),
+		BoolField:   true,
+		BytesField:  []byte(uuid.NewString()),
+	}
+	// write msg1, and msg2
+	_, err = writer1.Write(ctx, &evt1)
+	require.NoError(t, err)
+
+	evt2 := proto2.DummyEvent{
+		IntField:    rand.Int63(),
+		DoubleField: rand.Float32(),
+		StringField: uuid.NewString(),
+		BoolField:   true,
+		BytesField:  []byte(uuid.NewString()),
+		NewField:    uuid.NewString(),
+	}
+	_, err = writer2.Write(ctx, &evt2)
+	require.NoError(t, err)
+
+	consumerTopicConfig := zkafka.ConsumerTopicConfig{
+		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.ProtoSchemaRegistry,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL: "mock://",
+		},
+		GroupID: groupID,
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+	reader, err := client.Reader(ctx, consumerTopicConfig)
+	require.NoError(t, err)
+
+	t.Log("Begin reading messages")
+	results, err := readMessages(reader, 2)
+	require.NoError(t, err)
+
+	msg1 := <-results
+	msg2 := <-results
+	t.Log("Close reader")
+
+	require.NoError(t, reader.Close())
+
+	receivedEvt1 := proto1.DummyEvent{}
+	require.NoError(t, msg1.Decode(&receivedEvt1))
+	assertEqual(t, evt1, receivedEvt1, cmpopts.IgnoreUnexported(proto1.DummyEvent{}))
+
+	receivedEvt2Schema1 := proto1.DummyEvent{}
+	require.NoError(t, msg2.Decode(&receivedEvt2Schema1))
+	expectedEvt2 := proto1.DummyEvent{
+		IntField:    evt2.IntField,
+		DoubleField: evt2.DoubleField,
+		StringField: evt2.StringField,
+		BoolField:   evt2.BoolField,
+		BytesField:  evt2.BytesField,
+	}
+	assertEqual(t, expectedEvt2, receivedEvt2Schema1, cmpopts.IgnoreUnexported(proto1.DummyEvent{}))
+
+	receivedEvt2Schema2 := proto2.DummyEvent{}
+	require.NoError(t, msg2.Decode(&receivedEvt2Schema2))
+	assertEqual(t, evt2, receivedEvt2Schema2, cmpopts.IgnoreUnexported(proto2.DummyEvent{}))
+}
+
+func Test_SchemaRegistry_JSON_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
+	ctx := context.Background()
+	topic := "integration-test-topic-2" + uuid.NewString()
+	bootstrapServer := getBootstrap()
+
+	createTopic(t, bootstrapServer, topic, 1)
+	t.Logf("Created topic: %s", topic)
+
+	groupID := uuid.NewString()
+
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
+	defer func() { require.NoError(t, client.Close()) }()
+
+	t.Log("Created writer with auto registered schemas")
+	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.JSONSchemaRegistry,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL: "mock://",
+			Serialization: zkafka.SerializationConfig{
+				AutoRegisterSchemas: true,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	writer2, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.JSONSchemaRegistry,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL: "mock://",
+			Serialization: zkafka.SerializationConfig{
+				AutoRegisterSchemas: true,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	evt1 := json1.DummyEvent{
+		IntField:    rand.Int63(),
+		DoubleField: rand.Float32(),
+		StringField: uuid.NewString(),
+		BoolField:   true,
+		BytesField:  []byte(uuid.NewString()),
+	}
+	_, err = writer1.Write(ctx, &evt1)
+	require.NoError(t, err)
+
+	evt2 := json2.DummyEvent{
+		IntField:    rand.Int63(),
+		DoubleField: rand.Float32(),
+		StringField: uuid.NewString(),
+		BoolField:   true,
+		BytesField:  []byte(uuid.NewString()),
+		NewField:    uuid.NewString(),
+	}
+	_, err = writer2.Write(ctx, &evt2)
+	require.NoError(t, err)
+
+	consumerTopicConfig := zkafka.ConsumerTopicConfig{
+		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.JSONSchemaRegistry,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL: "mock://",
+		},
+		GroupID: groupID,
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+	reader, err := client.Reader(ctx, consumerTopicConfig)
+	require.NoError(t, err)
+
+	t.Log("Begin reading messages")
+	results, err := readMessages(reader, 2)
+	require.NoError(t, err)
+
+	msg1 := <-results
+	msg2 := <-results
+	t.Log("Close reader")
+
+	require.NoError(t, reader.Close())
+
+	receivedEvt1 := json1.DummyEvent{}
+	require.NoError(t, msg1.Decode(&receivedEvt1))
+	assertEqual(t, evt1, receivedEvt1, cmpopts.IgnoreUnexported(json1.DummyEvent{}))
+
+	receivedEvt2Schema1 := json1.DummyEvent{}
+	require.NoError(t, msg2.Decode(&receivedEvt2Schema1))
+	expectedEvt2 := json1.DummyEvent{
+		IntField:    evt2.IntField,
+		DoubleField: evt2.DoubleField,
+		StringField: evt2.StringField,
+		BoolField:   evt2.BoolField,
+		BytesField:  evt2.BytesField,
+	}
+	assertEqual(t, expectedEvt2, receivedEvt2Schema1, cmpopts.IgnoreUnexported(json1.DummyEvent{}))
+
+	receivedEvt2Schema2 := json2.DummyEvent{}
+	require.NoError(t, msg2.Decode(&receivedEvt2Schema2))
+	assertEqual(t, evt2, receivedEvt2Schema2, cmpopts.IgnoreUnexported(json2.DummyEvent{}))
 }
 
 func Test_SchemaRegistry_AutoRegisterSchemasFalse_WillNotWriteMessage(t *testing.T) {

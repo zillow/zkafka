@@ -174,6 +174,8 @@ type ProducerTopicConfig struct {
 	// Formatter is json if not defined
 	Formatter zfmt.FormatterType
 
+	// SchemaRegistry provides details about connecting to a schema registry including URL
+	// as well as others.
 	SchemaRegistry SchemaRegistryConfig
 
 	// SchemaID defines the schema registered with Confluent schema Registry
@@ -212,14 +214,22 @@ func (p ProducerTopicConfig) GetSchemaID() int {
 }
 
 type SchemaRegistryConfig struct {
-	URL             string
-	Serialization   SerializationConfig
+	// URL is the schema registry URL. During serialization and deserialization
+	// schema registry is checked against to confirm schema compatability.
+	URL string
+	// Serialization provides additional information used by schema registry formatters during serialization (data write)
+	Serialization SerializationConfig
+	// Deserialization provides additional information used by schema registry formatters during deserialization (data read)
 	Deserialization DeserializationConfig
 }
 
 type SerializationConfig struct {
+	// AutoRegisterSchemas indicates whether new schemas (those that evolve existing schemas or are brand new) should be registered
+	// with schema registry dynamically. This feature is typically not used for production workloads
 	AutoRegisterSchemas bool
-	Schema              string
+	// Schema is used exclusively by the avro schema registry formatter today. Its necessary to provide proper schema evolution properties
+	// expected by typical use cases.
+	Schema string
 }
 
 type DeserializationConfig struct {
@@ -323,7 +333,7 @@ func makeConsumerConfig(conf Config, topicConfig ConsumerTopicConfig, prefix str
 		addresses = topicConfig.BootstrapServers
 	}
 	if len(addresses) == 0 {
-		return nil, errors.New("invalid config, missing bootstrap server addresses")
+		return nil, errors.New("invalid consumer config, missing bootstrap server addresses")
 	}
 	configMap[bootstrapServers] = strings.Join(addresses, ",")
 
@@ -362,7 +372,7 @@ func makeConsumerConfig(conf Config, topicConfig ConsumerTopicConfig, prefix str
 // makeProducerConfig creates a kafka configMap from the specified strongly typed Config and TopicConfig.
 // TopicConfig specifies a way to specify config values that aren't strongly typed via AdditionalProps field.
 // Those values are overwritten if specified in strongly typed TopicConfig fields.
-func makeProducerConfig(conf Config, topicConfig ProducerTopicConfig) kafka.ConfigMap {
+func makeProducerConfig(conf Config, topicConfig ProducerTopicConfig) (kafka.ConfigMap, error) {
 	configMap := kafka.ConfigMap{}
 
 	configMap[clientID] = getWriterKey(topicConfig)
@@ -402,6 +412,10 @@ func makeProducerConfig(conf Config, topicConfig ProducerTopicConfig) kafka.Conf
 	if len(topicConfig.BootstrapServers) != 0 {
 		addresses = topicConfig.BootstrapServers
 	}
+	if len(addresses) == 0 {
+		return nil, errors.New("invalid producer config, missing bootstrap server addresses")
+	}
+
 	configMap[bootstrapServers] = strings.Join(addresses, ",")
 
 	saslUname := conf.SaslUsername
@@ -433,5 +447,5 @@ func makeProducerConfig(conf Config, topicConfig ProducerTopicConfig) kafka.Conf
 			configMap[key] = kafka.ConfigValue(v)
 		}
 	}
-	return configMap
+	return configMap, nil
 }

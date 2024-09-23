@@ -506,6 +506,7 @@ func Test_newWriter(t *testing.T) {
 		{
 			name: "custom formatter, no error. It is implied that user will supply formatter later",
 			args: args{
+				conf: Config{BootstrapServers: []string{"localhost:9092"}},
 				topicConfig: ProducerTopicConfig{
 					Formatter: zfmt.FormatterType("custom"),
 				},
@@ -531,8 +532,10 @@ func Test_newWriter(t *testing.T) {
 			wantErr: true,
 		},
 		{
+
 			name: "minimum config with formatter",
 			args: args{
+				conf:      Config{BootstrapServers: []string{"localhost:9092"}},
 				producerP: defaultConfluentProducerProvider{}.NewProducer,
 				topicConfig: ProducerTopicConfig{
 					Formatter: zfmt.StringFmt,

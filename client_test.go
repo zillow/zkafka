@@ -344,6 +344,7 @@ func TestClient_Writer(t *testing.T) {
 		{
 			name: "create new KWriter for closed writer",
 			fields: fields{
+				conf: Config{BootstrapServers: []string{"localhost:9092"}},
 				writers: map[string]*KWriter{
 					"test-id": &KWriter{isClosed: true},
 				},
@@ -373,6 +374,7 @@ func TestClient_Writer(t *testing.T) {
 		{
 			name: "create new KWriter for closed writer with default overrides",
 			fields: fields{
+				conf: Config{BootstrapServers: []string{"localhost:9092"}},
 				writers: map[string]*KWriter{
 					"test-id": &KWriter{isClosed: true},
 				},
@@ -780,10 +782,27 @@ func Test_makeConfig_Consumer(t *testing.T) {
 		prefix      string
 	}
 	tests := []struct {
-		name string
-		args args
-		want kafka.ConfigMap
+		name    string
+		args    args
+		want    kafka.ConfigMap
+		wantErr string
 	}{
+		{
+			name: "missing bootstrap",
+			args: args{
+				conf: Config{},
+				topicConfig: ConsumerTopicConfig{
+					ClientID:    "clientid",
+					GroupID:     "group",
+					Topic:       "",
+					Formatter:   "",
+					SchemaID:    0,
+					Transaction: true,
+				},
+			},
+			wantErr: "invalid consumer config, missing bootstrap server addresses",
+		},
+
 		{
 			name: "with transaction",
 			args: args{
@@ -996,8 +1015,12 @@ func Test_makeConfig_Consumer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
 			got, err := makeConsumerConfig(tt.args.conf, tt.args.topicConfig, tt.args.prefix)
-			require.NoError(t, err)
-			assertEqual(t, got, tt.want)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				assertEqual(t, got, tt.want)
+			} else {
+				require.ErrorContains(t, err, tt.wantErr)
+			}
 		})
 	}
 }
@@ -1008,10 +1031,24 @@ func Test_makeConfig_Producer(t *testing.T) {
 		topicConfig ProducerTopicConfig
 	}
 	tests := []struct {
-		name string
-		args args
-		want kafka.ConfigMap
+		name    string
+		args    args
+		want    kafka.ConfigMap
+		wantErr string
 	}{
+		{
+			name: "with missing bootstrap config",
+			args: args{
+				conf: Config{},
+				topicConfig: ProducerTopicConfig{
+					ClientID:    "clientid",
+					Topic:       "yyy",
+					Transaction: true,
+				},
+			},
+			wantErr: "invalid producer config, missing bootstrap server addresses",
+		},
+
 		{
 			name: "with transaction",
 			args: args{
@@ -1212,8 +1249,13 @@ func Test_makeConfig_Producer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
-			got := makeProducerConfig(tt.args.conf, tt.args.topicConfig)
-			assertEqual(t, got, tt.want)
+			got, err := makeProducerConfig(tt.args.conf, tt.args.topicConfig)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				assertEqual(t, got, tt.want)
+			} else {
+				require.ErrorContains(t, err, tt.wantErr)
+			}
 		})
 	}
 }

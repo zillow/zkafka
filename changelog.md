@@ -9,6 +9,7 @@ This project adheres to Semantic Versioning.
 1. Added support for schemaregistry (avro, proto, json). Extended `zfmt.FormatterType` types to include `avro_schema_registry`, `proto_schema_registry` and `json_schema_registry`
 2. Added lifecycle function `LifecyclePostReadImmediate`
 3. Added `workFactory.CreateWithFunc` which is a convenience work factory method for creating work using a callback instead of an interface (can reduce boilerplate) in some scenarios.
+4. During the creation of readers/writers an error is now returned if bootstrap servers is empty
 
 
 ## 1.0.2 (Sep 6, 2024)

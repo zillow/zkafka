@@ -77,7 +77,11 @@ func newWriter(args writerArgs) (*KWriter, error) {
 	producer := args.producerProvider
 	formatter := args.f
 
-	confluentConfig := makeProducerConfig(conf, topicConfig)
+	confluentConfig, err := makeProducerConfig(conf, topicConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	p, err := producer(confluentConfig)
 	if err != nil {
 		return nil, err

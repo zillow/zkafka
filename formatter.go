@@ -119,7 +119,7 @@ func (f avroSchemaRegistryFormatter) marshall(req marshReq) ([]byte, error) {
 }
 
 func (f avroSchemaRegistryFormatter) unmarshal(req unmarshReq) error {
-	err := f.afmt.Deserialize(req.topic, req.data, &req.target)
+	err := f.afmt.Deserialize(req.topic, req.data, req.target)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize to confluent schema registry avro type: %w", err)
 	}

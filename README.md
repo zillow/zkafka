@@ -282,40 +282,6 @@ This can be used in ProducerTopicConfig/ConsumerTopicConfig just like the others
 schema registry communication that's required)
 
 
-#### Producers
-
-##### Raw Handling
-
-For a producer, this would involve using the `kafka.Writer.WriteRaw()` method which takes in a byte array directly.
-
-##### Native Support
-
-Producers will include the schemaID in messages written to kafka (without any further verification).
-
-#### Consumers
-
-##### Raw Handling
-
-For a consumer, this would involve accessing the value byte array through the `zkafka.Message.Value()` method.
-
-```go 
-type Processor struct{}
-func (p Processor) Process(_ context.Context, msg *zkafka.Message) error {
-   e := MyEvent{}
-   // The Decode method uses the configured formatter and the configured schema registry ID.
-   //err := msg.Decode(&e)
-   // For schema registry, however, it might be better to bypass the configurable formatters, and deserialize the data by accessing the byte array directly
-   // The below function is a hypothetical function that inspects the data in in the kafka message's value and communicates with schema registry for verification
-   myUnmarshallFunction(msg.Value(), &e)
-   ...
-}
-```
-
-##### Native Support
-Consumers will verify that the message they're consuming has the schemaID specified in the configuration
-(if it's specified). Be careful here, as backwards compatible schema evolutions would be treated as an error condition
-as the new schemaID wouldn't match what's in the configuration.
-
 ### Consumer/Producer Configuration
 
 See for description of configuration options and their defaults:

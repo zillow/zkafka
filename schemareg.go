@@ -34,6 +34,7 @@ func (c *schemaRegistryFactory) createAvro(srConfig SchemaRegistryConfig) (avroF
 	if err != nil {
 		return avroFmt{}, fmt.Errorf("failed to create deserializer: %w", err)
 	}
+	deser.SubjectNameStrategy = subjectNameStrategy(srConfig)
 
 	serConfig := avrov2.NewSerializerConfig()
 	serConfig.AutoRegisterSchemas = srConfig.Serialization.AutoRegisterSchemas
@@ -43,6 +44,8 @@ func (c *schemaRegistryFactory) createAvro(srConfig SchemaRegistryConfig) (avroF
 	if err != nil {
 		return avroFmt{}, fmt.Errorf("failed to create serializer: %w", err)
 	}
+	ser.SubjectNameStrategy = subjectNameStrategy(srConfig)
+
 	return avroFmt{
 		ser:   ser,
 		deser: deser,
@@ -61,6 +64,8 @@ func (c *schemaRegistryFactory) createProto(srConfig SchemaRegistryConfig) (prot
 		return protoFmt{}, fmt.Errorf("failed to create deserializer: %w", err)
 	}
 
+	deser.SubjectNameStrategy = subjectNameStrategy(srConfig)
+
 	serConfig := protobuf.NewSerializerConfig()
 	serConfig.AutoRegisterSchemas = srConfig.Serialization.AutoRegisterSchemas
 	serConfig.NormalizeSchemas = true
@@ -69,6 +74,7 @@ func (c *schemaRegistryFactory) createProto(srConfig SchemaRegistryConfig) (prot
 	if err != nil {
 		return protoFmt{}, fmt.Errorf("failed to create serializer: %w", err)
 	}
+	ser.SubjectNameStrategy = subjectNameStrategy(srConfig)
 	return protoFmt{
 		ser:   ser,
 		deser: deser,
@@ -87,6 +93,7 @@ func (c *schemaRegistryFactory) createJson(srConfig SchemaRegistryConfig) (jsonF
 	if err != nil {
 		return jsonFmt{}, fmt.Errorf("failed to create deserializer: %w", err)
 	}
+	deser.SubjectNameStrategy = subjectNameStrategy(srConfig)
 
 	serConfig := jsonschema.NewSerializerConfig()
 	serConfig.AutoRegisterSchemas = srConfig.Serialization.AutoRegisterSchemas
@@ -96,11 +103,12 @@ func (c *schemaRegistryFactory) createJson(srConfig SchemaRegistryConfig) (jsonF
 	if err != nil {
 		return jsonFmt{}, fmt.Errorf("failed to create serializer: %w", err)
 	}
+	ser.SubjectNameStrategy = subjectNameStrategy(srConfig)
+
 	return jsonFmt{
 		ser:   ser,
 		deser: deser,
 	}, nil
-
 }
 
 func (c *schemaRegistryFactory) getSchemaClient(srConfig SchemaRegistryConfig) (schemaregistry.Client, error) {
@@ -120,6 +128,15 @@ func (c *schemaRegistryFactory) getSchemaClient(srConfig SchemaRegistryConfig) (
 	}
 	c.srCls[url] = client
 	return client, nil
+}
+
+func subjectNameStrategy(cfg SchemaRegistryConfig) serde.SubjectNameStrategyFunc {
+	return func(topic string, serdeType serde.Type, schema schemaregistry.SchemaInfo) (string, error) {
+		if cfg.SubjectName != "" {
+			return cfg.SubjectName, nil
+		}
+		return serde.TopicNameStrategy(topic, serdeType, schema)
+	}
 }
 
 type avroFmt struct {

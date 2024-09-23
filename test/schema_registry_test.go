@@ -8,11 +8,14 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
 	"github.com/zillow/zkafka/test/evolution/avro1"
+	"github.com/zillow/zkafka/test/evolution/json1"
+	"github.com/zillow/zkafka/test/evolution/proto1"
 )
 
 //go:embed evolution/schema_1.avsc
@@ -171,6 +174,225 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 	err = w.Run(ctx, nil)
 	require.NoError(t, err)
 	require.ErrorContains(t, gotErr, "Subject Not Found")
+}
+
+func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
+	ctx := context.Background()
+	topic := "integration-test-topic-2" + uuid.NewString()
+	bootstrapServer := getBootstrap()
+
+	createTopic(t, bootstrapServer, topic, 1)
+	t.Logf("Created topic: %s", topic)
+
+	groupID := uuid.NewString()
+
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
+	defer func() { require.NoError(t, client.Close()) }()
+
+	subjName := uuid.NewString()
+	t.Log("Created writer with auto registered schemas")
+	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.AvroSchemaRegistry,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL:         "mock://",
+			SubjectName: subjName,
+			Serialization: zkafka.SerializationConfig{
+				AutoRegisterSchemas: true,
+				Schema:              dummyEventSchema1,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	evt1 := avro1.DummyEvent{
+		IntField:    int(rand.Int31()),
+		DoubleField: rand.Float64(),
+		StringField: uuid.NewString(),
+		BoolField:   true,
+		BytesField:  []byte(uuid.NewString()),
+	}
+	// write msg1, and msg2
+	_, err = writer1.Write(ctx, evt1)
+	require.NoError(t, err)
+
+	consumerTopicConfig := zkafka.ConsumerTopicConfig{
+		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.AvroSchemaRegistry,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL:         "mock://",
+			SubjectName: subjName,
+		},
+		GroupID: groupID,
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+	reader, err := client.Reader(ctx, consumerTopicConfig)
+	require.NoError(t, err)
+
+	t.Log("Begin reading messages")
+	results, err := readMessages(reader, 1)
+	require.NoError(t, err)
+
+	msg1 := <-results
+	t.Log("Close reader")
+
+	require.NoError(t, reader.Close())
+
+	receivedEvt1 := avro1.DummyEvent{}
+	require.NoError(t, msg1.Decode(&receivedEvt1))
+	assertEqual(t, evt1, receivedEvt1)
+}
+
+func Test_SchemaRegistry_Proto_SubjectNameSpecification(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
+	ctx := context.Background()
+	topic := "integration-test-topic-2" + uuid.NewString()
+	bootstrapServer := getBootstrap()
+
+	createTopic(t, bootstrapServer, topic, 1)
+	t.Logf("Created topic: %s", topic)
+
+	groupID := uuid.NewString()
+
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
+	defer func() { require.NoError(t, client.Close()) }()
+
+	subjName := uuid.NewString()
+	t.Log("Created writer with auto registered schemas")
+	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.ProtoSchemaRegistry,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL:         "mock://",
+			SubjectName: subjName,
+			Serialization: zkafka.SerializationConfig{
+				AutoRegisterSchemas: true,
+				Schema:              dummyEventSchema1,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	evt1 := &proto1.DummyEvent{
+		IntField:    rand.Int63(),
+		DoubleField: rand.Float32(),
+		StringField: uuid.NewString(),
+		BoolField:   true,
+		BytesField:  []byte(uuid.NewString()),
+	}
+
+	_, err = writer1.Write(ctx, evt1)
+	require.NoError(t, err)
+
+	consumerTopicConfig := zkafka.ConsumerTopicConfig{
+		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.ProtoSchemaRegistry,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL:         "mock://",
+			SubjectName: subjName,
+		},
+		GroupID: groupID,
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+	reader, err := client.Reader(ctx, consumerTopicConfig)
+	require.NoError(t, err)
+
+	t.Log("Begin reading messages")
+	results, err := readMessages(reader, 1)
+	require.NoError(t, err)
+
+	msg1 := <-results
+	t.Log("Close reader")
+
+	require.NoError(t, reader.Close())
+
+	receivedEvt1 := &proto1.DummyEvent{}
+	require.NoError(t, msg1.Decode(receivedEvt1))
+	assertEqual(t, evt1, receivedEvt1, cmpopts.IgnoreUnexported(proto1.DummyEvent{}))
+}
+
+func Test_SchemaRegistry_Json_SubjectNameSpecification(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
+	ctx := context.Background()
+	topic := "integration-test-topic-2" + uuid.NewString()
+	bootstrapServer := getBootstrap()
+
+	createTopic(t, bootstrapServer, topic, 1)
+	t.Logf("Created topic: %s", topic)
+
+	groupID := uuid.NewString()
+
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
+	defer func() { require.NoError(t, client.Close()) }()
+
+	subjName := uuid.NewString()
+	t.Log("Created writer with auto registered schemas")
+	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.JSONSchemaRegistry,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL:         "mock://",
+			SubjectName: subjName,
+			Serialization: zkafka.SerializationConfig{
+				AutoRegisterSchemas: true,
+				Schema:              dummyEventSchema1,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	evt1 := &json1.DummyEvent{
+		IntField:    rand.Int63(),
+		DoubleField: rand.Float32(),
+		StringField: uuid.NewString(),
+		BoolField:   true,
+		BytesField:  []byte(uuid.NewString()),
+	}
+
+	_, err = writer1.Write(ctx, evt1)
+	require.NoError(t, err)
+
+	consumerTopicConfig := zkafka.ConsumerTopicConfig{
+		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.JSONSchemaRegistry,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL:         "mock://",
+			SubjectName: subjName,
+		},
+		GroupID: groupID,
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+	reader, err := client.Reader(ctx, consumerTopicConfig)
+	require.NoError(t, err)
+
+	t.Log("Begin reading messages")
+	results, err := readMessages(reader, 1)
+	require.NoError(t, err)
+
+	msg1 := <-results
+	t.Log("Close reader")
+
+	require.NoError(t, reader.Close())
+
+	receivedEvt1 := &json1.DummyEvent{}
+	require.NoError(t, msg1.Decode(&receivedEvt1))
+	assertEqual(t, evt1, receivedEvt1)
 }
 
 func checkShouldSkipTest(t *testing.T, flags ...string) {

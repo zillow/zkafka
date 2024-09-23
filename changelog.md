@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
+## 1.2.0 (Sep 23, 2024)
+1. Update to allow subject name specification (not just TopicNameStrategy, which default )
+
 ## 1.1.0 (Sep 23, 2024)
 
 1. Added support for schema registry (avro, proto, json). Extended `zfmt.FormatterType` types to include `avro_schema_registry`, `proto_schema_registry` and `json_schema_registry`

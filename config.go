@@ -221,6 +221,8 @@ type SchemaRegistryConfig struct {
 	Serialization SerializationConfig
 	// Deserialization provides additional information used by schema registry formatters during deserialization (data read)
 	Deserialization DeserializationConfig
+	// SubjectName allows the specification of the SubjectName. If not specified defaults to [topic name strategy](https://docs.confluent.io/platform/current/schema-registry/fundamentals/serdes-develop/index.html#subject-name-strategy)
+	SubjectName string
 }
 
 type SerializationConfig struct {

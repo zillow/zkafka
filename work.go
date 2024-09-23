@@ -653,6 +653,8 @@ func NewWorkFactory(
 	return factory
 }
 
+// CreateWithFunc creates a new Work instance, but allows for the processor to be specified as a callback function
+// instead of an interface
 func (f WorkFactory) CreateWithFunc(topicConfig ConsumerTopicConfig, p func(_ context.Context, msg *Message) error, options ...WorkOption) *Work {
 	return f.Create(topicConfig, processorAdapter{p: p}, options...)
 }

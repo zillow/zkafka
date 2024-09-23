@@ -22,8 +22,6 @@ func main() {
 	client := zkafka.NewClient(zkafka.Config{
 		BootstrapServers: []string{"localhost:29092"},
 	},
-	// optionally add a logger, which implements zkafka.Logger, to see detailed information about message processsing
-	//zkafka.LoggerOption(),
 	)
 	// It's important to close the client after consumption to gracefully leave the consumer group
 	// (this commits completed work, and informs the broker that this consumer is leaving the group which yields a faster rebalance)
@@ -43,10 +41,10 @@ func main() {
 		// The formatter is registered internally to the `zkafka.Message` and used when calling `msg.Decode()`
 		// string fmt can be used for both binary and pure strings encoded in the value field of the kafka message. Other options include
 		// json, proto, avro, etc.
-		Formatter: zkafka.AvroConfluentFmt,
+		Formatter: zkafka.AvroSchemaRegistry,
 		SchemaRegistry: zkafka.SchemaRegistryConfig{
 			URL:             "http://localhost:8081",
-			Deserialization: struct{}{},
+			Deserialization: zkafka.DeserializationConfig{},
 		},
 		AdditionalProps: map[string]any{
 			// only important the first time a consumer group connects. Subsequent connections will start
@@ -69,15 +67,13 @@ func main() {
 	wf := zkafka.NewWorkFactory(client)
 	// Register a processor which is executed per message.
 	// Speedup is used to create multiple processor goroutines. Order is still maintained with this setup by way of `virtual partitions`
-	work := wf.Create(topicConfig, &Processor{}, zkafka.Speedup(1))
+	work := wf.CreateWithFunc(topicConfig, Process, zkafka.Speedup(1))
 	if err := work.Run(ctx, shutdown); err != nil {
 		log.Panic(err)
 	}
 }
 
-type Processor struct{}
-
-func (p Processor) Process(_ context.Context, msg *zkafka.Message) error {
+func Process(_ context.Context, msg *zkafka.Message) error {
 	// sleep to simulate random amount of work
 	time.Sleep(100 * time.Millisecond)
 	event := DummyEvent{}
@@ -86,11 +82,6 @@ func (p Processor) Process(_ context.Context, msg *zkafka.Message) error {
 		log.Printf("error occurred during processing: %s", err)
 		return err
 	}
-	// optionally, if you don't want to use the configured formatter at all, access the kafka message payload bytes directly.
-	// The commented out block shows accessing the byte array. In this case we're stringifying the bytes, but this could be json unmarshalled,
-	// proto unmarshalled etc., depending on the expected payload
-	//data := msg.Value()
-	//str := string(data)
 
 	log.Printf(" offset: %d, partition: %d. event.Age: %d, event.Name %s\n", msg.Offset, msg.Partition, event.IntField, event.StringField)
 	return nil

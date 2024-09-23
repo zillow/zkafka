@@ -96,8 +96,8 @@ func newWriter(args writerArgs) (*KWriter, error) {
 	for _, opt := range args.opts {
 		opt(&s)
 	}
-	if s.fmtter != nil {
-		w.fmtter = s.fmtter
+	if s.f != nil {
+		w.fmtter = s.f
 	}
 	return w, nil
 }
@@ -216,10 +216,7 @@ func (w *KWriter) startSpan(ctx context.Context, msg *kafka.Message) spanWrapper
 }
 
 func (w *KWriter) write(ctx context.Context, msg keyValuePair, opts ...WriteOption) (Response, error) {
-	s := writeSettings{
-		avroSchema: w.topicConfig.SchemaRegistry.Serialization.Schema,
-	}
-	value, err := w.marshall(ctx, msg.value, s.avroSchema)
+	value, err := w.marshall(ctx, msg.value, w.topicConfig.SchemaRegistry.Serialization.Schema)
 	if err != nil {
 		return Response{}, err
 	}
@@ -247,17 +244,17 @@ func (w *KWriter) Close() {
 }
 
 type WriterSettings struct {
-	fmtter kFormatter
+	f kFormatter
 }
 
 // WriterOption is a function that modify the writer configurations
 type WriterOption func(*WriterSettings)
 
 // WFormatterOption sets the formatter for this writer
-func WFormatterOption(fmtter Formatter) WriterOption {
+func WFormatterOption(f Formatter) WriterOption {
 	return func(s *WriterSettings) {
-		if fmtter != nil {
-			s.fmtter = zfmtShim{F: fmtter}
+		if f != nil {
+			s.f = zfmtShim{F: f}
 		}
 	}
 }
@@ -265,10 +262,6 @@ func WFormatterOption(fmtter Formatter) WriterOption {
 // WriteOption is a function that modifies the kafka.Message to be transmitted
 type WriteOption interface {
 	apply(s *kafka.Message)
-}
-
-type writeSettings struct {
-	avroSchema string
 }
 
 // WithHeaders allows for the specification of headers. Specified headers will override collisions.

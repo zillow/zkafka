@@ -567,7 +567,7 @@ func TestWriter_WithOptions(t *testing.T) {
 
 	settings := WriterSettings{}
 	WFormatterOption(&zfmt.StringFormatter{})(&settings)
-	require.NotNil(t, settings.fmtter, "expected non-nil formatter")
+	require.NotNil(t, settings.f, "expected non-nil formatter")
 }
 
 func Test_writeAttributeCarrier_Set(t *testing.T) {

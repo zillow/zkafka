@@ -28,7 +28,7 @@ func Test_getDefaultConsumerTopicConfig(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "missing required field (Topic) => error",
+			name: "missing required field (topic) => error",
 			args: args{conf: &ConsumerTopicConfig{
 				GroupID:  "test_group",
 				ClientID: "test",
@@ -36,7 +36,7 @@ func Test_getDefaultConsumerTopicConfig(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "missing required non empty fields (Topic and or Topics) => error",
+			name: "missing required non empty fields (topic and or Topics) => error",
 			args: args{conf: &ConsumerTopicConfig{
 				GroupID:  "test_group",
 				ClientID: "test",
@@ -126,7 +126,7 @@ func Test_getDefaultProducerTopicConfig(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "missing required field (Topic) => error",
+			name: "missing required field (topic) => error",
 			args: args{conf: &ProducerTopicConfig{
 				ClientID: "test",
 			}},

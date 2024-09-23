@@ -1,11 +1,11 @@
 run:
-  skip-dirs:
-    - docs
-    - datadog
-    - kustomize
-  skip-files:
-    - 'wire_gen.go'
   tests: false
+  go: '1.22'
+issues:
+  exclude-files:
+    - 'wire_gen.go'
+  exclude-dirs:
+    - docs
 linters-settings:
   errcheck:
     check-type-assertions: true
@@ -14,8 +14,6 @@ linters-settings:
     sections:
       - standard
       - default
-  gosimple:
-    go: '1.17'
   depguard:
     rules:
       Main:

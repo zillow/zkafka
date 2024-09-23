@@ -172,7 +172,7 @@ func (w *Work) execProcessors(ctx context.Context, shutdown <-chan struct{}) {
 
 // initiateProcessors creates a buffered channel for each virtual partition, of size poolSize. That way
 // a particular virtual partition never blocks because of its own capacity issue (and instead the goroutinepool is used
-// to limit indefinte growth of processing goroutines).
+// to limit indefinite growth of processing goroutines).
 func (w *Work) initiateProcessors(_ context.Context) {
 	poolSize := w.getPoolSize()
 	w.virtualPartitions = make([]chan workUnit, poolSize)
@@ -204,6 +204,14 @@ func (w *Work) fanOut(ctx context.Context, shutdown <-chan struct{}) {
 		return
 	}
 	msg, err := w.readMessage(ctx, shutdown)
+
+	if w.lifecycle.PostReadImmediate != nil {
+		w.lifecycle.PostReadImmediate(ctx, LifecyclePostReadImmediateMeta{
+			Message: msg,
+			Err:     err,
+		})
+	}
+
 	if err != nil {
 		w.logger.Warnw(ctx, "Kafka worker read message failed",
 			"error", err,
@@ -645,6 +653,12 @@ func NewWorkFactory(
 	return factory
 }
 
+// CreateWithFunc creates a new Work instance, but allows for the processor to be specified as a callback function
+// instead of an interface
+func (f WorkFactory) CreateWithFunc(topicConfig ConsumerTopicConfig, p func(_ context.Context, msg *Message) error, options ...WorkOption) *Work {
+	return f.Create(topicConfig, processorAdapter{p: p}, options...)
+}
+
 // Create creates a new Work instance.
 func (f WorkFactory) Create(topicConfig ConsumerTopicConfig, processor processor, options ...WorkOption) *Work {
 	work := &Work{
@@ -824,4 +838,14 @@ func (c *delayCalculator) remaining(targetDelay time.Duration, msgTimeStamp time
 	observedDelay := now.Sub(msgTimeStamp)
 	// this piece makes sure the return isn't possibly greater than the target
 	return min(targetDelay-observedDelay, targetDelay)
+}
+
+var _ processor = (*processorAdapter)(nil)
+
+type processorAdapter struct {
+	p func(_ context.Context, _ *Message) error
+}
+
+func (a processorAdapter) Process(ctx context.Context, message *Message) error {
+	return a.p(ctx, message)
 }

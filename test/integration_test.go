@@ -1,6 +1,3 @@
-//go:build integration
-// +build integration
-
 package test
 
 import (
@@ -11,6 +8,7 @@ import (
 	"os"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -35,6 +33,8 @@ import (
 // 1. Restart a consumer (being sure to reuse the same consumer group from before)
 // 1. Read another message. Assert its the second written message (first was already read and committed)
 func TestKafkaClientsCanReadOwnWritesAndBehaveProperlyAfterRestart(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	ctx := context.Background()
 	topic := "integration-test-topic-2" + uuid.NewString()
 	bootstrapServer := getBootstrap()
@@ -166,6 +166,8 @@ func TestKafkaClientsCanReadOwnWritesAndBehaveProperlyAfterRestart(t *testing.T)
 // This is in response to a noted issue where rebalance was prone to replayed messages.
 // There are multiple versions of the tests which vary the processing duration
 func Test_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	type testCase struct {
 		name               string
 		processingDuration time.Duration
@@ -350,6 +352,8 @@ func Test_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
 // when a consumer joins and starts consuming messages and later when another consumer joins
 // then there are no duplicate messages processed.
 func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	type testCase struct {
 		name               string
 		processingDuration time.Duration
@@ -406,7 +410,7 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 				Val: "sdfds",
 			}
 
-			t.Log("Begin writing to Test Topic")
+			t.Log("Begin writing to Test topic")
 			// write N messages to topic1
 			msgCount := tc.messageCount
 			for i := 0; i < msgCount; i++ {
@@ -523,6 +527,8 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 // The consumer's processing times are set to a range as opposed to a specific duration. This allows lookahead processing (where messages
 // of higher offsets are processed and completed, potentially, before lower offsets
 func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	type testCase struct {
 		name                        string
 		processingDurationMinMillis int
@@ -677,6 +683,8 @@ func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *test
 // The rebalances are handled during the Poll call under the hood (which is only called while a KReader is in the attempt of Reading.
 // So as we simulate two members of a group we'll need to keep calling from both consumers so the rebalance eventually occurs
 func Test_AssignmentsReflectsConsumerAssignments(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	ctx := context.Background()
 
 	groupID := uuid.NewString()
@@ -793,6 +801,8 @@ func Test_AssignmentsReflectsConsumerAssignments(t *testing.T) {
 // when the second consumer joins and causes a rebalance
 // then the first isn't infinitely blocked in its rebalance
 func Test_UnfinishableWorkDoesntBlockWorkIndefinitely(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	ctx := context.Background()
 
 	groupID := uuid.NewString()
@@ -887,6 +897,8 @@ func Test_UnfinishableWorkDoesntBlockWorkIndefinitely(t *testing.T) {
 // when processing that message errors and a deadletter is configured
 // then the errored message will be written to the dlt
 func Test_KafkaClientsCanWriteToTheirDeadLetterTopic(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	bootstrapServer := getBootstrap()
 	topic := "topic1" + uuid.NewString()
 	dlt := "deadlettertopic1" + uuid.NewString()
@@ -906,6 +918,7 @@ func Test_KafkaClientsCanWriteToTheirDeadLetterTopic(t *testing.T) {
 		Topic:     topic,
 		Formatter: zfmt.JSONFmt,
 	})
+	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
 		ClientID:  fmt.Sprintf("worker-%s-%s", t.Name(), uuid.NewString()),
@@ -979,6 +992,8 @@ func Test_KafkaClientsCanWriteToTheirDeadLetterTopic(t *testing.T) {
 }
 
 func Test_WorkDelay_GuaranteesProcessingDelayedAtLeastSpecifiedDelayDurationFromWhenMessageWritten(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	ctx := context.Background()
 
 	groupID := uuid.NewString()
@@ -1085,6 +1100,8 @@ func Test_WorkDelay_GuaranteesProcessingDelayedAtLeastSpecifiedDelayDurationFrom
 // 2. It also asserts that the time between the first and last message is very short.
 // This is expected in a backlog situation, since the worker will delay once, and with monotonically increasing timestamps won't have to delay again
 func Test_WorkDelay_DoesntHaveDurationStackEffect(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
 	ctx := context.Background()
 
 	groupID := uuid.NewString()
@@ -1183,6 +1200,184 @@ func Test_WorkDelay_DoesntHaveDurationStackEffect(t *testing.T) {
 	first := results[0]
 	last := results[len(results)-1]
 	require.WithinDuration(t, last.processingInstant, first.processingInstant, time.Duration(processDelayMillis/2)*time.Millisecond, "Time since first and last processed message should be very short, since processing just updates an in memory slice. This should take on the order of microseconds, but to account for scheduling drift the assertion is half the delay")
+}
+
+// Test_DeadletterClientDoesntCollideWithProducer tests a common configuration scenario
+// where a worker consumer has a clientID and the dead letter producer is implicitily configured
+// with a clientid. For example, say the client id waw `service-x`, previously, the deadletter producer
+// inherited the same clientID and would create a publisher with that name.
+// The issue was if the processor was acting as a connector and published to another topic, it might be
+// common to have explicitly configured a producer with the name `service-x`. This
+// resulted in a collission for the cached producer clients, and the effect was that all messages
+// would be written to the topic that happened to be registered in the cient cache first (this would have
+// been the dead letter producer).
+//
+// This test shows that when a connector processes N messages half of which error (deadletter) and half of which connect
+// to an egress topic, that messages end up in both targets (as opposed to exclusively in the deadletter)
+func Test_DeadletterClientDoesntCollideWithProducer(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
+	ctx := context.Background()
+
+	bootstrapServer := getBootstrap()
+
+	topicIngress := "integration-test-topic-1" + uuid.NewString()
+	createTopic(t, bootstrapServer, topicIngress, 1)
+	topicEgress := "integration-test-topic-2" + uuid.NewString()
+	createTopic(t, bootstrapServer, topicEgress, 1)
+	topicDLT := "integration-test-topic-dlt" + uuid.NewString()
+	createTopic(t, bootstrapServer, topicDLT, 1)
+
+	groupID := uuid.NewString()
+
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
+	defer func() { require.NoError(t, client.Close()) }()
+
+	writer, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topicIngress,
+	})
+	clientID1 := fmt.Sprintf("service-x-%s-%s", t.Name(), uuid.NewString())
+	ingressTopicReaderConfig := zkafka.ConsumerTopicConfig{
+		ClientID: clientID1,
+		Topic:    topicIngress,
+		GroupID:  groupID,
+		// deadlettertopic uses implicit clientid
+		DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
+			Topic: topicDLT,
+		},
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+	processorWriter, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID: clientID1,
+		Topic:    topicEgress,
+	})
+
+	// start the reader before we write messages (otherwise, since its a new consumer group, auto.offset.reset=latest will be started at an offset later than the just written messages).
+	// Loop in the reader until msg1 appears
+	msg := Msg{Val: "1"}
+
+	// write 3 messages to ingress topic
+	_, err = writer.Write(ctx, msg)
+	require.NoError(t, err)
+	_, err = writer.Write(ctx, msg)
+	require.NoError(t, err)
+	_, err = writer.Write(ctx, msg)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	msgCount := atomic.Int64{}
+	wf := zkafka.NewWorkFactory(client, zkafka.WithWorkLifecycleHooks(zkafka.LifecycleHooks{
+		PostProcessing: func(ctx context.Context, meta zkafka.LifecyclePostProcessingMeta) error {
+			if msgCount.Load() == 3 {
+				cancel()
+			}
+
+			return nil
+		},
+	}))
+	w := wf.CreateWithFunc(ingressTopicReaderConfig, func(ctx context.Context, msg *zkafka.Message) error {
+		t.Log("Processing message from ingress topic")
+		msgCount.Add(1)
+		if msgCount.Load()%2 == 0 {
+			return errors.New("random error occurred")
+		}
+		_, err := processorWriter.WriteRaw(ctx, nil, msg.Value())
+
+		return err
+	})
+
+	t.Log("Begin primary work loop")
+	err = w.Run(ctx, nil)
+	require.NoError(t, err)
+	t.Log("Exit primary work loop. Assess proper side effects")
+
+	egressTopicReaderConfig := zkafka.ConsumerTopicConfig{
+		ClientID: uuid.NewString(),
+		Topic:    topicEgress,
+		GroupID:  uuid.NewString(),
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+
+	ctx1, cancel1 := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel1()
+	egressCount := atomic.Int64{}
+	w1 := wf.CreateWithFunc(egressTopicReaderConfig, func(_ context.Context, msg *zkafka.Message) error {
+		egressCount.Add(1)
+		cancel1()
+		return nil
+	})
+
+	dltTopicReaderConfig := zkafka.ConsumerTopicConfig{
+		ClientID: uuid.NewString(),
+		Topic:    topicDLT,
+		GroupID:  uuid.NewString(),
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+	ctx2, cancel2 := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel2()
+	dltCount := atomic.Int64{}
+	w2 := wf.CreateWithFunc(dltTopicReaderConfig, func(_ context.Context, msg *zkafka.Message) error {
+		dltCount.Add(1)
+		cancel2()
+		return nil
+	})
+
+	t.Log("Start work running. Looking for egress event and DLT topic event")
+	require.NoError(t, w1.Run(ctx1, nil))
+	require.NoError(t, w2.Run(ctx2, nil))
+	require.Equal(t, int64(1), egressCount.Load(), "Expected a message to be written to the egress topic")
+	require.Equal(t, int64(1), dltCount.Load(), "Expected a message to be written to the DLT topic")
+}
+
+func Test_MissingBootstrap_ShouldGiveClearError(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest)
+
+	topic := "integration-test-topic-2" + uuid.NewString()
+	bootstrapServer := getBootstrap()
+
+	createTopic(t, bootstrapServer, topic, 1)
+
+	groupID := uuid.NewString()
+
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{}},
+		zkafka.LoggerOption(stdLogger{}),
+	)
+	defer func() { require.NoError(t, client.Close()) }()
+
+	consumerTopicConfig := zkafka.ConsumerTopicConfig{
+		ClientID: fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		GroupID:  groupID,
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
+
+	var readErr error
+	wf := zkafka.NewWorkFactory(client, zkafka.WithLogger(stdLogger{}),
+		zkafka.WithWorkLifecycleHooks(zkafka.LifecycleHooks{
+			PostReadImmediate: func(ctx context.Context, meta zkafka.LifecyclePostReadImmediateMeta) {
+				readErr = meta.Err
+				cancel()
+			},
+		}),
+	)
+	w := wf.CreateWithFunc(consumerTopicConfig, func(_ context.Context, msg *zkafka.Message) error {
+		return nil
+	})
+	err := w.Run(context.Background(), ctx.Done())
+	require.NoError(t, err)
+	require.ErrorContains(t, readErr, "invalid consumer config, missing bootstrap server addresses")
 }
 
 func createTopic(t *testing.T, bootstrapServer, topic string, partitions int) {

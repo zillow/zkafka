@@ -71,7 +71,7 @@ func TestWork_WithOptions(t *testing.T) {
 	tp := noop.TracerProvider{}
 	propagator := propagation.TraceContext{}
 
-	wf := NewWorkFactory(mockClientProvider{}, WithTracerProvider(tp), WithTextMapPropagator(propagator))
+	wf := NewWorkFactory(FakeClient{}, WithTracerProvider(tp), WithTextMapPropagator(propagator))
 
 	work := wf.Create(ConsumerTopicConfig{}, &timeDelayProcessor{})
 
@@ -741,7 +741,7 @@ func Fuzz_AnySpeedupInputAlwaysCreatesABufferedChannel(f *testing.F) {
 	f.Add(uint16(9))
 
 	f.Fuzz(func(t *testing.T, speedup uint16) {
-		wf := NewWorkFactory(mockClientProvider{})
+		wf := NewWorkFactory(FakeClient{})
 		p := timeDelayProcessor{}
 		w := wf.Create(ConsumerTopicConfig{}, &p, Speedup(speedup))
 		require.Greater(t, cap(w.messageBuffer), 0)
@@ -783,20 +783,6 @@ func (m *timeDelayProcessor) Process(_ context.Context, message *Message) error 
 	return nil
 }
 
-type mockClientProvider struct{}
-
-func (mockClientProvider) Reader(ctx context.Context, topicConfig ConsumerTopicConfig, opts ...ReaderOption) (Reader, error) {
-	return nil, nil
-}
-
-func (mockClientProvider) Writer(ctx context.Context, topicConfig ProducerTopicConfig, opts ...WriterOption) (Writer, error) {
-	return nil, nil
-}
-
-func (mockClientProvider) Close() error {
-	return nil
-}
-
 func assertContains(t *testing.T, wantIn kafka.TopicPartition, options []kafka.TopicPartition) {
 	t.Helper()
 	for _, want := range options {
@@ -814,4 +800,15 @@ type workSettings struct {
 
 func (w *workSettings) ShutdownSig() <-chan struct{} {
 	return w.shutdownSig
+}
+
+type fakeProcessor struct {
+	process func(context.Context, *Message) error
+}
+
+func (p *fakeProcessor) Process(ctx context.Context, msg *Message) error {
+	if p.process != nil {
+		return p.process(ctx, msg)
+	}
+	return nil
 }

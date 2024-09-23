@@ -41,6 +41,7 @@ jobs:
       - name: Test
         env:
           KAFKA_BOOTSTRAP_SERVER: ${{ env.kafka_runner_address }}:9092
+          ENABLE_KAFKA_BROKER_TESTS: true
         run: make cover
 
       - name: Upload coverage reports to Codecov

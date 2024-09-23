@@ -45,47 +45,69 @@ type FakeMessage struct {
 }
 
 // GetMsgFromFake allows the construction of a Message object (allowing the specification of some private fields).
-func GetMsgFromFake(msg *FakeMessage) *Message {
-	if msg == nil {
+func GetMsgFromFake(input *FakeMessage) *Message {
+	if input == nil {
 		return nil
 	}
 	key := ""
-	if msg.Key != nil {
-		key = *msg.Key
+	if input.Key != nil {
+		key = *input.Key
 	}
 	timeStamp := time.Now()
-	if !msg.TimeStamp.IsZero() {
-		timeStamp = msg.TimeStamp
+	if !input.TimeStamp.IsZero() {
+		timeStamp = input.TimeStamp
 	}
 	doneFunc := func(ctx context.Context) {}
-	if msg.DoneFunc != nil {
-		doneFunc = msg.DoneFunc
+	if input.DoneFunc != nil {
+		doneFunc = input.DoneFunc
 	}
 	var val []byte
-	if msg.Value != nil {
-		val = msg.Value
+	if input.Value != nil {
+		val = input.Value
 	}
-	if msg.ValueData != nil {
+	if input.ValueData != nil {
 		//nolint:errcheck // To simplify this helper function's api, we'll suppress marshalling errors.
-		val, _ = msg.Fmt.Marshall(msg.ValueData)
+		val, _ = input.Fmt.Marshall(input.ValueData)
 	}
 	return &Message{
 		Key:       key,
-		isKeyNil:  msg.Key == nil,
-		Headers:   msg.Headers,
-		Offset:    msg.Offset,
-		Partition: msg.Partition,
-		Topic:     msg.Topic,
-		GroupID:   msg.GroupID,
+		isKeyNil:  input.Key == nil,
+		Headers:   input.Headers,
+		Offset:    input.Offset,
+		Partition: input.Partition,
+		Topic:     input.Topic,
+		GroupID:   input.GroupID,
 		TimeStamp: timeStamp,
 		value:     val,
 		topicPartition: kafka.TopicPartition{
-			Topic:     &msg.Topic,
-			Partition: msg.Partition,
-			Offset:    kafka.Offset(msg.Offset),
+			Topic:     &input.Topic,
+			Partition: input.Partition,
+			Offset:    kafka.Offset(input.Offset),
 		},
-		fmt:      msg.Fmt,
+		fmt:      zfmtShim{F: input.Fmt},
 		doneFunc: doneFunc,
 		doneOnce: sync.Once{},
 	}
+}
+
+var _ ClientProvider = (*FakeClient)(nil)
+
+// FakeClient is a convenience struct for testing purposes.
+// It allows the specification of your own Reader/Writer while implementing the `ClientProvider` interface,
+// which makes it compatible with a work factory.
+type FakeClient struct {
+	R Reader
+	W Writer
+}
+
+func (f FakeClient) Reader(_ context.Context, _ ConsumerTopicConfig, _ ...ReaderOption) (Reader, error) {
+	return f.R, nil
+}
+
+func (f FakeClient) Writer(_ context.Context, _ ProducerTopicConfig, _ ...WriterOption) (Writer, error) {
+	return f.W, nil
+}
+
+func (f FakeClient) Close() error {
+	return nil
 }

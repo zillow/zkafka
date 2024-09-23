@@ -178,6 +178,7 @@ func TestClient_Reader(t *testing.T) {
 		{
 			name: "create new KReader for closed KReader",
 			fields: fields{
+				conf: Config{BootstrapServers: []string{"localhost:9092"}},
 				readers: map[string]*KReader{
 					"test-config": {isClosed: true},
 				},
@@ -202,14 +203,15 @@ func TestClient_Reader(t *testing.T) {
 					SessionTimeoutMillis:  ptr(61000),
 					MaxPollIntervalMillis: ptr(61000),
 				},
-				logger: NoopLogger{},
-				fmtter: &zfmt.AvroFormatter{},
+				logger:    NoopLogger{},
+				formatter: zfmtShim{&zfmt.AvroFormatter{}},
 			},
 			wantErr: false,
 		},
 		{
 			name: "create new KReader for closed KReader with default overrides",
 			fields: fields{
+				conf: Config{BootstrapServers: []string{"localhost:9092"}},
 				readers: map[string]*KReader{
 					"test-config": {isClosed: true},
 				},
@@ -234,8 +236,8 @@ func TestClient_Reader(t *testing.T) {
 					SessionTimeoutMillis:  ptr(20000),
 					MaxPollIntervalMillis: ptr(21000),
 				},
-				logger: NoopLogger{},
-				fmtter: &zfmt.AvroFormatter{},
+				logger:    NoopLogger{},
+				formatter: zfmtShim{&zfmt.AvroFormatter{}},
 			},
 			wantErr: false,
 		},
@@ -294,7 +296,7 @@ func TestClient_Reader(t *testing.T) {
 					assertEqual(t, a, b, cmpopts.IgnoreUnexported(MockKafkaConsumer{}))
 				}
 				assertEqual(t, gotReader.logger, tt.want.logger)
-				assertEqual(t, gotReader.fmtter, tt.want.fmtter)
+				assertEqual(t, gotReader.formatter, tt.want.formatter)
 			}
 		})
 	}
@@ -342,6 +344,7 @@ func TestClient_Writer(t *testing.T) {
 		{
 			name: "create new KWriter for closed writer",
 			fields: fields{
+				conf: Config{BootstrapServers: []string{"localhost:9092"}},
 				writers: map[string]*KWriter{
 					"test-id": {isClosed: true},
 				},
@@ -361,16 +364,17 @@ func TestClient_Writer(t *testing.T) {
 					NagleDisable: ptr(true),
 					LingerMillis: 0,
 				},
-				logger: NoopLogger{},
-				tracer: noop.TracerProvider{}.Tracer(""),
-				p:      propagation.TraceContext{},
-				fmtter: &zfmt.ProtobufRawFormatter{},
+				logger:    NoopLogger{},
+				tracer:    noop.TracerProvider{}.Tracer(""),
+				p:         propagation.TraceContext{},
+				formatter: zfmtShim{&zfmt.ProtobufRawFormatter{}},
 			},
 			wantErr: false,
 		},
 		{
 			name: "create new KWriter for closed writer with default overrides",
 			fields: fields{
+				conf: Config{BootstrapServers: []string{"localhost:9092"}},
 				writers: map[string]*KWriter{
 					"test-id": {isClosed: true},
 				},
@@ -390,10 +394,10 @@ func TestClient_Writer(t *testing.T) {
 					NagleDisable: ptr(false),
 					LingerMillis: 1,
 				},
-				logger: NoopLogger{},
-				tracer: noop.TracerProvider{}.Tracer(""),
-				p:      propagation.TraceContext{},
-				fmtter: &zfmt.ProtobufRawFormatter{},
+				logger:    NoopLogger{},
+				tracer:    noop.TracerProvider{}.Tracer(""),
+				p:         propagation.TraceContext{},
+				formatter: zfmtShim{&zfmt.ProtobufRawFormatter{}},
 			},
 			wantErr: false,
 		},
@@ -408,7 +412,7 @@ func TestClient_Writer(t *testing.T) {
 			name: "get from cache",
 			fields: fields{
 				writers: map[string]*KWriter{
-					"test-id": {},
+					"test-id-topic": {},
 				},
 			},
 			args: args{
@@ -442,7 +446,7 @@ func TestClient_Writer(t *testing.T) {
 
 			assertEqual(t, gotKWriter.topicConfig, tt.want.topicConfig)
 			assertEqual(t, gotKWriter.logger, tt.want.logger)
-			assertEqual(t, gotKWriter.fmtter, tt.want.fmtter)
+			assertEqual(t, gotKWriter.formatter, tt.want.formatter)
 		})
 	}
 }
@@ -460,13 +464,25 @@ func TestClient_Close(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r1, err := newReader(Config{}, ConsumerTopicConfig{
-		Formatter: zfmt.StringFmt,
-	}, m, &NoopLogger{}, "")
+	r1, err := newReader(readerArgs{
+		cfg: Config{BootstrapServers: []string{"localhost:9092"}},
+		cCfg: ConsumerTopicConfig{
+			Formatter: zfmt.StringFmt,
+		},
+		consumerProvider: m,
+		f:                zfmtShim{F: &zfmt.StringFormatter{}},
+		l:                &NoopLogger{},
+	})
 	require.NoError(t, err)
-	r2, err := newReader(Config{}, ConsumerTopicConfig{
-		Formatter: zfmt.StringFmt,
-	}, m, &NoopLogger{}, "")
+	r2, err := newReader(readerArgs{
+		cfg: Config{BootstrapServers: []string{"localhost:9092"}},
+		cCfg: ConsumerTopicConfig{
+			Formatter: zfmt.StringFmt,
+		},
+		consumerProvider: m,
+		f:                zfmtShim{F: &zfmt.StringFormatter{}},
+		l:                &NoopLogger{},
+	})
 	require.NoError(t, err)
 	tests := []struct {
 		name    string
@@ -509,16 +525,16 @@ func TestClient_Close(t *testing.T) {
 			for _, w := range c.writers {
 				require.True(t, w.isClosed, "clients writer should be closed")
 			}
-			for _, reader := range c.readers {
-				require.True(t, reader.isClosed, "clients reader should be closed")
+			for _, r := range c.readers {
+				require.True(t, r.isClosed, "clients reader should be closed")
 			}
 		})
 	}
 }
 
-func Test_getFormatter(t *testing.T) {
+func Test_getFormatter_Consumer(t *testing.T) {
 	type args struct {
-		topicConfig TopicConfig
+		topicConfig ConsumerTopicConfig
 	}
 	tests := []struct {
 		name    string
@@ -556,12 +572,6 @@ func Test_getFormatter(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "confluent avro with schema ClientID",
-			args:    args{topicConfig: ProducerTopicConfig{Formatter: zfmt.FormatterType("avro_schema")}},
-			want:    &zfmt.SchematizedAvroFormatter{},
-			wantErr: false,
-		},
-		{
 			name:    "confluent avro with inferred schema ClientID",
 			args:    args{topicConfig: ConsumerTopicConfig{Formatter: zfmt.FormatterType("avro_schema"), SchemaID: 10}},
 			want:    &zfmt.SchematizedAvroFormatter{SchemaID: 10},
@@ -586,12 +596,6 @@ func Test_getFormatter(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "confluent json with inferred schema ID",
-			args:    args{topicConfig: ProducerTopicConfig{Formatter: zfmt.FormatterType("proto_schema_deprecated"), SchemaID: 10}},
-			want:    &zfmt.SchematizedProtoFormatterDeprecated{SchemaID: 10},
-			wantErr: false,
-		},
-		{
 			name:    "unsupported",
 			args:    args{topicConfig: ConsumerTopicConfig{Formatter: zfmt.FormatterType("what"), SchemaID: 10}},
 			wantErr: true,
@@ -600,12 +604,59 @@ func Test_getFormatter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
-			got, err := getFormatter(tt.args.topicConfig)
+			args := formatterArgs{
+				formatter: tt.args.topicConfig.Formatter,
+				schemaID:  tt.args.topicConfig.SchemaID,
+			}
+			c := Client{}
+			got, err := c.getFormatter(args)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tt.want, got)
+				require.Equal(t, zfmtShim{tt.want}, got)
+			}
+		})
+	}
+}
+
+func Test_getFormatter_Producer(t *testing.T) {
+	type args struct {
+		topicConfig ProducerTopicConfig
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    zfmt.Formatter
+		wantErr bool
+	}{
+		{
+			name:    "confluent avro with schema ClientID",
+			args:    args{topicConfig: ProducerTopicConfig{Formatter: zfmt.FormatterType("avro_schema")}},
+			want:    &zfmt.SchematizedAvroFormatter{},
+			wantErr: false,
+		},
+		{
+			name:    "confluent json with inferred schema ID",
+			args:    args{topicConfig: ProducerTopicConfig{Formatter: zfmt.FormatterType("proto_schema_deprecated"), SchemaID: 10}},
+			want:    &zfmt.SchematizedProtoFormatterDeprecated{SchemaID: 10},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer recoverThenFail(t)
+			args := formatterArgs{
+				formatter: tt.args.topicConfig.Formatter,
+				schemaID:  tt.args.topicConfig.SchemaID,
+			}
+			c := Client{}
+			got, err := c.getFormatter(args)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, zfmtShim{tt.want}, got)
 			}
 		})
 	}
@@ -731,10 +782,27 @@ func Test_makeConfig_Consumer(t *testing.T) {
 		prefix      string
 	}
 	tests := []struct {
-		name string
-		args args
-		want kafka.ConfigMap
+		name    string
+		args    args
+		want    kafka.ConfigMap
+		wantErr string
 	}{
+		{
+			name: "missing bootstrap",
+			args: args{
+				conf: Config{},
+				topicConfig: ConsumerTopicConfig{
+					ClientID:    "clientid",
+					GroupID:     "group",
+					Topic:       "",
+					Formatter:   "",
+					SchemaID:    0,
+					Transaction: true,
+				},
+			},
+			wantErr: "invalid consumer config, missing bootstrap server addresses",
+		},
+
 		{
 			name: "with transaction",
 			args: args{
@@ -946,8 +1014,13 @@ func Test_makeConfig_Consumer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
-			got := makeConsumerConfig(tt.args.conf, tt.args.topicConfig, tt.args.prefix)
-			assertEqual(t, got, tt.want)
+			got, err := makeConsumerConfig(tt.args.conf, tt.args.topicConfig, tt.args.prefix)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				assertEqual(t, got, tt.want)
+			} else {
+				require.ErrorContains(t, err, tt.wantErr)
+			}
 		})
 	}
 }
@@ -958,10 +1031,24 @@ func Test_makeConfig_Producer(t *testing.T) {
 		topicConfig ProducerTopicConfig
 	}
 	tests := []struct {
-		name string
-		args args
-		want kafka.ConfigMap
+		name    string
+		args    args
+		want    kafka.ConfigMap
+		wantErr string
 	}{
+		{
+			name: "with missing bootstrap config",
+			args: args{
+				conf: Config{},
+				topicConfig: ProducerTopicConfig{
+					ClientID:    "clientid",
+					Topic:       "yyy",
+					Transaction: true,
+				},
+			},
+			wantErr: "invalid producer config, missing bootstrap server addresses",
+		},
+
 		{
 			name: "with transaction",
 			args: args{
@@ -970,9 +1057,7 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:    "clientid",
-					Topic:       "",
-					Formatter:   "",
-					SchemaID:    0,
+					Topic:       "yyy",
 					Transaction: true,
 				},
 			},
@@ -981,7 +1066,7 @@ func Test_makeConfig_Producer(t *testing.T) {
 				"enable.idempotence":                    true,
 				"request.required.acks":                 -1,
 				"max.in.flight.requests.per.connection": 1,
-				"client.id":                             "clientid",
+				"client.id":                             "clientid-yyy",
 				"linger.ms":                             0,
 			},
 		},
@@ -993,12 +1078,13 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:          "clientid",
+					Topic:             "zzz",
 					DeliveryTimeoutMs: ptr(100),
 				},
 			},
 			want: kafka.ConfigMap{
 				"bootstrap.servers":   "http://localhost:8080,https://localhost:8081",
-				"client.id":           "clientid",
+				"client.id":           "clientid-zzz",
 				"delivery.timeout.ms": 100,
 				"enable.idempotence":  true,
 				"linger.ms":           0,
@@ -1012,6 +1098,7 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:          "clientid",
+					Topic:             "zzz",
 					DeliveryTimeoutMs: ptr(100),
 					AdditionalProps: map[string]any{
 						"stewarts.random.property.not.included.in.topicconfig": 123,
@@ -1021,7 +1108,7 @@ func Test_makeConfig_Producer(t *testing.T) {
 			want: kafka.ConfigMap{
 				"bootstrap.servers":   "http://localhost:8080",
 				"enable.idempotence":  true,
-				"client.id":           "clientid",
+				"client.id":           "clientid-zzz",
 				"delivery.timeout.ms": 100,
 				"stewarts.random.property.not.included.in.topicconfig": 123,
 				"linger.ms": 0,
@@ -1037,6 +1124,7 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:            "clientid",
+					Topic:               "abc",
 					DeliveryTimeoutMs:   ptr(100),
 					EnableIdempotence:   ptr(false),
 					RequestRequiredAcks: ptr("all"),
@@ -1048,7 +1136,7 @@ func Test_makeConfig_Producer(t *testing.T) {
 			},
 			want: kafka.ConfigMap{
 				"bootstrap.servers":       "http://localhost:8080",
-				"client.id":               "clientid",
+				"client.id":               "clientid-abc",
 				"enable.idempotence":      false,
 				"delivery.timeout.ms":     100,
 				"auto.commit.interval.ms": 20,
@@ -1070,12 +1158,13 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:     "clientid",
+					Topic:        "xxx",
 					SaslUsername: ptr(""),
 				},
 			},
 			want: kafka.ConfigMap{
 				"bootstrap.servers":  "http://localhost:8080",
-				"client.id":          "clientid",
+				"client.id":          "clientid-xxx",
 				"enable.idempotence": true,
 				"linger.ms":          0,
 			},
@@ -1090,12 +1179,13 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:     "clientid",
+					Topic:        "xxx",
 					SaslUsername: ptr("usernameOverride"),
 				},
 			},
 			want: kafka.ConfigMap{
 				"bootstrap.servers":  "http://localhost:8080",
-				"client.id":          "clientid",
+				"client.id":          "clientid-xxx",
 				"enable.idempotence": true,
 				"sasl.mechanism":     "SCRAM-SHA-256",
 				"sasl.password":      "password",
@@ -1114,12 +1204,13 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:     "clientid",
+					Topic:        "xxx",
 					SaslPassword: ptr("passwordOverride"),
 				},
 			},
 			want: kafka.ConfigMap{
 				"bootstrap.servers":  "http://localhost:8080",
-				"client.id":          "clientid",
+				"client.id":          "clientid-xxx",
 				"enable.idempotence": true,
 				"sasl.mechanism":     "SCRAM-SHA-256",
 				"sasl.password":      "passwordOverride",
@@ -1138,13 +1229,14 @@ func Test_makeConfig_Producer(t *testing.T) {
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:     "clientid",
+					Topic:        "xxx",
 					SaslUsername: ptr("usernameOverride"),
 					SaslPassword: ptr("passwordOverride"),
 				},
 			},
 			want: kafka.ConfigMap{
 				"bootstrap.servers":  "http://localhost:8080",
-				"client.id":          "clientid",
+				"client.id":          "clientid-xxx",
 				"enable.idempotence": true,
 				"sasl.mechanism":     "SCRAM-SHA-256",
 				"sasl.password":      "passwordOverride",
@@ -1157,8 +1249,13 @@ func Test_makeConfig_Producer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
-			got := makeProducerConfig(tt.args.conf, tt.args.topicConfig)
-			assertEqual(t, got, tt.want)
+			got, err := makeProducerConfig(tt.args.conf, tt.args.topicConfig)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				assertEqual(t, got, tt.want)
+			} else {
+				require.ErrorContains(t, err, tt.wantErr)
+			}
 		})
 	}
 }

@@ -46,7 +46,7 @@ type KWriter struct {
 	mu          sync.Mutex
 	producer    KafkaProducer
 	topicConfig ProducerTopicConfig
-	fmtter      Formatter
+	formatter   kFormatter
 	logger      Logger
 	tracer      trace.Tracer
 	p           propagation.TextMapPropagator
@@ -59,22 +59,51 @@ type keyValuePair struct {
 	value any
 }
 
-func newWriter(conf Config, topicConfig ProducerTopicConfig, producer confluentProducerProvider) (*KWriter, error) {
-	confluentConfig := makeProducerConfig(conf, topicConfig)
+type writerArgs struct {
+	cfg              Config
+	pCfg             ProducerTopicConfig
+	producerProvider confluentProducerProvider
+	f                kFormatter
+	l                Logger
+	t                trace.Tracer
+	p                propagation.TextMapPropagator
+	hooks            LifecycleHooks
+	opts             []WriterOption
+}
+
+func newWriter(args writerArgs) (*KWriter, error) {
+	conf := args.cfg
+	topicConfig := args.pCfg
+	producer := args.producerProvider
+	formatter := args.f
+
+	confluentConfig, err := makeProducerConfig(conf, topicConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	p, err := producer(confluentConfig)
 	if err != nil {
 		return nil, err
 	}
-	fmtter, err := getFormatter(topicConfig)
-	if err != nil {
-		return nil, err
-	}
-	return &KWriter{
+
+	w := &KWriter{
 		producer:    p,
-		fmtter:      fmtter,
 		topicConfig: topicConfig,
-		logger:      NoopLogger{},
-	}, nil
+		formatter:   formatter,
+		logger:      args.l,
+		tracer:      args.t,
+		p:           args.p,
+		lifecycle:   args.hooks,
+	}
+	s := WriterSettings{}
+	for _, opt := range args.opts {
+		opt(&s)
+	}
+	if s.f != nil {
+		w.formatter = s.f
+	}
+	return w, nil
 }
 
 // Write sends messages to kafka with message key set as nil.
@@ -191,15 +220,23 @@ func (w *KWriter) startSpan(ctx context.Context, msg *kafka.Message) spanWrapper
 }
 
 func (w *KWriter) write(ctx context.Context, msg keyValuePair, opts ...WriteOption) (Response, error) {
-	if w.fmtter == nil {
-		return Response{}, errors.New("formatter is not supplied to produce kafka message")
-	}
-	value, err := w.fmtter.Marshall(msg.value)
+	value, err := w.marshall(ctx, msg.value, w.topicConfig.SchemaRegistry.Serialization.Schema)
 	if err != nil {
-		return Response{}, fmt.Errorf("failed to marshall producer message: %w", err)
+		return Response{}, err
 	}
 
 	return w.WriteRaw(ctx, msg.key, value, opts...)
+}
+
+func (w *KWriter) marshall(_ context.Context, value any, schema string) ([]byte, error) {
+	if w.formatter == nil {
+		return nil, errors.New("formatter or confluent formatter is not supplied to produce kafka message")
+	}
+	return w.formatter.marshall(marshReq{
+		topic:   w.topicConfig.Topic,
+		subject: value,
+		schema:  schema,
+	})
 }
 
 // Close terminates the writer gracefully and mark it as closed
@@ -210,14 +247,18 @@ func (w *KWriter) Close() {
 	w.isClosed = true
 }
 
+type WriterSettings struct {
+	f kFormatter
+}
+
 // WriterOption is a function that modify the writer configurations
-type WriterOption func(*KWriter)
+type WriterOption func(*WriterSettings)
 
 // WFormatterOption sets the formatter for this writer
-func WFormatterOption(fmtter Formatter) WriterOption {
-	return func(w *KWriter) {
-		if fmtter != nil {
-			w.fmtter = fmtter
+func WFormatterOption(f Formatter) WriterOption {
+	return func(s *WriterSettings) {
+		if f != nil {
+			s.f = zfmtShim{F: f}
 		}
 	}
 }

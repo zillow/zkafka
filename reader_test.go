@@ -31,7 +31,14 @@ func TestReader_Read_NilReturn(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &NoopLogger{}, "")
+	args := readerArgs{
+		cfg:              Config{BootstrapServers: []string{"localhost:9092"}},
+		cCfg:             topicConfig,
+		consumerProvider: m,
+		l:                &NoopLogger{},
+	}
+	r, err := newReader(args)
+	require.NoError(t, err)
 
 	got, err := r.Read(context.TODO())
 	require.NoError(t, err)
@@ -59,7 +66,18 @@ func TestReader_Read(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &NoopLogger{}, "")
+	c := Client{}
+	f, err := c.getFormatter(formatterArgs{formatter: topicConfig.Formatter})
+	require.NoError(t, err)
+
+	args := readerArgs{
+		cfg: Config{BootstrapServers: []string{"localhost:9092"}}, cCfg: topicConfig,
+		consumerProvider: m,
+		l:                &NoopLogger{},
+		f:                f,
+	}
+	r, err := newReader(args)
+	require.NoError(t, err)
 
 	got, err := r.Read(context.TODO())
 	require.NoError(t, err)
@@ -95,7 +113,14 @@ func TestReader_Read_Error(t *testing.T) {
 			m := mockConfluentConsumerProvider{
 				c: mockConsumer,
 			}.NewConsumer
-			r, _ := newReader(Config{}, topicConfig, m, &NoopLogger{}, "")
+			args := readerArgs{
+				cfg:              Config{BootstrapServers: []string{"localhost:9092"}},
+				cCfg:             topicConfig,
+				consumerProvider: m,
+				l:                &NoopLogger{},
+			}
+			r, err := newReader(args)
+			require.NoError(t, err)
 
 			got, err := r.Read(context.TODO())
 			require.Error(t, err)
@@ -127,7 +152,14 @@ func TestReader_Read_TimeoutError(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &NoopLogger{}, "")
+	args := readerArgs{
+		cfg:              Config{BootstrapServers: []string{"localhost:9092"}},
+		cCfg:             topicConfig,
+		consumerProvider: m,
+		l:                &NoopLogger{},
+	}
+	r, err := newReader(args)
+	require.NoError(t, err)
 
 	got, err := r.Read(context.TODO())
 	require.NoError(t, err, "expect no error to be returned on timeout")
@@ -146,9 +178,15 @@ func TestReader_Read_SubscriberError(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &NoopLogger{}, "")
+	args := readerArgs{
+		cfg: Config{BootstrapServers: []string{"localhost:9092"}}, cCfg: topicConfig,
+		consumerProvider: m,
+		l:                &NoopLogger{},
+	}
+	r, err := newReader(args)
+	require.NoError(t, err)
 
-	_, err := r.Read(context.TODO())
+	_, err = r.Read(context.TODO())
 	require.Error(t, err, "expect an error to bubble up on Read because of subscribe error")
 }
 
@@ -166,10 +204,15 @@ func TestReader_Read_CloseError(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &l, "")
+	args := readerArgs{
+		cfg: Config{BootstrapServers: []string{"localhost:9092"}}, cCfg: topicConfig,
+		consumerProvider: m,
+		l:                &l,
+	}
+	r, err := newReader(args)
+	require.NoError(t, err)
 
-	err := r.Close()
-
+	err = r.Close()
 	require.Error(t, err)
 }
 
@@ -187,9 +230,15 @@ func TestReader_ReadWhenConnectionIsClosed(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &NoopLogger{}, "")
+	args := readerArgs{
+		cfg: Config{BootstrapServers: []string{"localhost:9092"}}, cCfg: topicConfig,
+		consumerProvider: m,
+		l:                &NoopLogger{},
+	}
+	r, err := newReader(args)
+	require.NoError(t, err)
 
-	err := r.Close()
+	err = r.Close()
 	require.NoError(t, err)
 	_, err = r.Read(context.TODO())
 	require.Error(t, err, "KReader.Read() message should return error due to connection lost")
@@ -209,22 +258,13 @@ func Test_newReader(t *testing.T) {
 		{
 			name: "custom formatter, no error. It is implied that user will supply formatter later",
 			args: args{
+				conf: Config{BootstrapServers: []string{"localhost:9092"}},
 				topicConfig: ConsumerTopicConfig{
 					Formatter: zfmt.FormatterType("custom"),
 				},
 				consumeProvider: defaultConfluentConsumerProvider{}.NewConsumer,
 			},
 			wantErr: false,
-		},
-		{
-			name: "invalid formatter",
-			args: args{
-				consumeProvider: defaultConfluentConsumerProvider{}.NewConsumer,
-				topicConfig: ConsumerTopicConfig{
-					Formatter: zfmt.FormatterType("invalid_fmt"),
-				},
-			},
-			wantErr: true,
 		},
 		{
 			name: "valid formatter but has error when creating NewConsumer",
@@ -236,6 +276,7 @@ func Test_newReader(t *testing.T) {
 		{
 			name: "minimum config with formatter",
 			args: args{
+				conf:            Config{BootstrapServers: []string{"localhost:9092"}},
 				consumeProvider: defaultConfluentConsumerProvider{}.NewConsumer,
 				topicConfig: ConsumerTopicConfig{
 					Formatter: zfmt.StringFmt,
@@ -247,7 +288,14 @@ func Test_newReader(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
-			_, err := newReader(tt.args.conf, tt.args.topicConfig, tt.args.consumeProvider, &NoopLogger{}, "")
+			args := readerArgs{
+				cfg:              tt.args.conf,
+				cCfg:             tt.args.topicConfig,
+				consumerProvider: tt.args.consumeProvider,
+				l:                &NoopLogger{},
+			}
+			_, err := newReader(args)
+
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -279,7 +327,15 @@ func Test_ProcessMessage(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mock_confluent.NewMockKafkaConsumer(ctrl),
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &l, "")
+	args := readerArgs{
+		cfg:              Config{BootstrapServers: []string{"localhost:9092"}},
+		cCfg:             topicConfig,
+		consumerProvider: m,
+		l:                &NoopLogger{},
+	}
+	r, err := newReader(args)
+	require.NoError(t, err)
+
 	got := r.mapMessage(context.Background(), dupMessage)
 
 	require.Equal(t, got.Partition, dupMessage.TopicPartition.Partition)
@@ -310,7 +366,16 @@ func Test_ProcessMultipleMessagesFromDifferentTopics_UpdatesInternalStateProperl
 	m := mockConfluentConsumerProvider{
 		c: mock_confluent.NewMockKafkaConsumer(ctrl),
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &l, "")
+
+	args := readerArgs{
+		cfg:              Config{BootstrapServers: []string{"localhost:9092"}},
+		cCfg:             topicConfig,
+		consumerProvider: m,
+		l:                &l,
+	}
+	r, err := newReader(args)
+	require.NoError(t, err)
+
 	for _, msg := range msgs {
 		got := r.mapMessage(context.Background(), msg)
 		require.Equal(t, got.Partition, msg.TopicPartition.Partition)
@@ -350,7 +415,14 @@ func Test_ProcessMessage_StoreOffsetError(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &l, "")
+	args := readerArgs{
+		cfg:              Config{BootstrapServers: []string{"localhost:9092"}},
+		cCfg:             topicConfig,
+		consumerProvider: m,
+		l:                &l,
+	}
+	r, err := newReader(args)
+	require.NoError(t, err)
 
 	mgr := newTopicCommitMgr()
 	cmgr := mgr.get(*dupMessage.TopicPartition.Topic)
@@ -397,7 +469,15 @@ func Test_ProcessMessage_SetError(t *testing.T) {
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	r, _ := newReader(Config{}, topicConfig, m, &l, "")
+	args := readerArgs{
+		cfg:              Config{BootstrapServers: []string{"localhost:9092"}},
+		cCfg:             topicConfig,
+		consumerProvider: m,
+		l:                &l,
+	}
+	r, err := newReader(args)
+	require.NoError(t, err)
+
 	mgr := newTopicCommitMgr()
 	cmgr := mgr.get(*dupMessage.TopicPartition.Topic)
 	cmgr.PushInWork(dupMessage.TopicPartition)

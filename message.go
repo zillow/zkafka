@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/zillow/zfmt"
 )
 
 // Message is a container for kafka message
@@ -24,7 +23,7 @@ type Message struct {
 	TimeStamp      time.Time
 	value          []byte
 	topicPartition kafka.TopicPartition
-	fmt            zfmt.Formatter
+	fmt            kFormatter
 	doneFunc       func(ctx context.Context)
 	doneOnce       sync.Once
 }
@@ -53,12 +52,18 @@ func (m *Message) Decode(v any) error {
 	if m.value == nil {
 		return errors.New("message is empty")
 	}
+	return m.unmarshall(v)
+}
+
+func (m *Message) unmarshall(target any) error {
 	if m.fmt == nil {
-		// is error is most likely due to user calling KReader/KWriter
-		// with custom Formatter which can sometimes be nil
-		return errors.New("formatter is not set")
+		return errors.New("formatter is not supplied to decode kafka message")
 	}
-	return m.fmt.Unmarshal(m.value, v)
+	return m.fmt.unmarshal(unmarshReq{
+		topic:  m.Topic,
+		data:   m.value,
+		target: target,
+	})
 }
 
 // Value returns a copy of the current value byte array. Useful for debugging

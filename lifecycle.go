@@ -9,9 +9,16 @@ import (
 type LifecyclePostReadMeta struct {
 	Topic   string
 	GroupID string
-	// Message that was read
+	// Message that was read (will be non nil)
 	Message *Message
 }
+
+type LifecyclePostReadImmediateMeta struct {
+	// Message that was read (could be nil)
+	Message *Message
+	Err     error
+}
+
 type LifecyclePreProcessingMeta struct {
 	Topic                 string
 	GroupID               string
@@ -47,8 +54,12 @@ type LifecyclePreWriteResp struct {
 }
 
 type LifecycleHooks struct {
-	// Called by work after reading a message, offers the ability to customize the context object (resulting context object passed to work processor)
+	// Called by work after reading a message (guaranteed non nil), offers the ability to customize the context object (resulting context object passed to work processor)
 	PostRead func(ctx context.Context, meta LifecyclePostReadMeta) (context.Context, error)
+
+	// Called by work immediately after an attempt to read a message. Msg might be nil, if there was an error
+	// or no available messages.
+	PostReadImmediate func(ctx context.Context, meta LifecyclePostReadImmediateMeta)
 
 	// Called after receiving a message and before processing it.
 	PreProcessing func(ctx context.Context, meta LifecyclePreProcessingMeta) (context.Context, error)
@@ -78,6 +89,32 @@ func ChainLifecycleHooks(hooks ...LifecycleHooks) LifecycleHooks {
 		return hooks[0]
 	}
 	return LifecycleHooks{
+		PostRead: func(ctx context.Context, meta LifecyclePostReadMeta) (context.Context, error) {
+			var allErrs error
+
+			hookCtx := ctx
+
+			for _, h := range hooks {
+				if h.PostRead != nil {
+					var err error
+
+					hookCtx, err = h.PostRead(hookCtx, meta)
+					if err != nil {
+						allErrs = errors.Join(allErrs, err)
+					}
+				}
+			}
+
+			return hookCtx, allErrs
+
+		},
+		PostReadImmediate: func(ctx context.Context, meta LifecyclePostReadImmediateMeta) {
+			for _, h := range hooks {
+				if h.PostRead != nil {
+					h.PostReadImmediate(ctx, meta)
+				}
+			}
+		},
 		PreProcessing: func(ctx context.Context, meta LifecyclePreProcessingMeta) (context.Context, error) {
 			var allErrs error
 
@@ -96,7 +133,6 @@ func ChainLifecycleHooks(hooks ...LifecycleHooks) LifecycleHooks {
 
 			return hookCtx, allErrs
 		},
-
 		PostProcessing: func(ctx context.Context, meta LifecyclePostProcessingMeta) error {
 			var allErrs error
 
@@ -111,7 +147,6 @@ func ChainLifecycleHooks(hooks ...LifecycleHooks) LifecycleHooks {
 
 			return allErrs
 		},
-
 		PostAck: func(ctx context.Context, meta LifecyclePostAckMeta) error {
 			var allErrs error
 
@@ -125,6 +160,35 @@ func ChainLifecycleHooks(hooks ...LifecycleHooks) LifecycleHooks {
 			}
 
 			return allErrs
+		},
+		PreWrite: func(ctx context.Context, meta LifecyclePreWriteMeta) (LifecyclePreWriteResp, error) {
+			var allErrs error
+
+			out := LifecyclePreWriteResp{
+				Headers: make(map[string][]byte),
+			}
+			for _, h := range hooks {
+				if h.PreProcessing != nil {
+					var err error
+
+					resp, err := h.PreWrite(ctx, meta)
+					if err != nil {
+						allErrs = errors.Join(allErrs, err)
+					}
+					for k, v := range resp.Headers {
+						out.Headers[k] = v
+					}
+				}
+			}
+
+			return out, allErrs
+		},
+		PostFanout: func(ctx context.Context) {
+			for _, h := range hooks {
+				if h.PostRead != nil {
+					h.PostFanout(ctx)
+				}
+			}
 		},
 	}
 }

@@ -36,7 +36,7 @@ func TestWriter_Write(t *testing.T) {
 	type fields struct {
 		Mutex    *sync.Mutex
 		Producer KafkaProducer
-		fmt      zfmt.Formatter
+		fmt      kFormatter
 	}
 	type args struct {
 		ctx   context.Context
@@ -50,8 +50,10 @@ func TestWriter_Write(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "formatter check at minimum",
-			fields:  fields{},
+			name: "formatter check at minimum",
+			fields: fields{
+				fmt: nil,
+			},
 			args:    args{ctx: context.TODO(), value: "1"},
 			want:    Response{Partition: 0, Offset: 0},
 			wantErr: true,
@@ -59,7 +61,7 @@ func TestWriter_Write(t *testing.T) {
 		{
 			name: "has formatter and producer",
 			fields: fields{
-				fmt:      &zfmt.StringFormatter{},
+				fmt:      zfmtShim{&zfmt.StringFormatter{}},
 				Producer: p,
 			},
 			args: args{ctx: context.TODO(), value: "1"},
@@ -68,7 +70,7 @@ func TestWriter_Write(t *testing.T) {
 		{
 			name: "has formatter, producer, incompatible message type",
 			fields: fields{
-				fmt:      &zfmt.StringFormatter{},
+				fmt:      zfmtShim{&zfmt.StringFormatter{}},
 				Producer: p,
 			},
 			args:    args{ctx: context.TODO(), value: 5},
@@ -81,11 +83,11 @@ func TestWriter_Write(t *testing.T) {
 			defer recoverThenFail(t)
 
 			w := &KWriter{
-				producer: tt.fields.Producer,
-				fmtter:   tt.fields.fmt,
-				logger:   NoopLogger{},
-				tracer:   noop.TracerProvider{}.Tracer(""),
-				p:        propagation.TraceContext{},
+				producer:  tt.fields.Producer,
+				formatter: tt.fields.fmt,
+				logger:    NoopLogger{},
+				tracer:    noop.TracerProvider{}.Tracer(""),
+				p:         propagation.TraceContext{},
 			}
 			got, err := w.Write(tt.args.ctx, tt.args.value)
 			if tt.wantErr {
@@ -162,7 +164,7 @@ func TestWriter_WriteKey(t *testing.T) {
 			w := &KWriter{
 				producer:    tt.fields.Producer,
 				topicConfig: tt.fields.conf,
-				fmtter:      tt.fields.fmt,
+				formatter:   zfmtShim{tt.fields.fmt},
 				isClosed:    tt.fields.isClosed,
 				logger:      NoopLogger{},
 				tracer:      noop.TracerProvider{}.Tracer(""),
@@ -200,7 +202,7 @@ func TestWriter_WriteKeyReturnsImmediateError(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{},
 		isClosed:    false,
-		fmtter:      &zfmt.JSONFormatter{},
+		formatter:   zfmtShim{&zfmt.JSONFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -238,7 +240,7 @@ func TestWriter_WritesMetrics(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
 		lifecycle:   hooks,
-		fmtter:      &zfmt.StringFormatter{},
+		formatter:   zfmtShim{&zfmt.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -301,11 +303,11 @@ func TestWriter_WriteSpecialCase(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := &KWriter{
-				producer: tt.fields.Producer,
-				fmtter:   tt.fields.fmt,
-				logger:   NoopLogger{},
-				tracer:   noop.TracerProvider{}.Tracer(""),
-				p:        propagation.TraceContext{},
+				producer:  tt.fields.Producer,
+				formatter: zfmtShim{tt.fields.fmt},
+				logger:    NoopLogger{},
+				tracer:    noop.TracerProvider{}.Tracer(""),
+				p:         propagation.TraceContext{},
 			}
 			got, err := w.Write(tt.args.ctx, tt.args.value)
 			if tt.wantErr {
@@ -346,7 +348,7 @@ func TestWriter_PreWriteLifecycleHookCanAugmentHeaders(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
 		lifecycle:   hooks,
-		fmtter:      &zfmt.StringFormatter{},
+		formatter:   zfmtShim{&zfmt.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -375,7 +377,7 @@ func TestWriter_WithHeadersWriteOptionCanAugmentHeaders(t *testing.T) {
 	wr := &KWriter{
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
-		fmtter:      &zfmt.StringFormatter{},
+		formatter:   zfmtShim{&zfmt.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -433,7 +435,7 @@ func TestWriter_PreWriteLifecycleHookErrorDoesntHaltProcessing(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
 		lifecycle:   hooks,
-		fmtter:      &zfmt.StringFormatter{},
+		formatter:   zfmtShim{&zfmt.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -504,6 +506,7 @@ func Test_newWriter(t *testing.T) {
 		{
 			name: "custom formatter, no error. It is implied that user will supply formatter later",
 			args: args{
+				conf: Config{BootstrapServers: []string{"localhost:9092"}},
 				topicConfig: ProducerTopicConfig{
 					Formatter: zfmt.FormatterType("custom"),
 				},
@@ -511,16 +514,16 @@ func Test_newWriter(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{
-			name: "invalid formatter",
-			args: args{
-				producerP: defaultConfluentProducerProvider{}.NewProducer,
-				topicConfig: ProducerTopicConfig{
-					Formatter: zfmt.FormatterType("invalid_fmt"),
-				},
-			},
-			wantErr: true,
-		},
+		//{
+		//	name: "invalid formatter",
+		//	args: args{
+		//		producerP: defaultConfluentProducerProvider{}.NewProducer,
+		//		topicConfig: ProducerTopicConfig{
+		//			Formatter: zfmt.FormatterType("invalid_fmt"),
+		//		},
+		//	},
+		//	wantErr: true,
+		//},
 		{
 			name: "valid formatter but has error from confluent producer constructor",
 			args: args{
@@ -529,8 +532,10 @@ func Test_newWriter(t *testing.T) {
 			wantErr: true,
 		},
 		{
+
 			name: "minimum config with formatter",
 			args: args{
+				conf:      Config{BootstrapServers: []string{"localhost:9092"}},
 				producerP: defaultConfluentProducerProvider{}.NewProducer,
 				topicConfig: ProducerTopicConfig{
 					Formatter: zfmt.StringFmt,
@@ -542,7 +547,12 @@ func Test_newWriter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			recoverThenFail(t)
-			w, err := newWriter(tt.args.conf, tt.args.topicConfig, tt.args.producerP)
+			args := writerArgs{
+				cfg:              tt.args.conf,
+				pCfg:             tt.args.topicConfig,
+				producerProvider: tt.args.producerP,
+			}
+			w, err := newWriter(args)
 			if tt.wantErr {
 				require.Error(t, err, "expected error for newWriter()")
 			} else {
@@ -556,10 +566,11 @@ func Test_newWriter(t *testing.T) {
 func TestWriter_WithOptions(t *testing.T) {
 	recoverThenFail(t)
 	w := &KWriter{}
-	require.Nil(t, w.fmtter, "expected nil formatter")
+	require.Nil(t, w.formatter, "expected nil formatter")
 
-	WFormatterOption(&zfmt.StringFormatter{})(w)
-	require.NotNil(t, w.fmtter, "expected non-nil formatter")
+	settings := WriterSettings{}
+	WFormatterOption(&zfmt.StringFormatter{})(&settings)
+	require.NotNil(t, settings.f, "expected non-nil formatter")
 }
 
 func Test_writeAttributeCarrier_Set(t *testing.T) {

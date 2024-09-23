@@ -36,13 +36,15 @@ type Client struct {
 	tp          trace.TracerProvider
 	p           propagation.TextMapPropagator
 
-	// confluent dependencies
+	srf *schemaRegistryFactory
+
 	producerProvider confluentProducerProvider
 	consumerProvider confluentConsumerProvider
 }
 
 // NewClient instantiates a kafka client to get readers and writers
 func NewClient(conf Config, opts ...Option) *Client {
+	srf := newSchemaRegistryFactory()
 	c := &Client{
 		conf:    conf,
 		readers: make(map[string]*KReader),
@@ -51,6 +53,7 @@ func NewClient(conf Config, opts ...Option) *Client {
 
 		producerProvider: defaultConfluentProducerProvider{}.NewProducer,
 		consumerProvider: defaultConfluentConsumerProvider{}.NewConsumer,
+		srf:              srf,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -79,16 +82,26 @@ func (c *Client) Reader(_ context.Context, topicConfig ConsumerTopicConfig, opts
 		return r, nil
 	}
 
-	reader, err := newReader(c.conf, topicConfig, c.consumerProvider, c.logger, c.groupPrefix)
+	formatter, err := c.getFormatter(formatterArgs{
+		formatter: topicConfig.Formatter,
+		schemaID:  topicConfig.SchemaID,
+		srCfg:     topicConfig.SchemaRegistry,
+	})
 	if err != nil {
 		return nil, err
 	}
-	// copy settings from client first
-	reader.lifecycle = c.lifecycle
-
-	// overwrite options if given
-	for _, opt := range opts {
-		opt(reader)
+	reader, err := newReader(readerArgs{
+		cfg:              c.conf,
+		cCfg:             topicConfig,
+		consumerProvider: c.consumerProvider,
+		f:                formatter,
+		l:                c.logger,
+		prefix:           c.groupPrefix,
+		hooks:            c.lifecycle,
+		opts:             opts,
+	})
+	if err != nil {
+		return nil, err
 	}
 	c.readers[topicConfig.ClientID] = reader
 	return c.readers[topicConfig.ClientID], nil
@@ -100,8 +113,9 @@ func (c *Client) Writer(_ context.Context, topicConfig ProducerTopicConfig, opts
 	if err != nil {
 		return nil, err
 	}
+	writerKey := getWriterKey(topicConfig)
 	c.mu.RLock()
-	w, exist := c.writers[topicConfig.ClientID]
+	w, exist := c.writers[writerKey]
 	if exist && !w.isClosed {
 		c.mu.RUnlock()
 		return w, nil
@@ -110,39 +124,36 @@ func (c *Client) Writer(_ context.Context, topicConfig ProducerTopicConfig, opts
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	w, exist = c.writers[topicConfig.ClientID]
+	w, exist = c.writers[writerKey]
 	if exist && !w.isClosed {
 		return w, nil
 	}
-	writer, err := newWriter(c.conf, topicConfig, c.producerProvider)
+	formatter, err := c.getFormatter(formatterArgs{
+		formatter: topicConfig.Formatter,
+		schemaID:  topicConfig.SchemaID,
+		srCfg:     topicConfig.SchemaRegistry,
+	})
+
 	if err != nil {
 		return nil, err
 	}
-	// copy settings from client first
-	writer.logger = c.logger
-	writer.tracer = getTracer(c.tp)
-	writer.p = c.p
-	writer.lifecycle = c.lifecycle
-
-	// overwrite options if given
-	for _, opt := range opts {
-		opt(writer)
+	writer, err := newWriter(writerArgs{
+		cfg:              c.conf,
+		pCfg:             topicConfig,
+		producerProvider: c.producerProvider,
+		f:                formatter,
+		l:                c.logger,
+		t:                getTracer(c.tp),
+		p:                c.p,
+		hooks:            c.lifecycle,
+		opts:             opts,
+	})
+	if err != nil {
+		return nil, err
 	}
-	c.writers[topicConfig.ClientID] = writer
-	return c.writers[topicConfig.ClientID], nil
-}
 
-func getFormatter(topicConfig TopicConfig) (zfmt.Formatter, error) {
-	switch topicConfig.GetFormatter() {
-	case CustomFmt:
-		return &noopFormatter{}, nil
-	default:
-		f, err := zfmt.GetFormatter(topicConfig.GetFormatter(), topicConfig.GetSchemaID())
-		if err != nil {
-			return nil, fmt.Errorf("unsupported formatter %s", topicConfig.GetFormatter())
-		}
-		return f, nil
-	}
+	c.writers[writerKey] = writer
+	return c.writers[writerKey], nil
 }
 
 // Close terminates all cached readers and writers gracefully.
@@ -165,9 +176,56 @@ func (c *Client) Close() error {
 	return err
 }
 
+func (c *Client) getFormatter(args formatterArgs) (kFormatter, error) {
+	formatter := args.formatter
+	schemaID := args.schemaID
+
+	switch formatter {
+	case AvroSchemaRegistry:
+		scl, err := c.srf.createAvro(args.srCfg)
+		if err != nil {
+			return nil, err
+		}
+		cf, err := newAvroSchemaRegistryFormatter(scl)
+		return cf, err
+	case ProtoSchemaRegistry:
+		scl, err := c.srf.createProto(args.srCfg)
+		if err != nil {
+			return nil, err
+		}
+		cf := newProtoSchemaRegistryFormatter(scl)
+		return cf, nil
+	case JSONSchemaRegistry:
+		scl, err := c.srf.createJson(args.srCfg)
+		if err != nil {
+			return nil, err
+		}
+		cf := newJsonSchemaRegistryFormatter(scl)
+		return cf, nil
+	case CustomFmt:
+		return &errFormatter{}, nil
+	default:
+		f, err := zfmt.GetFormatter(formatter, schemaID)
+		if err != nil {
+			return nil, fmt.Errorf("unsupported formatter %s", formatter)
+		}
+		return zfmtShim{F: f}, nil
+	}
+}
+
 func getTracer(tp trace.TracerProvider) trace.Tracer {
 	if tp == nil {
 		return nil
 	}
 	return tp.Tracer(instrumentationName, trace.WithInstrumentationVersion("v1.0.0"))
+}
+
+func getWriterKey(cfg ProducerTopicConfig) string {
+	return cfg.ClientID + "-" + cfg.Topic
+}
+
+type formatterArgs struct {
+	formatter zfmt.FormatterType
+	schemaID  int
+	srCfg     SchemaRegistryConfig
 }

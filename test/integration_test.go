@@ -918,6 +918,7 @@ func Test_KafkaClientsCanWriteToTheirDeadLetterTopic(t *testing.T) {
 		Topic:     topic,
 		Formatter: zfmt.JSONFmt,
 	})
+	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
 		ClientID:  fmt.Sprintf("worker-%s-%s", t.Name(), uuid.NewString()),

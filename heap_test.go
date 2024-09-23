@@ -106,7 +106,7 @@ func Test_offsetHeap_SeekPop_DoesntImpactHeapOrdering(t *testing.T) {
 		}
 		got := heap.Pop()
 		want := offsets[i]
-		require.Equal(t, want, got, "Expect pop to still pop minumums even after seek pops")
+		require.Equal(t, want, got, "Expect pop to still pop minimums even after seek pops")
 		i++
 	}
 }

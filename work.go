@@ -172,7 +172,7 @@ func (w *Work) execProcessors(ctx context.Context, shutdown <-chan struct{}) {
 
 // initiateProcessors creates a buffered channel for each virtual partition, of size poolSize. That way
 // a particular virtual partition never blocks because of its own capacity issue (and instead the goroutinepool is used
-// to limit indefinte growth of processing goroutines).
+// to limit indefinite growth of processing goroutines).
 func (w *Work) initiateProcessors(_ context.Context) {
 	poolSize := w.getPoolSize()
 	w.virtualPartitions = make([]chan workUnit, poolSize)

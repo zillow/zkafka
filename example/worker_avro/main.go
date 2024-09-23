@@ -13,9 +13,6 @@ import (
 	"github.com/zillow/zkafka"
 )
 
-//go:embed dummy_event.avsc
-var dummyEventSchema string
-
 // Demonstrates reading from a topic via the zkafka.Work struct which is more convenient, typically, than using the consumer directly
 func main() {
 	ctx := context.Background()

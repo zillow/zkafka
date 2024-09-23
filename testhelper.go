@@ -100,11 +100,11 @@ type FakeClient struct {
 	W Writer
 }
 
-func (f FakeClient) Reader(ctx context.Context, topicConfig ConsumerTopicConfig, opts ...ReaderOption) (Reader, error) {
+func (f FakeClient) Reader(_ context.Context, _ ConsumerTopicConfig, _ ...ReaderOption) (Reader, error) {
 	return f.R, nil
 }
 
-func (f FakeClient) Writer(ctx context.Context, topicConfig ProducerTopicConfig, opts ...WriterOption) (Writer, error) {
+func (f FakeClient) Writer(_ context.Context, _ ProducerTopicConfig, _ ...WriterOption) (Writer, error) {
 	return f.W, nil
 }
 

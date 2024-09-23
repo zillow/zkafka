@@ -25,7 +25,6 @@ go.work.sum
 .idea/
 .run/
 zk-multiple-kafka-multiple/
-*.out
 *.res
 *.lsif
 *.prof

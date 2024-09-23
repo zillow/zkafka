@@ -82,12 +82,12 @@ func (f zfmtShim) unmarshal(req unmarshReq) error {
 type errFormatter struct{}
 
 // marshall returns error with reminder
-func (f errFormatter) marshall(req marshReq) ([]byte, error) {
+func (f errFormatter) marshall(_ marshReq) ([]byte, error) {
 	return nil, errMissingFormatter
 }
 
 // unmarshal returns error with reminder
-func (f errFormatter) unmarshal(req unmarshReq) error {
+func (f errFormatter) unmarshal(_ unmarshReq) error {
 	return errMissingFormatter
 }
 

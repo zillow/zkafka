@@ -1376,7 +1376,7 @@ func Test_MissingBootstrap_ShouldGiveClearError(t *testing.T) {
 	})
 	err := w.Run(context.Background(), ctx.Done())
 	require.NoError(t, err)
-	require.ErrorContains(t, readErr, "invalid config, missing bootstrap server addresses")
+	require.ErrorContains(t, readErr, "invalid consumer config, missing bootstrap server addresses")
 }
 
 func createTopic(t *testing.T, bootstrapServer, topic string, partitions int) {

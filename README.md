@@ -270,13 +270,17 @@ special processing of these messages.
 
 ### SchemaRegistry Support:
 
-There is limited support for schema registry in zkafka. A schemaID can be hardcoded via configuration. No
-communication is done with schema registry, but some primitive checks can be conducted if a schemaID is specified via
-configuration.
+zkafka supports schema registry. It extends `zfmt` to enable this adding three `zfmt.FormatterType`:
+```
+    AvroSchemaRegistry zfmt.FormatterType = "avro_schema_registry"
+	ProtoSchemaRegistry zfmt.FormatterType = "proto_schema_registry"
+	JSONSchemaRegistry zfmt.FormatterType = "json_schema_registry"
+```
 
-Below is a breakdown of schema registry interactions into two subcategories. One is `Raw Handling` where the configurable
-foramtter is bypassed entirely in favor of operating with the value byte arrays directly. The other is `Native Support` which
-attempts to create confluent compatible serializations, without communicating with schema registry directly.
+This can be used in ProducerTopicConfig/ConsumerTopicConfig just like the others. Examples have been added 
+`example/producer_avro` and `example/worker_avro` which demonstrate the additional configuration (mostly there to enable the
+schema registry communication that's required)
+
 
 #### Producers
 

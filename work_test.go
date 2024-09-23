@@ -71,7 +71,7 @@ func TestWork_WithOptions(t *testing.T) {
 	tp := noop.TracerProvider{}
 	propagator := propagation.TraceContext{}
 
-	wf := NewWorkFactory(mockClientProvider{}, WithTracerProvider(tp), WithTextMapPropagator(propagator))
+	wf := NewWorkFactory(FakeClient{}, WithTracerProvider(tp), WithTextMapPropagator(propagator))
 
 	work := wf.Create(ConsumerTopicConfig{}, &timeDelayProcessor{})
 
@@ -741,7 +741,7 @@ func Fuzz_AnySpeedupInputAlwaysCreatesABufferedChannel(f *testing.F) {
 	f.Add(uint16(9))
 
 	f.Fuzz(func(t *testing.T, speedup uint16) {
-		wf := NewWorkFactory(mockClientProvider{})
+		wf := NewWorkFactory(FakeClient{})
 		p := timeDelayProcessor{}
 		w := wf.Create(ConsumerTopicConfig{}, &p, Speedup(speedup))
 		require.Greater(t, cap(w.messageBuffer), 0)
@@ -780,23 +780,6 @@ type timeDelayProcessor struct {
 func (m *timeDelayProcessor) Process(_ context.Context, message *Message) error {
 	timeDelay := m.msgToDelay[key{partition: message.Partition, offset: message.Offset}]
 	time.Sleep(timeDelay)
-	return nil
-}
-
-type mockClientProvider struct {
-	r Reader
-	w Writer
-}
-
-func (m mockClientProvider) Reader(ctx context.Context, topicConfig ConsumerTopicConfig, opts ...ReaderOption) (Reader, error) {
-	return m.r, nil
-}
-
-func (m mockClientProvider) Writer(ctx context.Context, topicConfig ProducerTopicConfig, opts ...WriterOption) (Writer, error) {
-	return m.w, nil
-}
-
-func (mockClientProvider) Close() error {
 	return nil
 }
 

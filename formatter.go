@@ -33,27 +33,38 @@ type Formatter interface {
 }
 
 type marshReq struct {
+	// topic is the kafka topic being written to
 	topic string
 	// subject is the data to be marshalled
 	subject any
-	// schema
+	// schema is currently only used for avro schematizations. It is necessary,
+	// because the confluent implementation reflects on the subject to get the schema to use for
+	// communicating with schema-registry and backward compatible evolutions fail beause if dataloss during reflection.
+	// For example, if a field has a default value, the reflection doesn't pick this up
 	schema string
 }
 
 type unmarshReq struct {
-	topic  string
-	data   []byte
+	// topic is the kafka topic being read from
+	topic string
+	// data is the message value which will be unmarshalled to a type
+	data []byte
+	// target is the stuct which is to be hydrated by the contents of data
 	target any
-}
-
-type kFormatter interface {
-	marshall(req marshReq) ([]byte, error)
-	unmarshal(req unmarshReq) error
 }
 
 var _ kFormatter = (*avroSchemaRegistryFormatter)(nil)
 var _ kFormatter = (*zfmtShim)(nil)
 
+// kFormatter is zkafka special formatter.
+// It extends zfmt options, and works with schema registry.
+type kFormatter interface {
+	marshall(req marshReq) ([]byte, error)
+	unmarshal(req unmarshReq) error
+}
+
+// zfmtShim is a shim type which allows
+// zfmt formatters to work the kFormatter
 type zfmtShim struct {
 	F zfmt.Formatter
 }
@@ -64,12 +75,6 @@ func (f zfmtShim) marshall(req marshReq) ([]byte, error) {
 
 func (f zfmtShim) unmarshal(req unmarshReq) error {
 	return f.F.Unmarshal(req.data, req.target)
-}
-
-type formatterArgs struct {
-	formatter zfmt.FormatterType
-	schemaID  int
-	srCfg     SchemaRegistryConfig
 }
 
 // errFormatter is a formatter that returns error when called. The error will remind the user

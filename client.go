@@ -223,3 +223,9 @@ func getTracer(tp trace.TracerProvider) trace.Tracer {
 func getWriterKey(cfg ProducerTopicConfig) string {
 	return cfg.ClientID + "-" + cfg.Topic
 }
+
+type formatterArgs struct {
+	formatter zfmt.FormatterType
+	schemaID  int
+	srCfg     SchemaRegistryConfig
+}

@@ -92,6 +92,9 @@ func GetMsgFromFake(input *FakeMessage) *Message {
 
 var _ ClientProvider = (*FakeClient)(nil)
 
+// FakeClient is a convenience struct for testing purposes.
+// It allows the specification of your own Reader/Writer while implementing the `ClientProvider` interface,
+// which makes it compatible with a work factory.
 type FakeClient struct {
 	R Reader
 	W Writer

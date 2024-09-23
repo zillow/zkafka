@@ -841,7 +841,7 @@ func (c *delayCalculator) remaining(targetDelay time.Duration, msgTimeStamp time
 var _ processor = (*processorAdapter)(nil)
 
 type processorAdapter struct {
-	p func(_ context.Context, msg *Message) error
+	p func(_ context.Context, _ *Message) error
 }
 
 func (a processorAdapter) Process(ctx context.Context, message *Message) error {

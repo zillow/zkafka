@@ -488,8 +488,7 @@ func TestWork_Run_SpedUpIsFaster(t *testing.T) {
 	}).AnyTimes()
 	mockReader.EXPECT().Close().Return(nil).AnyTimes()
 
-	mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
-	mockClientProvider.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(2).Return(mockReader, nil)
+	mockClientProvider := zkafka.FakeClient{R: mockReader}
 
 	kwf := zkafka.NewWorkFactory(mockClientProvider, zkafka.WithLogger(zkafka.NoopLogger{}))
 	slow := fakeProcessor{
@@ -570,8 +569,7 @@ func TestKafkaWork_ProcessorReturnsErrorIsLoggedAsWarning(t *testing.T) {
 	})
 	mockReader := zkafka_mocks.NewMockReader(ctrl)
 	mockReader.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
-	mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
-	mockClientProvider.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(mockReader, nil)
+	mockClientProvider := zkafka.FakeClient{R: mockReader}
 
 	processor := fakeProcessor{
 		process: func(ctx context.Context, message *zkafka.Message) error {
@@ -622,8 +620,7 @@ func TestKafkaWork_ProcessorTimeoutCausesContextCancellation(t *testing.T) {
 	mockReader := zkafka_mocks.NewMockReader(ctrl)
 	mockReader.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
 
-	mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
-	mockClientProvider.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(mockReader, nil)
+	mockClientProvider := zkafka.FakeClient{R: mockReader}
 
 	wf := zkafka.NewWorkFactory(mockClientProvider, zkafka.WithLogger(l))
 
@@ -682,9 +679,7 @@ func TestWork_WithDeadLetterTopic_NoMessagesWrittenToDLTSinceNoErrorsOccurred(t 
 	mockWriter.EXPECT().Write(gomock.Any(), gomock.Any()).Times(0)
 	mockWriter.EXPECT().Close().AnyTimes()
 
-	mockClientProvider := zkafka_mocks.NewMockClientProvider(ctrl)
-	mockClientProvider.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(mockReader, nil)
-	mockClientProvider.EXPECT().Writer(gomock.Any(), gomock.Any()).Times(2).Return(mockWriter, nil)
+	mockClientProvider := zkafka.FakeClient{R: mockReader, W: mockWriter}
 
 	kwf := zkafka.NewWorkFactory(mockClientProvider, zkafka.WithLogger(l))
 

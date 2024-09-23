@@ -57,7 +57,7 @@ func (m *Message) Decode(v any) error {
 
 func (m *Message) unmarshall(target any) error {
 	if m.fmt == nil {
-		return errors.New("formatter or confluent formatter is not supplied to decode kafka message")
+		return errors.New("formatter is not supplied to decode kafka message")
 	}
 	return m.fmt.unmarshal(unmarshReq{
 		topic:  m.Topic,

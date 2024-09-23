@@ -57,6 +57,8 @@ type LifecycleHooks struct {
 	// Called by work after reading a message (guaranteed non nil), offers the ability to customize the context object (resulting context object passed to work processor)
 	PostRead func(ctx context.Context, meta LifecyclePostReadMeta) (context.Context, error)
 
+	// Called by work immediatedly after an attempt to read a message. Msg might be nil, if there was an error
+	// or no available messages.
 	PostReadImmediate func(ctx context.Context, meta LifecyclePostReadImmediateMeta)
 
 	// Called after receiving a message and before processing it.

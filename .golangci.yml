@@ -1,11 +1,10 @@
 run:
-  skip-dirs:
-    - docs
-    - datadog
-    - kustomize
-  skip-files:
-    - 'wire_gen.go'
   tests: false
+issues:
+  exclude-files:
+    - 'wire_gen.go'
+  exclude-dirs:
+    - docs
 linters-settings:
   errcheck:
     check-type-assertions: true

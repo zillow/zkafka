@@ -13,7 +13,7 @@ import (
 )
 
 type schemaRegistryFactory struct {
-	mmu   sync.Mutex
+	m     sync.Mutex
 	srCls map[string]schemaregistry.Client
 }
 
@@ -104,6 +104,9 @@ func (c *schemaRegistryFactory) createJson(srConfig SchemaRegistryConfig) (jsonF
 }
 
 func (c *schemaRegistryFactory) getSchemaClient(srConfig SchemaRegistryConfig) (schemaregistry.Client, error) {
+	c.m.Lock()
+	defer c.m.Unlock()
+
 	url := srConfig.URL
 	if url == "" {
 		return nil, errors.New("no schema registry url provided")

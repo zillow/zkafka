@@ -180,7 +180,7 @@ func TestClient_Reader(t *testing.T) {
 			fields: fields{
 				conf: Config{BootstrapServers: []string{"localhost:9092"}},
 				readers: map[string]*KReader{
-					"test-config": &KReader{isClosed: true},
+					"test-config": {isClosed: true},
 				},
 				consumerProvider: mockConfluentConsumerProvider{c: MockKafkaConsumer{ID: "stew"}}.NewConsumer,
 				logger:           NoopLogger{},
@@ -213,7 +213,7 @@ func TestClient_Reader(t *testing.T) {
 			fields: fields{
 				conf: Config{BootstrapServers: []string{"localhost:9092"}},
 				readers: map[string]*KReader{
-					"test-config": &KReader{isClosed: true},
+					"test-config": {isClosed: true},
 				},
 				consumerProvider: mockConfluentConsumerProvider{c: MockKafkaConsumer{ID: "stew"}}.NewConsumer,
 				logger:           NoopLogger{},
@@ -253,7 +253,7 @@ func TestClient_Reader(t *testing.T) {
 			name: "get from cache",
 			fields: fields{
 				readers: map[string]*KReader{
-					"test-config": &KReader{},
+					"test-config": {},
 				},
 			},
 			args: args{
@@ -346,7 +346,7 @@ func TestClient_Writer(t *testing.T) {
 			fields: fields{
 				conf: Config{BootstrapServers: []string{"localhost:9092"}},
 				writers: map[string]*KWriter{
-					"test-id": &KWriter{isClosed: true},
+					"test-id": {isClosed: true},
 				},
 				producerProvider: mockConfluentProducerProvider{}.NewProducer,
 				logger:           NoopLogger{},
@@ -376,7 +376,7 @@ func TestClient_Writer(t *testing.T) {
 			fields: fields{
 				conf: Config{BootstrapServers: []string{"localhost:9092"}},
 				writers: map[string]*KWriter{
-					"test-id": &KWriter{isClosed: true},
+					"test-id": {isClosed: true},
 				},
 				producerProvider: mockConfluentProducerProvider{}.NewProducer,
 				logger:           NoopLogger{},
@@ -412,7 +412,7 @@ func TestClient_Writer(t *testing.T) {
 			name: "get from cache",
 			fields: fields{
 				writers: map[string]*KWriter{
-					"test-id-topic": &KWriter{},
+					"test-id-topic": {},
 				},
 			},
 			args: args{
@@ -502,8 +502,8 @@ func TestClient_Close(t *testing.T) {
 					"r2": r2,
 				},
 				writers: map[string]*KWriter{
-					"w1": &KWriter{producer: p},
-					"w2": &KWriter{producer: p},
+					"w1": {producer: p},
+					"w2": {producer: p},
 				},
 			},
 		},

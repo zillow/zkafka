@@ -1,5 +1,6 @@
 run:
   tests: false
+  go: '1.22'
 issues:
   exclude-files:
     - 'wire_gen.go'
@@ -13,8 +14,6 @@ linters-settings:
     sections:
       - standard
       - default
-  gosimple:
-    go: '1.17'
   depguard:
     rules:
       Main:

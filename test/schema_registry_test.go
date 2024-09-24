@@ -57,10 +57,10 @@ func Test_SchemaRegistry_AutoRegisterSchemasFalse_WillNotWriteMessage(t *testing
 	})
 	require.NoError(t, err)
 
-	listingID := uuid.NewString()
+	id := uuid.NewString()
 
 	evt1 := avro1.Event{
-		ID:                     listingID,
+		ID:                     id,
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "listingCreated",
 	}
@@ -101,10 +101,10 @@ func Test_SchemaRegistry_Avro_AutoRegisterSchemas_RequiresSchemaSpecification(t 
 	})
 	require.NoError(t, err)
 
-	listingID := uuid.NewString()
+	id := uuid.NewString()
 
 	evt1 := avro1.Event{
-		ID:                     listingID,
+		ID:                     id,
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "listingCreated",
 	}
@@ -143,10 +143,10 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	listingID := uuid.NewString()
+	id := uuid.NewString()
 
 	evt1 := avro1x.Event{
-		Id:                     listingID,
+		Id:                     id,
 		Deliveredatdatetimeutc: rand.Int63(),
 		Eventtype:              avro1x.EventTypeCreated,
 	}
@@ -215,10 +215,10 @@ func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	listingID := uuid.NewString()
+	id := uuid.NewString()
 
 	evt1 := avro1.Event{
-		ID:                     listingID,
+		ID:                     id,
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "created",
 	}

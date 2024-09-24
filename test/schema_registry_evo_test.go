@@ -84,14 +84,13 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 		},
 	})
 	require.NoError(t, err)
-	listingID := uuid.NewString()
+	id := uuid.NewString()
 
 	evt1 := avro1.Event{
-		ID:                     listingID,
+		ID:                     id,
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "created",
 	}
-	// write msg1, and msg2
 	_, err = writer1.Write(ctx, &evt1)
 	require.NoError(t, err)
 

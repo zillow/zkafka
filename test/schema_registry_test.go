@@ -220,7 +220,7 @@ func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
 	evt1 := avro1.Event{
 		ID:                     listingID,
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
-		EventType:              "listingCreated",
+		EventType:              "created",
 	}
 
 	// write msg1, and msg2

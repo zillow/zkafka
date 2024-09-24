@@ -59,7 +59,7 @@ func Test_SchemaRegistry_AutoRegisterSchemasFalse_WillNotWriteMessage(t *testing
 
 	listingID := uuid.NewString()
 
-	evt1 := avro1.AryeoListingRecord{
+	evt1 := avro1.Event{
 		ID:                     listingID,
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "listingCreated",
@@ -103,7 +103,7 @@ func Test_SchemaRegistry_Avro_AutoRegisterSchemas_RequiresSchemaSpecification(t 
 
 	listingID := uuid.NewString()
 
-	evt1 := avro1.AryeoListingRecord{
+	evt1 := avro1.Event{
 		ID:                     listingID,
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "listingCreated",
@@ -145,10 +145,10 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 
 	listingID := uuid.NewString()
 
-	evt1 := avro1x.AryeoListingRecord{
+	evt1 := avro1x.Event{
 		Id:                     listingID,
 		Deliveredatdatetimeutc: rand.Int63(),
-		Eventtype:              avro1x.AryeoListingEventTypeListingcreated,
+		Eventtype:              avro1x.EventTypeCreated,
 	}
 
 	_, err = writer1.Write(ctx, evt1)
@@ -173,7 +173,7 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 	wf := zkafka.NewWorkFactory(client)
 	w := wf.CreateWithFunc(consumerTopicConfig, func(_ context.Context, msg *zkafka.Message) error {
 		defer cancel()
-		gotErr = msg.Decode(&avro1.AryeoListingRecord{})
+		gotErr = msg.Decode(&avro1.Event{})
 		return gotErr
 	})
 
@@ -217,7 +217,7 @@ func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
 
 	listingID := uuid.NewString()
 
-	evt1 := avro1.AryeoListingRecord{
+	evt1 := avro1.Event{
 		ID:                     listingID,
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "listingCreated",
@@ -255,7 +255,7 @@ func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
 
 	require.NoError(t, reader.Close())
 
-	receivedEvt1 := avro1.AryeoListingRecord{}
+	receivedEvt1 := avro1.Event{}
 	require.NoError(t, msg1.Decode(&receivedEvt1))
 	assertEqual(t, evt1, receivedEvt1)
 }

@@ -1,34 +1,30 @@
 {
   "type": "record",
-  "name": "AryeoListingRecord",
-  "namespace": "com.zillowgroup.rmx.pem_schema",
+  "name": "Event",
+  "namespace": "com.zillowgroup",
   "fields": [
     {
       "name": "id",
-      "type": "string",
-      "doc": "Id(uuid v7) of the underlying Aryeo Listing"
+      "type": "string"
     },
     {
       "name": "deliveredAtDateTimeUtc",
       "type": {
         "type": "long",
         "logicalType": "timestamp-millis"
-      },
-      "doc": "Timestamp depicting when Aryeo's listing was delivered"
+      }
     },
     {
       "name": "eventType",
       "type": {
         "type": "enum",
-        "name": "AryeoListingEventType",
+        "name": "EventType",
         "symbols": [
-          "listingCreated",
-          "listingAssociated",
-          "listingMediDelivered"
+          "created",
+          "associated"
         ],
-        "default": "listingCreated"
-      },
-      "doc": "Enum depicting type of event"
+        "default": "created"
+      }
     }
   ]
 }

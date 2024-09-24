@@ -11,14 +11,10 @@ type InteractiveContentRecord struct {
 	URL string `avro:"url"`
 }
 
-// AryeoListingRecord is a generated struct.
-type AryeoListingRecord struct {
-	// Id(uuid v7) of the underlying Aryeo Listing.
-	ID string `avro:"id"`
-	// Timestamp depicting when Aryeo's listing was delivered.
-	DeliveredAtDateTimeUtc time.Time `avro:"deliveredAtDateTimeUtc"`
-	// Enum depicting type of event.
-	EventType string `avro:"eventType"`
-	// InteractiveContent associated to Aryeo Listing.
-	InteractiveContent *[]InteractiveContentRecord `avro:"interactiveContent"`
+// Event is a generated struct.
+type Event struct {
+	ID                     string                      `avro:"id"`
+	DeliveredAtDateTimeUtc time.Time                   `avro:"deliveredAtDateTimeUtc"`
+	EventType              string                      `avro:"eventType"`
+	InteractiveContent     *[]InteractiveContentRecord `avro:"interactiveContent"`
 }

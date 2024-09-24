@@ -6,12 +6,9 @@ import (
 	"time"
 )
 
-// AryeoListingRecord is a generated struct.
-type AryeoListingRecord struct {
-	// Id(uuid v7) of the underlying Aryeo Listing.
-	ID string `avro:"id"`
-	// Timestamp depicting when Aryeo's listing was delivered.
+// Event is a generated struct.
+type Event struct {
+	ID                     string    `avro:"id"`
 	DeliveredAtDateTimeUtc time.Time `avro:"deliveredAtDateTimeUtc"`
-	// Enum depicting type of event.
-	EventType string `avro:"eventType"`
+	EventType              string    `avro:"eventType"`
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
+	"github.com/zillow/zkafka/test/evolution/avro1"
 	"github.com/zillow/zkafka/test/evolution/avro1a"
 	"github.com/zillow/zkafka/test/evolution/json1"
 	"github.com/zillow/zkafka/test/evolution/proto1"
@@ -151,12 +152,12 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 	listingID := uuid.NewString()
 	engagementID := uuid.NewString()
 
-	evt1 := avro1a.AryeoListingRecord{
-		ID:                     listingID,
-		CompanyID:              uuid.NewString(),
-		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
-		EventType:              "listingCreated",
-		EngagementID:           &engagementID,
+	evt1 := avro1.AryeoListingRecord{
+		Id:                     listingID,
+		Companyid:              uuid.NewString(),
+		Deliveredatdatetimeutc: rand.Int63(),
+		Eventtype:              avro1.AryeoListingEventTypeListingcreated,
+		Engagementid:           &engagementID,
 	}
 
 	_, err = writer1.Write(ctx, evt1)
@@ -168,6 +169,9 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 		Formatter: zkafka.AvroSchemaRegistry,
 		SchemaRegistry: zkafka.SchemaRegistryConfig{
 			URL: "mock://",
+			Deserialization: zkafka.DeserializationConfig{
+				Schema: dummyEventSchema1,
+			},
 		},
 		GroupID: groupID,
 		AdditionalProps: map[string]any{

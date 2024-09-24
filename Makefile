@@ -49,6 +49,8 @@ gen2:
 	mkdir -p ./test/evolution/avro2a
 	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg avro1a -o ./test/evolution/avro1a/schema_1a_gen.go  -tags json:snake,yaml:upper-camel ./test/evolution/schema_1.avsc
 	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg avro2a -o ./test/evolution/avro2a/schema_2a_gen.go  -tags json:snake,yaml:upper-camel ./test/evolution/schema_2.avsc
+	go run github.com/heetch/avro/cmd/avrogo@v0.4.5 -p avro1 -d ./test/evolution/avro1 ./test/evolution/schema_1.avsc
+
 
 
 .PHONY: gen

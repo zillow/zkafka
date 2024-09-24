@@ -99,7 +99,6 @@ func (f errFormatter) unmarshal(_ unmarshReq) error {
 
 type avroSchemaRegistryFormatter struct {
 	afmt avroFmt
-	f    zfmt.SchematizedAvroFormatter
 }
 
 func newAvroSchemaRegistryFormatter(afmt avroFmt) (avroSchemaRegistryFormatter, error) {
@@ -116,22 +115,17 @@ func (f avroSchemaRegistryFormatter) marshall(req marshReq) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get avro schema by id for topic %s: %w", req.topic, err)
 	}
-	//f.f.SchemaID = id
-	//data, err := f.f.Marshall(req.subject)
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed to marshal avro schema for topic %s: %w", req.topic, err)
-	//}
 	avroSchema, err := avro.Parse(req.schema)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get schema from payload: %w", err)
 	}
 	msgBytes, err := avro.Marshal(avroSchema, req.subject)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marhall payload per avro schema: %w", err)
 	}
 	payload, err := f.afmt.ser.WriteBytes(id, msgBytes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to prepend schema related bytes: %w", err)
 	}
 	return payload, nil
 }
@@ -142,17 +136,17 @@ func (f avroSchemaRegistryFormatter) unmarshal(req unmarshReq) error {
 	}
 	inInfo, err := f.afmt.deser.GetSchema(req.topic, req.data)
 	if err != nil {
-		return fmt.Errorf("failed to get schema from payload: %w", err)
+		return fmt.Errorf("failed to get schema from message payload: %w", err)
 	}
 
 	inSchema, err := avro.Parse(inInfo.Schema)
 	if err != nil {
-		return fmt.Errorf("failed to get schema from payload: %w", err)
+		return fmt.Errorf("failed to parse schema associated with message: %w", err)
 	}
 
 	outSchema, err := avro.Parse(req.schema)
 	if err != nil {
-		return fmt.Errorf("failed to get schema from payload: %w", err)
+		return fmt.Errorf("failed to parse schema : %w", err)
 	}
 	sc := avro.NewSchemaCompatibility()
 	finalSchema, err := sc.Resolve(inSchema, outSchema)

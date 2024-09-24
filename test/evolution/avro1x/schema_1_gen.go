@@ -8,53 +8,6 @@ import (
 	"strconv"
 )
 
-type AddressRecord struct {
-	Streetnumber    string  `json:"streetNumber"`
-	Streetname      string  `json:"streetName"`
-	Unitnumber      *string `json:"unitNumber"`
-	Postalcode      string  `json:"postalCode"`
-	City            string  `json:"city"`
-	Stateorprovince string  `json:"stateOrProvince"`
-	Country         string  `json:"country"`
-	Latitude        float32 `json:"latitude"`
-	Longitude       float32 `json:"longitude"`
-}
-
-// AvroRecord implements the avro.AvroRecord interface.
-func (AddressRecord) AvroRecord() avrotypegen.RecordInfo {
-	return avrotypegen.RecordInfo{
-		Schema: `{"fields":[{"name":"streetNumber","type":"string"},{"name":"streetName","type":"string"},{"default":null,"name":"unitNumber","type":["null","string"]},{"name":"postalCode","type":"string"},{"name":"city","type":"string"},{"name":"stateOrProvince","type":"string"},{"name":"country","type":"string"},{"name":"latitude","type":"float"},{"name":"longitude","type":"float"}],"name":"com.zillowgroup.rmx.pem_schema.AddressRecord","type":"record"}`,
-		Required: []bool{
-			0: true,
-			1: true,
-			3: true,
-			4: true,
-			5: true,
-			6: true,
-			7: true,
-			8: true,
-		},
-	}
-}
-
-type AryeoFloorplanRecord struct {
-	Url string `json:"url"`
-
-	// Id(uuid v7) of the underlying Aryeo Floorplan Record
-	Id string `json:"id"`
-}
-
-// AvroRecord implements the avro.AvroRecord interface.
-func (AryeoFloorplanRecord) AvroRecord() avrotypegen.RecordInfo {
-	return avrotypegen.RecordInfo{
-		Schema: `{"fields":[{"name":"url","type":"string"},{"doc":"Id(uuid v7) of the underlying Aryeo Floorplan Record","name":"id","type":"string"}],"name":"com.zillowgroup.rmx.pem_schema.AryeoFloorplanRecord","type":"record"}`,
-		Required: []bool{
-			0: true,
-			1: true,
-		},
-	}
-}
-
 type AryeoListingEventType int
 
 const (
@@ -103,56 +56,21 @@ type AryeoListingRecord struct {
 	// Id(uuid v7) of the underlying Aryeo Listing
 	Id string `json:"id"`
 
-	// Id(uuid v7) of Aryeo Listing's underlying Company
-	Companyid string `json:"companyId"`
-
 	// Timestamp depicting when Aryeo's listing was delivered
 	Deliveredatdatetimeutc int64 `json:"deliveredAtDateTimeUtc"`
 
 	// Enum depicting type of event
 	Eventtype AryeoListingEventType `json:"eventType"`
-
-	// Unique identifier of Showcase Engagement associated to underlying Aryeo Listing
-	Engagementid *string `json:"engagementId"`
-
-	// Address associated to Aryeo Listing
-	Address AddressRecord `json:"address"`
-
-	// Photos delivered for underlying Aryeo Listing
-	Images *[]ImageRecord `json:"images"`
-
-	// Floorplans associated to Aryeo Listing
-	Floorplans *[]AryeoFloorplanRecord `json:"floorplans"`
 }
 
 // AvroRecord implements the avro.AvroRecord interface.
 func (AryeoListingRecord) AvroRecord() avrotypegen.RecordInfo {
 	return avrotypegen.RecordInfo{
-		Schema: `{"fields":[{"doc":"Id(uuid v7) of the underlying Aryeo Listing","name":"id","type":"string"},{"doc":"Id(uuid v7) of Aryeo Listing's underlying Company","name":"companyId","type":"string"},{"doc":"Timestamp depicting when Aryeo's listing was delivered","name":"deliveredAtDateTimeUtc","type":{"logicalType":"timestamp-millis","type":"long"}},{"doc":"Enum depicting type of event","name":"eventType","type":{"default":"listingCreated","name":"AryeoListingEventType","symbols":["listingCreated","listingAssociated","listingMediDelivered"],"type":"enum"}},{"default":null,"doc":"Unique identifier of Showcase Engagement associated to underlying Aryeo Listing","name":"engagementId","type":["null","string"]},{"doc":"Address associated to Aryeo Listing","name":"address","type":{"fields":[{"name":"streetNumber","type":"string"},{"name":"streetName","type":"string"},{"default":null,"name":"unitNumber","type":["null","string"]},{"name":"postalCode","type":"string"},{"name":"city","type":"string"},{"name":"stateOrProvince","type":"string"},{"name":"country","type":"string"},{"name":"latitude","type":"float"},{"name":"longitude","type":"float"}],"name":"AddressRecord","type":"record"}},{"default":null,"doc":"Photos delivered for underlying Aryeo Listing","name":"images","type":["null",{"items":{"fields":[{"name":"id","type":"string"},{"name":"index","type":"int"},{"default":null,"name":"caption","type":["null","string"]},{"default":null,"name":"url","type":["null","string"]}],"name":"ImageRecord","type":"record"},"type":"array"}]},{"default":null,"doc":"Floorplans associated to Aryeo Listing","name":"floorplans","type":["null",{"items":{"fields":[{"name":"url","type":"string"},{"doc":"Id(uuid v7) of the underlying Aryeo Floorplan Record","name":"id","type":"string"}],"name":"AryeoFloorplanRecord","type":"record"},"type":"array"}]}],"name":"com.zillowgroup.rmx.pem_schema.AryeoListingRecord","type":"record"}`,
+		Schema: `{"fields":[{"doc":"Id(uuid v7) of the underlying Aryeo Listing","name":"id","type":"string"},{"doc":"Timestamp depicting when Aryeo's listing was delivered","name":"deliveredAtDateTimeUtc","type":{"logicalType":"timestamp-millis","type":"long"}},{"doc":"Enum depicting type of event","name":"eventType","type":{"default":"listingCreated","name":"AryeoListingEventType","symbols":["listingCreated","listingAssociated","listingMediDelivered"],"type":"enum"}}],"name":"com.zillowgroup.rmx.pem_schema.AryeoListingRecord","type":"record"}`,
 		Required: []bool{
 			0: true,
 			1: true,
 			2: true,
-			3: true,
-			5: true,
-		},
-	}
-}
-
-type ImageRecord struct {
-	Id      string  `json:"id"`
-	Index   int     `json:"index"`
-	Caption *string `json:"caption"`
-	Url     *string `json:"url"`
-}
-
-// AvroRecord implements the avro.AvroRecord interface.
-func (ImageRecord) AvroRecord() avrotypegen.RecordInfo {
-	return avrotypegen.RecordInfo{
-		Schema: `{"fields":[{"name":"id","type":"string"},{"name":"index","type":"int"},{"default":null,"name":"caption","type":["null","string"]},{"default":null,"name":"url","type":["null","string"]}],"name":"com.zillowgroup.rmx.pem_schema.ImageRecord","type":"record"}`,
-		Required: []bool{
-			0: true,
-			1: true,
 		},
 	}
 }

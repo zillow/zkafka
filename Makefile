@@ -47,8 +47,8 @@ golangci-lint:
 gen: protoc-exists
 	cd test/evolution; protoc --proto_path=. --go_out=./ ./schema_1.proto
 	cd test/evolution; protoc --proto_path=. --go_out=./ ./schema_2.proto
-	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg main -o ./example/producer_avro/schema_1_gen.go   ./example/producer_avro/dummy_event.avsc
-	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg main -o ./example/worker_avro/schema_1_gen.go   ./example/worker_avro/dummy_event.avsc
+	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg main -o ./example/producer_avro/event_gen.go   ./example/producer_avro/event.avsc
+	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg main -o ./example/worker_avro/event_gen.go   ./example/worker_avro/event.avsc
 	mkdir -p ./test/evolution/avro1
 	mkdir -p ./test/evolution/avro2
 	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg avro1 -o ./test/evolution/avro1/schema_1_gen.go ./test/evolution/schema_1.avsc

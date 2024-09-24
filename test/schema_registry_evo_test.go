@@ -85,28 +85,22 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 	})
 	require.NoError(t, err)
 	listingID := uuid.NewString()
-	engagementID := uuid.NewString()
 
 	evt1 := avro1.AryeoListingRecord{
 		ID:                     listingID,
-		CompanyID:              uuid.NewString(),
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "listingCreated",
-		EngagementID:           &engagementID,
 	}
 	// write msg1, and msg2
 	_, err = writer1.Write(ctx, &evt1)
 	require.NoError(t, err)
 
 	listingID2 := uuid.NewString()
-	engagementID2 := uuid.NewString()
 
 	evt2 := avro2.AryeoListingRecord{
 		ID:                     listingID2,
-		CompanyID:              uuid.NewString(),
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "listingCreated",
-		EngagementID:           &engagementID2,
 	}
 	_, err = writer2.Write(ctx, &evt2)
 	require.NoError(t, err)
@@ -145,10 +139,8 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 	require.NoError(t, msg2.Decode(&receivedEvt2Schema1))
 	expectedEvt2 := avro1.AryeoListingRecord{
 		ID:                     evt2.ID,
-		CompanyID:              evt2.CompanyID,
 		DeliveredAtDateTimeUtc: evt2.DeliveredAtDateTimeUtc,
 		EventType:              evt2.EventType,
-		EngagementID:           evt2.EngagementID,
 	}
 	assertEqual(t, expectedEvt2, receivedEvt2Schema1)
 

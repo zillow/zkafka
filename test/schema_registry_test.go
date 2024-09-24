@@ -58,14 +58,11 @@ func Test_SchemaRegistry_AutoRegisterSchemasFalse_WillNotWriteMessage(t *testing
 	require.NoError(t, err)
 
 	listingID := uuid.NewString()
-	engagementID := uuid.NewString()
 
 	evt1 := avro1.AryeoListingRecord{
 		ID:                     listingID,
-		CompanyID:              uuid.NewString(),
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "listingCreated",
-		EngagementID:           &engagementID,
 	}
 
 	_, err = writer1.Write(ctx, evt1)
@@ -105,14 +102,11 @@ func Test_SchemaRegistry_Avro_AutoRegisterSchemas_RequiresSchemaSpecification(t 
 	require.NoError(t, err)
 
 	listingID := uuid.NewString()
-	engagementID := uuid.NewString()
 
 	evt1 := avro1.AryeoListingRecord{
 		ID:                     listingID,
-		CompanyID:              uuid.NewString(),
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "listingCreated",
-		EngagementID:           &engagementID,
 	}
 
 	_, err = writer1.Write(ctx, evt1)
@@ -150,14 +144,11 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 	require.NoError(t, err)
 
 	listingID := uuid.NewString()
-	engagementID := uuid.NewString()
 
 	evt1 := avro1x.AryeoListingRecord{
 		Id:                     listingID,
-		Companyid:              uuid.NewString(),
 		Deliveredatdatetimeutc: rand.Int63(),
 		Eventtype:              avro1x.AryeoListingEventTypeListingcreated,
-		Engagementid:           &engagementID,
 	}
 
 	_, err = writer1.Write(ctx, evt1)
@@ -225,14 +216,11 @@ func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
 	require.NoError(t, err)
 
 	listingID := uuid.NewString()
-	engagementID := uuid.NewString()
 
 	evt1 := avro1.AryeoListingRecord{
 		ID:                     listingID,
-		CompanyID:              uuid.NewString(),
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "listingCreated",
-		EngagementID:           &engagementID,
 	}
 
 	// write msg1, and msg2

@@ -13,8 +13,8 @@ import (
 	"github.com/zillow/zkafka"
 )
 
-//go:embed dummy_event.avsc
-var dummyEventSchema string
+//go:embed event.avsc
+var eventSchema string
 
 // Demonstrates reading from a topic via the zkafka.Work struct which is more convenient, typically, than using the consumer directly
 func main() {
@@ -45,7 +45,7 @@ func main() {
 		SchemaRegistry: zkafka.SchemaRegistryConfig{
 			URL: "http://localhost:8081",
 			Deserialization: zkafka.DeserializationConfig{
-				Schema: dummyEventSchema,
+				Schema: eventSchema,
 			},
 		},
 		AdditionalProps: map[string]any{

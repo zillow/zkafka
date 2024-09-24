@@ -80,6 +80,10 @@ func main() {
 func Process(_ context.Context, msg *zkafka.Message) error {
 	// sleep to simulate random amount of work
 	time.Sleep(100 * time.Millisecond)
+
+	// The DummyEvent type is generated using `hamba/avro` (see make). This is the preferred generation for
+	// `formatter=zkafka.AvroSchemaRegistry` because the underlying deserializer uses the avro tags on the generated struct
+	// to properly connect the schema and struct
 	event := DummyEvent{}
 	err := msg.Decode(&event)
 	if err != nil {

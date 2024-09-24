@@ -38,6 +38,9 @@ func main() {
 		log.Panic(err)
 	}
 	for {
+		// The DummyEvent type is generated using `hamba/avro` (see make). This is the preferred generation for
+		// `formatter=zkafka.AvroSchemaRegistry` because the underlying serializer uses the avro tags on the generated struct
+		//	// to properly connect the schema and struct
 		event := DummyEvent{
 			IntField:    rand.Intn(100),
 			StringField: randomNames[rand.Intn(len(randomNames))],

@@ -235,7 +235,7 @@ type SerializationConfig struct {
 }
 
 type DeserializationConfig struct {
-	// Schema is used exclusively by the avro schema registry formatter today. Its necessary to provide proper schema evolution properties
+	// Schema is used exclusively by the avro schema registry formatter today. It's necessary to provide proper schema evolution properties
 	// expected by typical use cases.
 	Schema string
 }

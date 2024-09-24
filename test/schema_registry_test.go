@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
@@ -14,6 +15,7 @@ import (
 	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
 	"github.com/zillow/zkafka/test/evolution/avro1"
+	avro1x "github.com/zillow/zkafka/test/evolution/avro1x"
 	"github.com/zillow/zkafka/test/evolution/json1"
 	"github.com/zillow/zkafka/test/evolution/proto1"
 )
@@ -55,20 +57,21 @@ func Test_SchemaRegistry_AutoRegisterSchemasFalse_WillNotWriteMessage(t *testing
 	})
 	require.NoError(t, err)
 
-	evt1 := avro1.DummyEvent{
-		IntField:    int(rand.Int31()),
-		DoubleField: rand.Float64(),
-		StringField: uuid.NewString(),
-		BoolField:   true,
-		BytesField:  []byte(uuid.NewString()),
+	id := uuid.NewString()
+
+	evt1 := avro1.Event{
+		ID:                     id,
+		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
+		EventType:              "listingCreated",
 	}
-	// write msg1, and msg2
+
 	_, err = writer1.Write(ctx, evt1)
 	require.ErrorContains(t, err, "failed to get avro schema by id")
 }
 
 // Its possible not specify a schema for your producer.
 // In this case, the underlying lib does
+
 func Test_SchemaRegistry_Avro_AutoRegisterSchemas_RequiresSchemaSpecification(t *testing.T) {
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
@@ -98,20 +101,21 @@ func Test_SchemaRegistry_Avro_AutoRegisterSchemas_RequiresSchemaSpecification(t 
 	})
 	require.NoError(t, err)
 
-	evt1 := avro1.DummyEvent{
-		IntField:    int(rand.Int31()),
-		DoubleField: rand.Float64(),
-		StringField: uuid.NewString(),
-		BoolField:   true,
-		BytesField:  []byte(uuid.NewString()),
+	id := uuid.NewString()
+
+	evt1 := avro1.Event{
+		ID:                     id,
+		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
+		EventType:              "listingCreated",
 	}
-	// write msg1, and msg2
+
 	_, err = writer1.Write(ctx, evt1)
 	require.ErrorContains(t, err, "avro schema is required for schema registry formatter")
 }
 
 // Test_SchemaNotRegistered_ResultsInWorkerDecodeError demonstrates the behavior when a worker reads
 // a message for a schema that doesn't exist in shcema registry. This test shows that such a situation would result in a decode error
+
 func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
@@ -139,14 +143,14 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	evt1 := avro1.DummyEvent{
-		IntField:    int(rand.Int31()),
-		DoubleField: rand.Float64(),
-		StringField: uuid.NewString(),
-		BoolField:   true,
-		BytesField:  []byte(uuid.NewString()),
+	id := uuid.NewString()
+
+	evt1 := avro1x.Event{
+		Id:                     id,
+		Deliveredatdatetimeutc: rand.Int63(),
+		Eventtype:              avro1x.EventTypeCreated,
 	}
-	// write msg1
+
 	_, err = writer1.Write(ctx, evt1)
 	require.NoError(t, err)
 
@@ -156,6 +160,9 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 		Formatter: zkafka.AvroSchemaRegistry,
 		SchemaRegistry: zkafka.SchemaRegistryConfig{
 			URL: "mock://",
+			Deserialization: zkafka.DeserializationConfig{
+				Schema: dummyEventSchema1,
+			},
 		},
 		GroupID: groupID,
 		AdditionalProps: map[string]any{
@@ -166,7 +173,7 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 	wf := zkafka.NewWorkFactory(client)
 	w := wf.CreateWithFunc(consumerTopicConfig, func(_ context.Context, msg *zkafka.Message) error {
 		defer cancel()
-		gotErr = msg.Decode(&avro1.DummyEvent{})
+		gotErr = msg.Decode(&avro1.Event{})
 		return gotErr
 	})
 
@@ -208,13 +215,14 @@ func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	evt1 := avro1.DummyEvent{
-		IntField:    int(rand.Int31()),
-		DoubleField: rand.Float64(),
-		StringField: uuid.NewString(),
-		BoolField:   true,
-		BytesField:  []byte(uuid.NewString()),
+	id := uuid.NewString()
+
+	evt1 := avro1.Event{
+		ID:                     id,
+		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
+		EventType:              "created",
 	}
+
 	// write msg1, and msg2
 	_, err = writer1.Write(ctx, evt1)
 	require.NoError(t, err)
@@ -226,6 +234,9 @@ func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
 		SchemaRegistry: zkafka.SchemaRegistryConfig{
 			URL:         "mock://",
 			SubjectName: subjName,
+			Deserialization: zkafka.DeserializationConfig{
+				Schema: dummyEventSchema1,
+			},
 		},
 		GroupID: groupID,
 		AdditionalProps: map[string]any{
@@ -244,7 +255,7 @@ func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
 
 	require.NoError(t, reader.Close())
 
-	receivedEvt1 := avro1.DummyEvent{}
+	receivedEvt1 := avro1.Event{}
 	require.NoError(t, msg1.Decode(&receivedEvt1))
 	assertEqual(t, evt1, receivedEvt1)
 }
@@ -288,7 +299,6 @@ func Test_SchemaRegistry_Proto_SubjectNameSpecification(t *testing.T) {
 		BoolField:   true,
 		BytesField:  []byte(uuid.NewString()),
 	}
-
 	_, err = writer1.Write(ctx, evt1)
 	require.NoError(t, err)
 
@@ -299,6 +309,9 @@ func Test_SchemaRegistry_Proto_SubjectNameSpecification(t *testing.T) {
 		SchemaRegistry: zkafka.SchemaRegistryConfig{
 			URL:         "mock://",
 			SubjectName: subjName,
+			Deserialization: zkafka.DeserializationConfig{
+				Schema: dummyEventSchema1,
+			},
 		},
 		GroupID: groupID,
 		AdditionalProps: map[string]any{
@@ -361,7 +374,6 @@ func Test_SchemaRegistry_Json_SubjectNameSpecification(t *testing.T) {
 		BoolField:   true,
 		BytesField:  []byte(uuid.NewString()),
 	}
-
 	_, err = writer1.Write(ctx, evt1)
 	require.NoError(t, err)
 
@@ -372,6 +384,9 @@ func Test_SchemaRegistry_Json_SubjectNameSpecification(t *testing.T) {
 		SchemaRegistry: zkafka.SchemaRegistryConfig{
 			URL:         "mock://",
 			SubjectName: subjName,
+			Deserialization: zkafka.DeserializationConfig{
+				Schema: dummyEventSchema1,
+			},
 		},
 		GroupID: groupID,
 		AdditionalProps: map[string]any{
@@ -394,7 +409,6 @@ func Test_SchemaRegistry_Json_SubjectNameSpecification(t *testing.T) {
 	require.NoError(t, msg1.Decode(&receivedEvt1))
 	assertEqual(t, evt1, receivedEvt1)
 }
-
 func checkShouldSkipTest(t *testing.T, flags ...string) {
 	t.Helper()
 	for _, flag := range flags {

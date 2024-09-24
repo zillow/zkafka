@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/hamba/avro/v2"
 	"github.com/zillow/zfmt"
 )
 
@@ -35,10 +36,10 @@ type Formatter interface {
 type marshReq struct {
 	// topic is the kafka topic being written to
 	topic string
-	// subject is the data to be marshalled
-	subject any
+	// v is the data to be marshalled
+	v any
 	// schema is currently only used for avro schematizations. It is necessary,
-	// because the confluent implementation reflects on the subject to get the schema to use for
+	// because the confluent implementation reflects on the v to get the schema to use for
 	// communicating with schema-registry and backward compatible evolutions fail beause if dataloss during reflection.
 	// For example, if a field has a default value, the reflection doesn't pick this up
 	schema string
@@ -51,6 +52,11 @@ type unmarshReq struct {
 	data []byte
 	// target is the stuct which is to be hydrated by the contents of data
 	target any
+	// schema is currently only used for avro schematizations. It is necessary,
+	// because the confluent implementation reflects on the subject to get the schema to use for
+	// communicating with schema-registry and backward compatible evolutions fail beause if dataloss during reflection.
+	// For example, if a field has a default value, the reflection doesn't pick this up
+	schema string
 }
 
 var _ kFormatter = (*avroSchemaRegistryFormatter)(nil)
@@ -70,7 +76,7 @@ type zfmtShim struct {
 }
 
 func (f zfmtShim) marshall(req marshReq) ([]byte, error) {
-	return f.F.Marshall(req.subject)
+	return f.F.Marshall(req.v)
 }
 
 func (f zfmtShim) unmarshal(req unmarshReq) error {
@@ -93,7 +99,6 @@ func (f errFormatter) unmarshal(_ unmarshReq) error {
 
 type avroSchemaRegistryFormatter struct {
 	afmt avroFmt
-	f    zfmt.SchematizedAvroFormatter
 }
 
 func newAvroSchemaRegistryFormatter(afmt avroFmt) (avroSchemaRegistryFormatter, error) {
@@ -102,6 +107,10 @@ func newAvroSchemaRegistryFormatter(afmt avroFmt) (avroSchemaRegistryFormatter, 
 	}, nil
 }
 
+// marshall looks a subject's schema (id) so that it can prefix the eventual message payload.
+// A schema must be provided and hamba/avro is used in conjunction with this schema to marshall they payload.
+// Structs generated using hamba/avro work best, since they provide avro tags which handles casing
+// which can lead to errors otherwise.
 func (f avroSchemaRegistryFormatter) marshall(req marshReq) ([]byte, error) {
 	if req.schema == "" {
 		return nil, errors.New("avro schema is required for schema registry formatter")
@@ -110,16 +119,56 @@ func (f avroSchemaRegistryFormatter) marshall(req marshReq) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get avro schema by id for topic %s: %w", req.topic, err)
 	}
-	f.f.SchemaID = id
-	data, err := f.f.Marshall(req.subject)
+	avroSchema, err := avro.Parse(req.schema)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal avro schema for topic %s: %w", req.topic, err)
+		return nil, fmt.Errorf("failed to get schema from payload: %w", err)
 	}
-	return data, nil
+	msgBytes, err := avro.Marshal(avroSchema, req.v)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marhall payload per avro schema: %w", err)
+	}
+	payload, err := f.afmt.ser.WriteBytes(id, msgBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepend schema related bytes: %w", err)
+	}
+	return payload, nil
 }
 
+// unmarshall looks up the schema based on the schemaID in the message payload (`dataSchema`).
+// Additionally, a target schema is provided in the request (`targetSchema`).
+//
+// The 'targetSchema' and 'dataSchema' are resolved so that data written by the `dataSchema` may
+// be read by the `targetSchema`.
+//
+// The avro.Deserializer has much of this functionality built in, other than being able to specify
+// the `targetSchema` and instead infers the target schema from the target struct. This creates
+// issues in some common use cases.
 func (f avroSchemaRegistryFormatter) unmarshal(req unmarshReq) error {
-	err := f.afmt.Deserialize(req.topic, req.data, req.target)
+	if req.schema == "" {
+		return errors.New("avro schema is required for schema registry formatter")
+	}
+	inInfo, err := f.afmt.deser.GetSchema(req.topic, req.data)
+	if err != nil {
+		return fmt.Errorf("failed to get schema from message payload: %w", err)
+	}
+
+	// schema of data that exists on the wire, that is about to be marshalled into the schema of our target
+	dataSchema, err := avro.Parse(inInfo.Schema)
+	if err != nil {
+		return fmt.Errorf("failed to parse schema associated with message: %w", err)
+	}
+
+	targetSchema, err := avro.Parse(req.schema)
+	if err != nil {
+		return fmt.Errorf("failed to parse schema : %w", err)
+	}
+	sc := avro.NewSchemaCompatibility()
+	resolvedSchema, err := sc.Resolve(dataSchema, targetSchema)
+	if err != nil {
+		return fmt.Errorf("failed to get schema from payload: %w", err)
+	}
+
+	err = avro.Unmarshal(resolvedSchema, req.data[5:], req.target)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize to confluent schema registry avro type: %w", err)
 	}
@@ -137,7 +186,7 @@ func newProtoSchemaRegistryFormatter(pfmt protoFmt) protoSchemaRegistryFormatter
 }
 
 func (f protoSchemaRegistryFormatter) marshall(req marshReq) ([]byte, error) {
-	msgBytes, err := f.pfmt.ser.Serialize(req.topic, req.subject)
+	msgBytes, err := f.pfmt.ser.Serialize(req.topic, req.v)
 	if err != nil {
 		return nil, fmt.Errorf("failed to proto serialize: %w", err)
 	}
@@ -162,7 +211,7 @@ func newJsonSchemaRegistryFormatter(jfmt jsonFmt) jsonSchemaRegistryFormatter {
 }
 
 func (f jsonSchemaRegistryFormatter) marshall(req marshReq) ([]byte, error) {
-	msgBytes, err := f.jfmt.ser.Serialize(req.topic, req.subject)
+	msgBytes, err := f.jfmt.ser.Serialize(req.topic, req.v)
 	if err != nil {
 		return nil, fmt.Errorf("failed to json schema serialize: %w", err)
 	}

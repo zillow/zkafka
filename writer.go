@@ -233,9 +233,9 @@ func (w *KWriter) marshall(_ context.Context, value any, schema string) ([]byte,
 		return nil, errors.New("formatter or confluent formatter is not supplied to produce kafka message")
 	}
 	return w.formatter.marshall(marshReq{
-		topic:   w.topicConfig.Topic,
-		subject: value,
-		schema:  schema,
+		topic:  w.topicConfig.Topic,
+		v:      value,
+		schema: schema,
 	})
 }
 

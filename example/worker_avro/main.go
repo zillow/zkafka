@@ -13,6 +13,9 @@ import (
 	"github.com/zillow/zkafka"
 )
 
+//go:embed event.avsc
+var eventSchema string
+
 // Demonstrates reading from a topic via the zkafka.Work struct which is more convenient, typically, than using the consumer directly
 func main() {
 	ctx := context.Background()
@@ -40,8 +43,12 @@ func main() {
 		// json, proto, avro, etc.
 		Formatter: zkafka.AvroSchemaRegistry,
 		SchemaRegistry: zkafka.SchemaRegistryConfig{
-			URL:             "http://localhost:8081",
-			Deserialization: zkafka.DeserializationConfig{},
+			URL: "http://localhost:8081",
+			Deserialization: zkafka.DeserializationConfig{
+				// When using avro schema registry, you must specify the schema. In this case,
+				// the schema used to generate the golang type is used.
+				Schema: eventSchema,
+			},
 		},
 		AdditionalProps: map[string]any{
 			// only important the first time a consumer group connects. Subsequent connections will start
@@ -73,6 +80,10 @@ func main() {
 func Process(_ context.Context, msg *zkafka.Message) error {
 	// sleep to simulate random amount of work
 	time.Sleep(100 * time.Millisecond)
+
+	// The DummyEvent type is generated using `hamba/avro` (see make). This is the preferred generation for
+	// `formatter=zkafka.AvroSchemaRegistry` because the underlying deserializer uses the avro tags on the generated struct
+	// to properly connect the schema and struct
 	event := DummyEvent{}
 	err := msg.Decode(&event)
 	if err != nil {

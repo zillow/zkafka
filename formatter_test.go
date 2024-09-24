@@ -9,7 +9,7 @@ import (
 func TestNoopFormatter_Marshall_Unmarshal(t *testing.T) {
 	defer recoverThenFail(t)
 	formatter := errFormatter{}
-	_, err := formatter.marshall(marshReq{subject: "anything"})
+	_, err := formatter.marshall(marshReq{v: "anything"})
 	require.ErrorIs(t, err, errMissingFormatter)
 
 	var someInt int32

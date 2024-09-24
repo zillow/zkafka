@@ -225,8 +225,9 @@ func (r *KReader) mapMessage(_ context.Context, msg kafka.Message) *Message {
 				r.logger.Errorw(ctx, "Error storing offsets", "topicName", topicName, "groupID", r.topicConfig.GroupID, "partition", partition, "offset", offset, "error", err)
 			}
 		},
-		value: msg.Value,
-		fmt:   r.formatter,
+		value:  msg.Value,
+		fmt:    r.formatter,
+		schema: r.topicConfig.SchemaRegistry.Deserialization.Schema,
 	}
 }
 

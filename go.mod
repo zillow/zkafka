@@ -7,6 +7,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
+	github.com/hamba/avro/v2 v2.24.0
 	github.com/heetch/avro v0.4.5
 	github.com/sony/gobreaker v1.0.0
 	github.com/stretchr/testify v1.9.0
@@ -26,7 +27,6 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/hamba/avro/v2 v2.24.0 // indirect
 	github.com/invopop/jsonschema v0.12.0 // indirect
 	github.com/jhump/protoreflect v1.15.6 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect

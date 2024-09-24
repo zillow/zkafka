@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 This project adheres to Semantic Versioning.
 
 ## 1.2.0 (Sep 23, 2024)
-1. Update to allow subject name specification (not just TopicNameStrategy, which default )
+
+1. Update to allow subject name specification (not just TopicNameStrategy)
+1. Updated `avro_schema_registry` formatter deserialization to require passed in schema (less susceptible to errors from inferred target schema) 
 
 ## 1.1.0 (Sep 23, 2024)
 

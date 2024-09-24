@@ -1,11 +1,30 @@
 {
   "type": "record",
-  "name": "DummyEvent",
+  "name": "Event",
+  "namespace": "com.zillowgroup",
   "fields": [
-    {"name": "IntField", "type": "int"},
-    {"name": "DoubleField", "type": "double"},
-    {"name": "StringField", "type": "string"},
-    {"name": "BoolField", "type": "boolean"},
-    {"name": "BytesField", "type": "bytes"}
+    {
+      "name": "id",
+      "type": "string"
+    },
+    {
+      "name": "deliveredAtDateTimeUtc",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }
+    },
+    {
+      "name": "eventType",
+      "type": {
+        "type": "enum",
+        "name": "EventType",
+        "symbols": [
+          "created",
+          "associated"
+        ],
+        "default": "created"
+      }
+    }
   ]
 }

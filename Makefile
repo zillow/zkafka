@@ -1,6 +1,7 @@
 # Directories containing independent Go modules.
 MODULE_DIRS = .
 GOLANGCI_VERSION=1.61.0
+AVRO_CMD_PATH=github.com/hamba/avro/v2/cmd/avrogen@v2.26.0
 
 
 # Sets up kafka broker using docker compose
@@ -47,12 +48,12 @@ golangci-lint:
 gen: protoc-exists
 	cd test/evolution; protoc --proto_path=. --go_out=./ ./schema_1.proto
 	cd test/evolution; protoc --proto_path=. --go_out=./ ./schema_2.proto
-	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg main -o ./example/producer_avro/event_gen.go   ./example/producer_avro/event.avsc
-	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg main -o ./example/worker_avro/event_gen.go   ./example/worker_avro/event.avsc
+	go run ${AVRO_CMD_PATH} -pkg main -o ./example/producer_avro/event_gen.go   ./example/producer_avro/event.avsc
+	go run ${AVRO_CMD_PATH} -pkg main -o ./example/worker_avro/event_gen.go   ./example/worker_avro/event.avsc
 	mkdir -p ./test/evolution/avro1
 	mkdir -p ./test/evolution/avro2
-	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg avro1 -o ./test/evolution/avro1/schema_1_gen.go ./test/evolution/schema_1.avsc
-	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg avro2 -o ./test/evolution/avro2/schema_2_gen.go ./test/evolution/schema_2.avsc
+	go run ${AVRO_CMD_PATH} -pkg avro1 -o ./test/evolution/avro1/schema_1_gen.go ./test/evolution/schema_1.avsc
+	go run ${AVRO_CMD_PATH} -pkg avro2 -o ./test/evolution/avro2/schema_2_gen.go ./test/evolution/schema_2.avsc
 	go run github.com/heetch/avro/cmd/avrogo@v0.4.5 -p avro1 -d ./test/evolution/avro1x ./test/evolution/schema_1.avsc
 
 # a forced dependency which fails (and prints) if `avro-tools` isn't installed

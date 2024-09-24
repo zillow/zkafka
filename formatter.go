@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/hamba/avro/v2"
 	"github.com/zillow/zfmt"
 )
 
@@ -51,6 +52,11 @@ type unmarshReq struct {
 	data []byte
 	// target is the stuct which is to be hydrated by the contents of data
 	target any
+	// schema is currently only used for avro schematizations. It is necessary,
+	// because the confluent implementation reflects on the subject to get the schema to use for
+	// communicating with schema-registry and backward compatible evolutions fail beause if dataloss during reflection.
+	// For example, if a field has a default value, the reflection doesn't pick this up
+	schema string
 }
 
 var _ kFormatter = (*avroSchemaRegistryFormatter)(nil)
@@ -110,20 +116,60 @@ func (f avroSchemaRegistryFormatter) marshall(req marshReq) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get avro schema by id for topic %s: %w", req.topic, err)
 	}
-	f.f.SchemaID = id
-	data, err := f.f.Marshall(req.subject)
+	//f.f.SchemaID = id
+	//data, err := f.f.Marshall(req.subject)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to marshal avro schema for topic %s: %w", req.topic, err)
+	//}
+	avroSchema, err := avro.Parse(req.schema)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal avro schema for topic %s: %w", req.topic, err)
+		return nil, fmt.Errorf("failed to get schema from payload: %w", err)
 	}
-	return data, nil
+	msgBytes, err := avro.Marshal(avroSchema, req.subject)
+	if err != nil {
+		return nil, err
+	}
+	payload, err := f.afmt.ser.WriteBytes(id, msgBytes)
+	if err != nil {
+		return nil, err
+	}
+	return payload, nil
 }
 
 func (f avroSchemaRegistryFormatter) unmarshal(req unmarshReq) error {
-	err := f.afmt.Deserialize(req.topic, req.data, req.target)
+	if req.schema == "" {
+		return errors.New("avro schema is required for schema registry formatter")
+	}
+	inInfo, err := f.afmt.deser.GetSchema(req.topic, req.data)
+	if err != nil {
+		return fmt.Errorf("failed to get schema from payload: %w", err)
+	}
+
+	inSchema, err := avro.Parse(inInfo.Schema)
+	if err != nil {
+		return fmt.Errorf("failed to get schema from payload: %w", err)
+	}
+
+	outSchema, err := avro.Parse(req.schema)
+	if err != nil {
+		return fmt.Errorf("failed to get schema from payload: %w", err)
+	}
+	sc := avro.NewSchemaCompatibility()
+	finalSchema, err := sc.Resolve(inSchema, outSchema)
+	if err != nil {
+		return fmt.Errorf("failed to get schema from payload: %w", err)
+	}
+
+	err = avro.Unmarshal(finalSchema, req.data[5:], req.target)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize to confluent schema registry avro type: %w", err)
 	}
 	return nil
+	//err := f.afmt.Deserialize(req.topic, req.data, req.target)
+	//if err != nil {
+	//	return fmt.Errorf("failed to deserialize to confluent schema registry avro type: %w", err)
+	//}
+	//return nil
 }
 
 type protoSchemaRegistryFormatter struct {

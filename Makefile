@@ -43,6 +43,14 @@ golangci-lint:
 		echo "[lint] golangci-lint: $(mod)" && \
 		go run github.com/golangci/golangci-lint/cmd/golangci-lint@v${GOLANGCI_VERSION} run $(ARGS) --path-prefix $(mod) ./...) &&) true
 
+.PHONY: gen2
+gen2:
+	mkdir -p ./test/evolution/avro1a
+	mkdir -p ./test/evolution/avro2a
+	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg avro1a -o ./test/evolution/avro1a/schema_1a_gen.go  -tags json:snake,yaml:upper-camel ./test/evolution/schema_1.avsc
+	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg avro2a -o ./test/evolution/avro2a/schema_2a_gen.go  -tags json:snake,yaml:upper-camel ./test/evolution/schema_2.avsc
+
+
 .PHONY: gen
 gen: protoc-exists
 	cd test/evolution; protoc --proto_path=. --go_out=./ ./schema_1.proto

@@ -1,11 +1,165 @@
 {
   "type": "record",
-  "name": "DummyEvent",
+  "name": "AryeoListingRecord",
+  "namespace": "com.zillowgroup.rmx.pem_schema",
   "fields": [
-    {"name": "IntField", "type": "int"},
-    {"name": "DoubleField", "type": "double"},
-    {"name": "StringField", "type": "string"},
-    {"name": "BoolField", "type": "boolean"},
-    {"name": "BytesField", "type": "bytes"}
+    {
+      "name": "id",
+      "type": "string",
+      "doc": "Id(uuid v7) of the underlying Aryeo Listing"
+    },
+    {
+      "name": "companyId",
+      "type": "string",
+      "doc": "Id(uuid v7) of Aryeo Listing's underlying Company"
+    },
+    {
+      "name": "deliveredAtDateTimeUtc",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Timestamp depicting when Aryeo's listing was delivered"
+    },
+    {
+      "name": "eventType",
+      "type": {
+        "type": "enum",
+        "name": "AryeoListingEventType",
+        "symbols": [
+          "listingCreated",
+          "listingAssociated",
+          "listingMediDelivered"
+        ],
+        "default": "listingCreated"
+      },
+      "doc": "Enum depicting type of event"
+    },
+    {
+      "name": "engagementId",
+      "type": [
+        "null",
+        "string"
+      ],
+      "doc": "Unique identifier of Showcase Engagement associated to underlying Aryeo Listing",
+      "default": null
+    },
+    {
+      "name": "address",
+      "type": {
+        "type": "record",
+        "name": "AddressRecord",
+        "fields": [
+          {
+            "name": "streetNumber",
+            "type": "string"
+          },
+          {
+            "name": "streetName",
+            "type": "string"
+          },
+          {
+            "name": "unitNumber",
+            "type": [
+              "null",
+              "string"
+            ],
+            "default": null
+          },
+          {
+            "name": "postalCode",
+            "type": "string"
+          },
+          {
+            "name": "city",
+            "type": "string"
+          },
+          {
+            "name": "stateOrProvince",
+            "type": "string"
+          },
+          {
+            "name": "country",
+            "type": "string"
+          },
+          {
+            "name": "latitude",
+            "type": "float"
+          },
+          {
+            "name": "longitude",
+            "type": "float"
+          }
+        ]
+      },
+      "doc": "Address associated to Aryeo Listing"
+    },
+    {
+      "name": "images",
+      "type": [
+        "null",
+        {
+          "type": "array",
+          "items": {
+            "type": "record",
+            "name": "ImageRecord",
+            "fields": [
+              {
+                "name": "id",
+                "type": "string"
+              },
+              {
+                "name": "index",
+                "type": "int"
+              },
+              {
+                "name": "caption",
+                "type": [
+                  "null",
+                  "string"
+                ],
+                "default": null
+              },
+              {
+                "name": "url",
+                "type": [
+                  "null",
+                  "string"
+                ],
+                "default": null
+              }
+            ]
+          }
+        }
+      ],
+      "doc": "Photos delivered for underlying Aryeo Listing",
+      "default": null
+    },
+    {
+      "name": "floorplans",
+      "type": [
+        "null",
+        {
+          "type": "array",
+          "items": {
+            "type": "record",
+            "name": "AryeoFloorplanRecord",
+            "fields": [
+              {
+                "name": "url",
+                "type": "string"
+              },
+              {
+                "name": "id",
+                "type": "string",
+                "doc": "Id(uuid v7) of the underlying Aryeo Floorplan Record"
+              }
+            ]
+          }
+        }
+      ],
+      "doc": "Floorplans associated to Aryeo Listing",
+      "default": null
+    }
   ]
 }

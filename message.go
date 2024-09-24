@@ -26,6 +26,7 @@ type Message struct {
 	fmt            kFormatter
 	doneFunc       func(ctx context.Context)
 	doneOnce       sync.Once
+	schema         string
 }
 
 // DoneWithContext is used to alert that message processing has completed.
@@ -63,6 +64,7 @@ func (m *Message) unmarshall(target any) error {
 		topic:  m.Topic,
 		data:   m.value,
 		target: target,
+		schema: m.schema,
 	})
 }
 

@@ -235,6 +235,9 @@ type SerializationConfig struct {
 }
 
 type DeserializationConfig struct {
+	// Schema is used exclusively by the avro schema registry formatter today. Its necessary to provide proper schema evolution properties
+	// expected by typical use cases.
+	Schema string
 }
 
 func getDefaultConsumerTopicConfig(topicConfig *ConsumerTopicConfig) error {

@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
-	avro1a "github.com/zillow/zkafka/test/evolution/avro1"
-	avro1 "github.com/zillow/zkafka/test/evolution/avro1x"
+	"github.com/zillow/zkafka/test/evolution/avro1"
+	avro1x "github.com/zillow/zkafka/test/evolution/avro1x"
 	"github.com/zillow/zkafka/test/evolution/json1"
 	"github.com/zillow/zkafka/test/evolution/proto1"
 )
@@ -60,7 +60,7 @@ func Test_SchemaRegistry_AutoRegisterSchemasFalse_WillNotWriteMessage(t *testing
 	listingID := uuid.NewString()
 	engagementID := uuid.NewString()
 
-	evt1 := avro1a.AryeoListingRecord{
+	evt1 := avro1.AryeoListingRecord{
 		ID:                     listingID,
 		CompanyID:              uuid.NewString(),
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
@@ -107,7 +107,7 @@ func Test_SchemaRegistry_Avro_AutoRegisterSchemas_RequiresSchemaSpecification(t 
 	listingID := uuid.NewString()
 	engagementID := uuid.NewString()
 
-	evt1 := avro1a.AryeoListingRecord{
+	evt1 := avro1.AryeoListingRecord{
 		ID:                     listingID,
 		CompanyID:              uuid.NewString(),
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
@@ -152,11 +152,11 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 	listingID := uuid.NewString()
 	engagementID := uuid.NewString()
 
-	evt1 := avro1.AryeoListingRecord{
+	evt1 := avro1x.AryeoListingRecord{
 		Id:                     listingID,
 		Companyid:              uuid.NewString(),
 		Deliveredatdatetimeutc: rand.Int63(),
-		Eventtype:              avro1.AryeoListingEventTypeListingcreated,
+		Eventtype:              avro1x.AryeoListingEventTypeListingcreated,
 		Engagementid:           &engagementID,
 	}
 
@@ -182,7 +182,7 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 	wf := zkafka.NewWorkFactory(client)
 	w := wf.CreateWithFunc(consumerTopicConfig, func(_ context.Context, msg *zkafka.Message) error {
 		defer cancel()
-		gotErr = msg.Decode(&avro1a.AryeoListingRecord{})
+		gotErr = msg.Decode(&avro1.AryeoListingRecord{})
 		return gotErr
 	})
 
@@ -227,7 +227,7 @@ func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
 	listingID := uuid.NewString()
 	engagementID := uuid.NewString()
 
-	evt1 := avro1a.AryeoListingRecord{
+	evt1 := avro1.AryeoListingRecord{
 		ID:                     listingID,
 		CompanyID:              uuid.NewString(),
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
@@ -267,7 +267,7 @@ func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
 
 	require.NoError(t, reader.Close())
 
-	receivedEvt1 := avro1a.AryeoListingRecord{}
+	receivedEvt1 := avro1.AryeoListingRecord{}
 	require.NoError(t, msg1.Decode(&receivedEvt1))
 	assertEqual(t, evt1, receivedEvt1)
 }

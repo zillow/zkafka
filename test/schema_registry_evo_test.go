@@ -18,8 +18,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/zillow/zkafka"
-	avro1a "github.com/zillow/zkafka/test/evolution/avro1"
-	avro2a "github.com/zillow/zkafka/test/evolution/avro2"
+	"github.com/zillow/zkafka/test/evolution/avro1"
+	"github.com/zillow/zkafka/test/evolution/avro2"
 	"github.com/zillow/zkafka/test/evolution/json1"
 	"github.com/zillow/zkafka/test/evolution/json2"
 	"github.com/zillow/zkafka/test/evolution/proto1"
@@ -87,7 +87,7 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 	listingID := uuid.NewString()
 	engagementID := uuid.NewString()
 
-	evt1 := avro1a.AryeoListingRecord{
+	evt1 := avro1.AryeoListingRecord{
 		ID:                     listingID,
 		CompanyID:              uuid.NewString(),
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
@@ -101,7 +101,7 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 	listingID2 := uuid.NewString()
 	engagementID2 := uuid.NewString()
 
-	evt2 := avro2a.AryeoListingRecord{
+	evt2 := avro2.AryeoListingRecord{
 		ID:                     listingID2,
 		CompanyID:              uuid.NewString(),
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
@@ -137,13 +137,13 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 
 	require.NoError(t, reader.Close())
 
-	receivedEvt1 := avro1a.AryeoListingRecord{}
+	receivedEvt1 := avro1.AryeoListingRecord{}
 	require.NoError(t, msg1.Decode(&receivedEvt1))
 	assertEqual(t, receivedEvt1, evt1)
 
-	receivedEvt2Schema1 := avro1a.AryeoListingRecord{}
+	receivedEvt2Schema1 := avro1.AryeoListingRecord{}
 	require.NoError(t, msg2.Decode(&receivedEvt2Schema1))
-	expectedEvt2 := avro1a.AryeoListingRecord{
+	expectedEvt2 := avro1.AryeoListingRecord{
 		ID:                     evt2.ID,
 		CompanyID:              evt2.CompanyID,
 		DeliveredAtDateTimeUtc: evt2.DeliveredAtDateTimeUtc,
@@ -152,7 +152,7 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 	}
 	assertEqual(t, expectedEvt2, receivedEvt2Schema1)
 
-	receivedEvt2Schema2 := avro2a.AryeoListingRecord{}
+	receivedEvt2Schema2 := avro2.AryeoListingRecord{}
 	require.NoError(t, msg2.Decode(&receivedEvt2Schema2))
 	assertEqual(t, evt2, receivedEvt2Schema2)
 }

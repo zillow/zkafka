@@ -13,6 +13,9 @@ import (
 	"github.com/zillow/zkafka"
 )
 
+//go:embed dummy_event.avsc
+var dummyEventSchema string
+
 // Demonstrates reading from a topic via the zkafka.Work struct which is more convenient, typically, than using the consumer directly
 func main() {
 	ctx := context.Background()
@@ -40,8 +43,10 @@ func main() {
 		// json, proto, avro, etc.
 		Formatter: zkafka.AvroSchemaRegistry,
 		SchemaRegistry: zkafka.SchemaRegistryConfig{
-			URL:             "http://localhost:8081",
-			Deserialization: zkafka.DeserializationConfig{},
+			URL: "http://localhost:8081",
+			Deserialization: zkafka.DeserializationConfig{
+				Schema: dummyEventSchema,
+			},
 		},
 		AdditionalProps: map[string]any{
 			// only important the first time a consumer group connects. Subsequent connections will start

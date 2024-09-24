@@ -43,24 +43,17 @@ golangci-lint:
 		echo "[lint] golangci-lint: $(mod)" && \
 		go run github.com/golangci/golangci-lint/cmd/golangci-lint@v${GOLANGCI_VERSION} run $(ARGS) --path-prefix $(mod) ./...) &&) true
 
-.PHONY: gen2
-gen2:
-	mkdir -p ./test/evolution/avro1a
-	mkdir -p ./test/evolution/avro2a
-	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg avro1a -o ./test/evolution/avro1a/schema_1a_gen.go  -tags json:snake,yaml:upper-camel ./test/evolution/schema_1.avsc
-	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg avro2a -o ./test/evolution/avro2a/schema_2a_gen.go  -tags json:snake,yaml:upper-camel ./test/evolution/schema_2.avsc
-	go run github.com/heetch/avro/cmd/avrogo@v0.4.5 -p avro1 -d ./test/evolution/avro1 ./test/evolution/schema_1.avsc
-
-
-
 .PHONY: gen
 gen: protoc-exists
 	cd test/evolution; protoc --proto_path=. --go_out=./ ./schema_1.proto
 	cd test/evolution; protoc --proto_path=. --go_out=./ ./schema_2.proto
-	go run github.com/heetch/avro/cmd/avrogo@v0.4.5 -p main -d ./example/producer_avro ./example/producer_avro/dummy_event.avsc
-	go run github.com/heetch/avro/cmd/avrogo@v0.4.5 -p main -d ./example/worker_avro ./example/worker_avro/dummy_event.avsc
-	go run github.com/heetch/avro/cmd/avrogo@v0.4.5 -p avro1 -d ./test/evolution/avro1 ./test/evolution/schema_1.avsc
-	go run github.com/heetch/avro/cmd/avrogo@v0.4.5 -p avro2 -d ./test/evolution/avro2 ./test/evolution/schema_2.avsc
+	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg main -o ./example/producer_avro/schema_1_gen.go   ./example/producer_avro/dummy_event.avsc
+	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg main -o ./example/worker_avro/schema_1_gen.go   ./example/worker_avro/dummy_event.avsc
+	mkdir -p ./test/evolution/avro1
+	mkdir -p ./test/evolution/avro2
+	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg avro1 -o ./test/evolution/avro1/schema_1_gen.go ./test/evolution/schema_1.avsc
+	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0 -pkg avro2 -o ./test/evolution/avro2/schema_2_gen.go ./test/evolution/schema_2.avsc
+	go run github.com/heetch/avro/cmd/avrogo@v0.4.5 -p avro1 -d ./test/evolution/avro1x ./test/evolution/schema_1.avsc
 
 # a forced dependency which fails (and prints) if `avro-tools` isn't installed
 .PHONY: protoc-exists

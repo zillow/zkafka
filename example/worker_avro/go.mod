@@ -6,7 +6,6 @@ replace github.com/zillow/zkafka v1.0.0 => ../..
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/heetch/avro v0.4.5
 	github.com/zillow/zkafka v1.0.0
 )
 
@@ -18,6 +17,7 @@ require (
 	github.com/confluentinc/confluent-kafka-go/v2 v2.5.3 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/hamba/avro/v2 v2.24.0 // indirect
+	github.com/heetch/avro v0.4.5 // indirect
 	github.com/invopop/jsonschema v0.12.0 // indirect
 	github.com/jhump/protoreflect v1.15.6 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect

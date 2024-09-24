@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka"
-	"github.com/zillow/zkafka/test/evolution/avro1"
-	"github.com/zillow/zkafka/test/evolution/avro1a"
+	avro1a "github.com/zillow/zkafka/test/evolution/avro1"
+	avro1 "github.com/zillow/zkafka/test/evolution/avro1x"
 	"github.com/zillow/zkafka/test/evolution/json1"
 	"github.com/zillow/zkafka/test/evolution/proto1"
 )

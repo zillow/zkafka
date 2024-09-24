@@ -45,6 +45,8 @@ func main() {
 		SchemaRegistry: zkafka.SchemaRegistryConfig{
 			URL: "http://localhost:8081",
 			Deserialization: zkafka.DeserializationConfig{
+				// When using avro schema registry, you must specify the schema. In this case,
+				// the schema used to generate the golang type is used.
 				Schema: eventSchema,
 			},
 		},

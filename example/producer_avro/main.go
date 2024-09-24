@@ -29,8 +29,6 @@ func main() {
 				AutoRegisterSchemas: true,
 				// When using avro schema registry, you must specify the schema. In this case,
 				// the schema used to generate the golang type is used.
-				// The heetch generated struct also embeds the schema as well (and isn't lossy like some of the
-				// other generative solutions. For example, one lib didn't include default values), so that could be used as well.
 				Schema: eventSchema,
 			},
 		},

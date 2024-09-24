@@ -36,10 +36,10 @@ type Formatter interface {
 type marshReq struct {
 	// topic is the kafka topic being written to
 	topic string
-	// subject is the data to be marshalled
-	subject any
+	// v is the data to be marshalled
+	v any
 	// schema is currently only used for avro schematizations. It is necessary,
-	// because the confluent implementation reflects on the subject to get the schema to use for
+	// because the confluent implementation reflects on the v to get the schema to use for
 	// communicating with schema-registry and backward compatible evolutions fail beause if dataloss during reflection.
 	// For example, if a field has a default value, the reflection doesn't pick this up
 	schema string
@@ -76,7 +76,7 @@ type zfmtShim struct {
 }
 
 func (f zfmtShim) marshall(req marshReq) ([]byte, error) {
-	return f.F.Marshall(req.subject)
+	return f.F.Marshall(req.v)
 }
 
 func (f zfmtShim) unmarshal(req unmarshReq) error {
@@ -119,7 +119,7 @@ func (f avroSchemaRegistryFormatter) marshall(req marshReq) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get schema from payload: %w", err)
 	}
-	msgBytes, err := avro.Marshal(avroSchema, req.subject)
+	msgBytes, err := avro.Marshal(avroSchema, req.v)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marhall payload per avro schema: %w", err)
 	}
@@ -177,7 +177,7 @@ func newProtoSchemaRegistryFormatter(pfmt protoFmt) protoSchemaRegistryFormatter
 }
 
 func (f protoSchemaRegistryFormatter) marshall(req marshReq) ([]byte, error) {
-	msgBytes, err := f.pfmt.ser.Serialize(req.topic, req.subject)
+	msgBytes, err := f.pfmt.ser.Serialize(req.topic, req.v)
 	if err != nil {
 		return nil, fmt.Errorf("failed to proto serialize: %w", err)
 	}
@@ -202,7 +202,7 @@ func newJsonSchemaRegistryFormatter(jfmt jsonFmt) jsonSchemaRegistryFormatter {
 }
 
 func (f jsonSchemaRegistryFormatter) marshall(req marshReq) ([]byte, error) {
-	msgBytes, err := f.jfmt.ser.Serialize(req.topic, req.subject)
+	msgBytes, err := f.jfmt.ser.Serialize(req.topic, req.v)
 	if err != nil {
 		return nil, fmt.Errorf("failed to json schema serialize: %w", err)
 	}

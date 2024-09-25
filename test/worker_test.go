@@ -203,6 +203,7 @@ func TestWork_Run_CircuitBreaksOnProcessError(t *testing.T) {
 		zkafka.ConsumerTopicConfig{Topic: topicName},
 		kproc,
 		zkafka.CircuitBreakAfter(1), // Circuit breaks after 1 error.
+		zkafka.WithDisableCircuitBreaker(false),
 		zkafka.CircuitBreakFor(50*time.Millisecond),
 		zkafka.WithOnDone(func(ctx context.Context, message *zkafka.Message, err error) {
 			cnt.Add(1)
@@ -443,7 +444,7 @@ func TestWork_Run_DisabledCircuitBreakerContinueReadError(t *testing.T) {
 	w := kwf.Create(
 		zkafka.ConsumerTopicConfig{Topic: topicName},
 		&fakeProcessor{},
-		zkafka.DisableCircuitBreaker(),
+		zkafka.WithDisableCircuitBreaker(true),
 		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 			cnt.Add(1)
 		}}),
@@ -966,7 +967,7 @@ func TestWork_WithDeadLetterTopic_FailedToGetWriterDoesntPauseProcessing(t *test
 			},
 		},
 		&processor,
-		zkafka.DisableCircuitBreaker(),
+		zkafka.WithDisableCircuitBreaker(true),
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1564,7 +1565,6 @@ func TestWork_CircuitBreaker_WithoutBusyLoopBreaker_DoesNotWaitsForCircuitToOpen
 	kcp := zkafka_mocks.NewMockClientProvider(ctrl)
 	kcp.EXPECT().Reader(gomock.Any(), gomock.Any()).Return(r, nil).AnyTimes()
 
-	//l := zkafka.NoopLogger{}
 	l := stdLogger{includeDebug: true}
 	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
 
@@ -1578,7 +1578,7 @@ func TestWork_CircuitBreaker_WithoutBusyLoopBreaker_DoesNotWaitsForCircuitToOpen
 				return errors.New("an error occurred during processing")
 			},
 		},
-		zkafka.DisableBusyLoopBreaker(),
+		zkafka.WithDisableBusyLoopBreaker(true),
 		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 			fanOutCount.Add(1)
 		}}),
@@ -2132,7 +2132,7 @@ func BenchmarkWork_Run_CircuitBreaker_DisableBusyLoopBreaker(b *testing.B) {
 		zkafka.Speedup(10),
 		zkafka.CircuitBreakAfter(100),
 		zkafka.CircuitBreakFor(30*time.Millisecond),
-		zkafka.DisableBusyLoopBreaker(),
+		zkafka.WithDisableCircuitBreaker(true),
 	)
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second)

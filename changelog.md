@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
+## 1.3.0 (Sep 25, 2024)
+
+1. Added `WithDisableCircuitBreaker` and `WithDisableBusyLoopBreaker` options. These are variants of the now deprecated `DisableCircuitBreaker`
+and `DisableBusyLoopBreaker` options. They provide a booling parameter which is more convenient for usage with
+code generation and for shimming with configuration.
+
 ## 1.2.0 (Sep 23, 2024)
 
 1. Update to allow subject name specification (not just TopicNameStrategy)

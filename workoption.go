@@ -26,15 +26,26 @@ func CircuitBreakFor(duration time.Duration) WorkOption {
 	return circuitBreakForOption{duration: duration}
 }
 
-// DisableCircuitBreaker disables the circuit breaker so that it never breaks
+// Deprecated: DisableCircuitBreaker disables the circuit breaker so that it never breaks
 func DisableCircuitBreaker() WorkOption {
-	return disableCbOption{}
+	return WithDisableCircuitBreaker(true)
 }
 
-// DisableBusyLoopBreaker disables the busy loop breaker which would block subsequent read calls till the circuit re-closes.
+// WithDisableCircuitBreaker allows the user to control whether circuit breaker is disabled or not
+func WithDisableCircuitBreaker(isDisabled bool) WorkOption {
+	return disableCbOption{disabled: isDisabled}
+}
+
+// Deprecated: DisableBusyLoopBreaker disables the busy loop breaker which would block subsequent read calls till the circuit re-closes.
 // Without blb we see increased cpu usage when circuit is open
 func DisableBusyLoopBreaker() WorkOption {
-	return disableBlbOption{}
+	return WithDisableBusyLoopBreaker(true)
+}
+
+// WithDisableBusyLoopBreaker disables the busy loop breaker which would block subsequent read calls till the circuit re-closes.
+// Without blb we see increased cpu usage when circuit is open
+func WithDisableBusyLoopBreaker(isDisabled bool) WorkOption {
+	return disableBlbOption{disabled: isDisabled}
 }
 
 // WithOnDone allows you to specify a callback function executed after processing of a kafka message
@@ -75,7 +86,9 @@ func (c circuitBreakForOption) apply(w *Work) {
 	}
 }
 
-type disableCbOption struct{}
+type disableCbOption struct {
+	disabled bool
+}
 
 func (d disableCbOption) apply(w *Work) {
 	w.disableCb = true
@@ -99,7 +112,9 @@ func (o lifeCycleOption) apply(w *Work) {
 	w.lifecycle = o.lh
 }
 
-type disableBlbOption struct{}
+type disableBlbOption struct {
+	disabled bool
+}
 
 func (d disableBlbOption) apply(w *Work) {
 	w.blb.disabled = true

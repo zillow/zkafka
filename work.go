@@ -83,7 +83,7 @@ type Work struct {
 	// Duration for which a circuit is open. Use CircuitBreakFor to control
 	cbFor *time.Duration
 
-	// Disable circuit breaking. Use DisableCircuitBreaker to control
+	// Disable circuit breaking. Use WithDisableCircuitBreaker to control
 	disableCb bool
 
 	// Busy loop breaker. When circuit breaker circuit is open, instead of consuming cpu in a busy loop

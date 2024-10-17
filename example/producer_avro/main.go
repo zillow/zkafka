@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/zillow/zkafka"
+	"github.com/zillow/zkafka/v2"
 )
 
 //go:embed event.avsc

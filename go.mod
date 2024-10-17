@@ -1,4 +1,4 @@
-module github.com/zillow/zkafka
+module github.com/zillow/zkafka/v2
 
 go 1.23
 

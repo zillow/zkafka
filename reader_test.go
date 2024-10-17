@@ -9,7 +9,7 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/stretchr/testify/require"
-	mock_confluent "github.com/zillow/zkafka/mocks/confluent"
+	mock_confluent "github.com/zillow/zkafka/v2/mocks/confluent"
 
 	"github.com/zillow/zfmt"
 	"go.uber.org/mock/gomock"

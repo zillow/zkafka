@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/zillow/zfmt"
-	"github.com/zillow/zkafka"
+	"github.com/zillow/zkafka/v2"
 )
 
 func main() {

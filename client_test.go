@@ -14,7 +14,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/require"
 	"github.com/zillow/zfmt"
-	mock_confluent "github.com/zillow/zkafka/mocks/confluent"
+	mock_confluent "github.com/zillow/zkafka/v2/mocks/confluent"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"

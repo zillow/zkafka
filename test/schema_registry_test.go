@@ -13,11 +13,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/zillow/zfmt"
-	"github.com/zillow/zkafka"
-	"github.com/zillow/zkafka/test/evolution/avro1"
-	avro1x "github.com/zillow/zkafka/test/evolution/avro1x"
-	"github.com/zillow/zkafka/test/evolution/json1"
-	"github.com/zillow/zkafka/test/evolution/proto1"
+	"github.com/zillow/zkafka/v2"
+	"github.com/zillow/zkafka/v2/test/evolution/avro1"
+	avro1x "github.com/zillow/zkafka/v2/test/evolution/avro1x"
+	"github.com/zillow/zkafka/v2/test/evolution/json1"
+	"github.com/zillow/zkafka/v2/test/evolution/proto1"
 )
 
 //go:embed evolution/schema_1.avsc

@@ -11,8 +11,8 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/stretchr/testify/require"
 	"github.com/zillow/zfmt"
-	"github.com/zillow/zkafka"
-	mock_confluent "github.com/zillow/zkafka/mocks/confluent"
+	"github.com/zillow/zkafka/v2"
+	mock_confluent "github.com/zillow/zkafka/v2/mocks/confluent"
 	"go.uber.org/mock/gomock"
 )
 

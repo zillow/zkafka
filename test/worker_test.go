@@ -16,8 +16,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/zillow/zfmt"
-	"github.com/zillow/zkafka"
-	zkafka_mocks "github.com/zillow/zkafka/mocks"
+	"github.com/zillow/zkafka/v2"
+	zkafka_mocks "github.com/zillow/zkafka/v2/mocks"
 	"golang.org/x/sync/errgroup"
 
 	"go.uber.org/mock/gomock"

@@ -18,7 +18,7 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	mock_confluent "github.com/zillow/zkafka/mocks/confluent"
+	mock_confluent "github.com/zillow/zkafka/v2/mocks/confluent"
 	"go.uber.org/mock/gomock"
 )
 

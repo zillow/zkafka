@@ -4,7 +4,6 @@ go 1.23
 
 require (
 	github.com/confluentinc/confluent-kafka-go/v2 v2.5.3
-	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/hamba/avro/v2 v2.24.0
@@ -14,6 +13,7 @@ require (
 	github.com/zillow/zfmt v1.0.1
 	go.opentelemetry.io/otel v1.30.0
 	go.opentelemetry.io/otel/trace v1.30.0
+	go.uber.org/mock v0.4.0
 	golang.org/x/sync v0.8.0
 	google.golang.org/protobuf v1.34.2
 )

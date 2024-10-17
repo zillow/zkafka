@@ -20,7 +20,7 @@ import (
 	zkafka_mocks "github.com/zillow/zkafka/mocks"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 )
 
 const (
@@ -1839,7 +1839,7 @@ func Test_MsgOrderingIsMaintainedPerKeyWithAnyNumberOfVirtualPartitions(t *testi
 	l := zkafka.NoopLogger{}
 
 	mockReader := zkafka_mocks.NewMockReader(ctrl)
-	var readerCalls []*gomock.Call
+	var readerCalls []any
 	keyCount := 3
 	msgCount := 200
 	for i := 0; i < msgCount; i++ {

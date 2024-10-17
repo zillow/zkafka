@@ -18,8 +18,8 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/golang/mock/gomock"
 	mock_confluent "github.com/zillow/zkafka/mocks/confluent"
+	"go.uber.org/mock/gomock"
 )
 
 func TestWork_processTimeoutMillis(t *testing.T) {
@@ -142,7 +142,7 @@ func TestWork_ShouldCommitMessagesProperly(t *testing.T) {
 
 	consumer := mock_confluent.NewMockKafkaConsumer(ctrl)
 	consumer.EXPECT().SubscribeTopics(gomock.Any(), gomock.Any()).Times(1)
-	var consumerCalls []*gomock.Call
+	var consumerCalls []any
 
 	msgToDelay := make(map[key]time.Duration)
 	for i := range inputs {
@@ -285,7 +285,7 @@ func TestWork_CommitManagerIsEmptyAfterAllProcessingCompletes(t *testing.T) {
 
 	consumer := mock_confluent.NewMockKafkaConsumer(ctrl)
 	consumer.EXPECT().SubscribeTopics(gomock.Any(), gomock.Any()).Times(1)
-	var consumerCalls []*gomock.Call
+	var consumerCalls []any
 
 	msgToDelay := make(map[key]time.Duration)
 	for i := range inputs {
@@ -407,8 +407,7 @@ func TestWork_WithDoneWithContext(t *testing.T) {
 
 	consumer := mock_confluent.NewMockKafkaConsumer(ctrl)
 	consumer.EXPECT().SubscribeTopics(gomock.Any(), gomock.Any()).Times(1)
-	var consumerCalls []*gomock.Call
-
+	var consumerCalls []any
 	msgToDelay := make(map[key]time.Duration)
 	for i := range inputs {
 		input := inputs[i]

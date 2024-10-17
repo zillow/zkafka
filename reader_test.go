@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	mock_confluent "github.com/zillow/zkafka/mocks/confluent"
 
-	"github.com/golang/mock/gomock"
 	"github.com/zillow/zfmt"
+	"go.uber.org/mock/gomock"
 )
 
 func TestReader_Read_NilReturn(t *testing.T) {

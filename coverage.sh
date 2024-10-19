@@ -6,7 +6,7 @@ set -x
 # proto panics in such a situation. Setting this envvar ignores that check
 export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
 # golang packages that will be used for either testing or will be assessed for coverage
-pck1=github.com/zillow/zkafka
+pck1=github.com/zillow/zkafka/v2
 pck2=$pck1/test
 
 topdir=$(pwd)

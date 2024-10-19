@@ -2,9 +2,9 @@ module github.com/zillow/zkafka/v2/example/producer_avro
 
 go 1.23.1
 
-replace github.com/zillow/zkafka/v2 v1.0.0 => ../..
+replace github.com/zillow/zkafka/v2 v2.0.0 => ../..
 
-require github.com/zillow/zkafka/v2 v1.0.0
+require github.com/zillow/zkafka/v2 v2.0.0
 
 require (
 	github.com/actgardner/gogen-avro/v10 v10.2.1 // indirect

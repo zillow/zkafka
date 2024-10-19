@@ -7,6 +7,7 @@ This project adheres to Semantic Versioning.
 ## 2.0.0 (October 17, 2024)
 
 1. Removed dependency on github.com/golang/mock (deprecated) in favor of github.com/uber-go/mock 
+2. Bugfixes in `WithDisableCircuitBreaker` and `WithDisableBusyLoopBreaker` options implementation
 
 ## 1.3.0 (Sep 25, 2024)
 

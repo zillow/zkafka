@@ -91,7 +91,7 @@ type disableCbOption struct {
 }
 
 func (d disableCbOption) apply(w *Work) {
-	w.disableCb = true
+	w.disableCb = d.disabled
 }
 
 type onDoneOption struct {
@@ -117,7 +117,7 @@ type disableBlbOption struct {
 }
 
 func (d disableBlbOption) apply(w *Work) {
-	w.blb.disabled = true
+	w.blb.disabled = d.disabled
 }
 
 type dltOption struct {

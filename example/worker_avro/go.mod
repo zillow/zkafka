@@ -2,11 +2,11 @@ module github.com/zillow/zkafka/v2/example/worker_avro
 
 go 1.23.1
 
-replace github.com/zillow/zkafka/v2 v1.0.0 => ../..
+replace github.com/zillow/zkafka/v2 v2.0.0 => ../..
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/zillow/zkafka/v2 v1.0.0
+	github.com/zillow/zkafka/v2 v2.0.0
 )
 
 require (

@@ -16,11 +16,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/zillow/zfmt"
-	"github.com/zillow/zkafka"
-	zkafka_mocks "github.com/zillow/zkafka/mocks"
+	"github.com/zillow/zkafka/v2"
+	zkafka_mocks "github.com/zillow/zkafka/v2/mocks"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 )
 
 const (
@@ -1839,7 +1839,7 @@ func Test_MsgOrderingIsMaintainedPerKeyWithAnyNumberOfVirtualPartitions(t *testi
 	l := zkafka.NoopLogger{}
 
 	mockReader := zkafka_mocks.NewMockReader(ctrl)
-	var readerCalls []*gomock.Call
+	var readerCalls []any
 	keyCount := 3
 	msgCount := 200
 	for i := 0; i < msgCount; i++ {

@@ -17,7 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/zillow/zfmt"
-	"github.com/zillow/zkafka"
+	"github.com/zillow/zkafka/v2"
 	"golang.org/x/sync/errgroup"
 )
 

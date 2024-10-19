@@ -22,7 +22,7 @@ type ClientProvider interface {
 // static type checking for the convenient Writer interface
 var _ ClientProvider = (*Client)(nil)
 
-const instrumentationName = "github.com/zillow/zkafka"
+const instrumentationName = "github.com/zillow/zkafka/v2"
 
 // Client helps instantiate usable readers and writers
 type Client struct {

@@ -17,13 +17,13 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/zillow/zkafka"
-	"github.com/zillow/zkafka/test/evolution/avro1"
-	"github.com/zillow/zkafka/test/evolution/avro2"
-	"github.com/zillow/zkafka/test/evolution/json1"
-	"github.com/zillow/zkafka/test/evolution/json2"
-	"github.com/zillow/zkafka/test/evolution/proto1"
-	"github.com/zillow/zkafka/test/evolution/proto2"
+	"github.com/zillow/zkafka/v2"
+	"github.com/zillow/zkafka/v2/test/evolution/avro1"
+	"github.com/zillow/zkafka/v2/test/evolution/avro2"
+	"github.com/zillow/zkafka/v2/test/evolution/json1"
+	"github.com/zillow/zkafka/v2/test/evolution/json2"
+	"github.com/zillow/zkafka/v2/test/evolution/proto1"
+	"github.com/zillow/zkafka/v2/test/evolution/proto2"
 )
 
 // Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom tests

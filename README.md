@@ -7,7 +7,7 @@
 
 ## Install
 
-`go get -u github.com/zillow/zkafka`
+`go get -u github.com/zillow/zkafka/v2`
 
 ## About
 

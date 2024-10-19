@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/zillow/zkafka"
+	"github.com/zillow/zkafka/v2"
 )
 
 //go:embed event.avsc

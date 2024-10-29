@@ -3,7 +3,7 @@ module github.com/zillow/zkafka/v2
 go 1.23
 
 require (
-	github.com/confluentinc/confluent-kafka-go/v2 v2.5.3
+	github.com/confluentinc/confluent-kafka-go/v2 v2.6.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/hamba/avro/v2 v2.24.0

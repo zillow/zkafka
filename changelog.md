@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
+## 2.0.2 (Nov 18, 2024)
+
+1. Updated `confluent-kafka-go` version `2.6.1` along with other dependencies
+
 ## 2.0.1 (October 29, 2024)
 
 1. Updated `confluent-kafka-go` version `2.6.0` to address security vulnerability.

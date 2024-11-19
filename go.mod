@@ -3,10 +3,10 @@ module github.com/zillow/zkafka/v2
 go 1.23
 
 require (
-	github.com/confluentinc/confluent-kafka-go/v2 v2.6.0
+	github.com/confluentinc/confluent-kafka-go/v2 v2.6.1
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/hamba/avro/v2 v2.24.0
+	github.com/hamba/avro/v2 v2.27.0
 	github.com/heetch/avro v0.4.5
 	github.com/sony/gobreaker v1.0.0
 	github.com/stretchr/testify v1.9.0
@@ -15,7 +15,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.30.0
 	go.uber.org/mock v0.4.0
 	golang.org/x/sync v0.8.0
-	google.golang.org/protobuf v1.34.2
+	google.golang.org/protobuf v1.35.2
 )
 
 require (

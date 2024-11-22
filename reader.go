@@ -120,7 +120,6 @@ func (r *KReader) Read(ctx context.Context) (*Message, error) {
 			// timeouts occur (because the assigned partitions aren't being written to, lack of activity, etc.). We'll
 			// log them for debugging purposes
 			if v.Code() == kafka.ErrTimedOut {
-				r.logger.Debugw(ctx, "timed out on read", "topics", r.topicConfig.topics())
 				return nil, nil
 			}
 			if v.IsRetriable() {

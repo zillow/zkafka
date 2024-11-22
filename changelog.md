@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
+## 2.0.3 (Nov 22, 2024)
+
+1. Updated `go.uber.org/mock` version `0.5.0` 
+2. Updated `golang.org/x/sync` version `0.9.0`
+3. Removed noisy log `Timed out on read`
+
 ## 2.0.2 (Nov 18, 2024)
 
 1. Updated `confluent-kafka-go` version `2.6.1` along with other dependencies

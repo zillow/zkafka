@@ -21,6 +21,7 @@ import (
 type MockKafkaConsumer struct {
 	ctrl     *gomock.Controller
 	recorder *MockKafkaConsumerMockRecorder
+	isgomock struct{}
 }
 
 // MockKafkaConsumerMockRecorder is the mock recorder for MockKafkaConsumer.
@@ -99,45 +100,45 @@ func (mr *MockKafkaConsumerMockRecorder) Commit() *gomock.Call {
 }
 
 // ReadMessage mocks base method.
-func (m *MockKafkaConsumer) ReadMessage(arg0 time.Duration) (*kafka.Message, error) {
+func (m *MockKafkaConsumer) ReadMessage(timeout time.Duration) (*kafka.Message, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadMessage", arg0)
+	ret := m.ctrl.Call(m, "ReadMessage", timeout)
 	ret0, _ := ret[0].(*kafka.Message)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ReadMessage indicates an expected call of ReadMessage.
-func (mr *MockKafkaConsumerMockRecorder) ReadMessage(arg0 any) *gomock.Call {
+func (mr *MockKafkaConsumerMockRecorder) ReadMessage(timeout any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadMessage", reflect.TypeOf((*MockKafkaConsumer)(nil).ReadMessage), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadMessage", reflect.TypeOf((*MockKafkaConsumer)(nil).ReadMessage), timeout)
 }
 
 // StoreOffsets mocks base method.
-func (m *MockKafkaConsumer) StoreOffsets(arg0 []kafka.TopicPartition) ([]kafka.TopicPartition, error) {
+func (m *MockKafkaConsumer) StoreOffsets(offsets []kafka.TopicPartition) ([]kafka.TopicPartition, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreOffsets", arg0)
+	ret := m.ctrl.Call(m, "StoreOffsets", offsets)
 	ret0, _ := ret[0].([]kafka.TopicPartition)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // StoreOffsets indicates an expected call of StoreOffsets.
-func (mr *MockKafkaConsumerMockRecorder) StoreOffsets(arg0 any) *gomock.Call {
+func (mr *MockKafkaConsumerMockRecorder) StoreOffsets(offsets any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreOffsets", reflect.TypeOf((*MockKafkaConsumer)(nil).StoreOffsets), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreOffsets", reflect.TypeOf((*MockKafkaConsumer)(nil).StoreOffsets), offsets)
 }
 
 // SubscribeTopics mocks base method.
-func (m *MockKafkaConsumer) SubscribeTopics(arg0 []string, arg1 kafka.RebalanceCb) error {
+func (m *MockKafkaConsumer) SubscribeTopics(topics []string, rebalanceCb kafka.RebalanceCb) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SubscribeTopics", arg0, arg1)
+	ret := m.ctrl.Call(m, "SubscribeTopics", topics, rebalanceCb)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SubscribeTopics indicates an expected call of SubscribeTopics.
-func (mr *MockKafkaConsumerMockRecorder) SubscribeTopics(arg0, arg1 any) *gomock.Call {
+func (mr *MockKafkaConsumerMockRecorder) SubscribeTopics(topics, rebalanceCb any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeTopics", reflect.TypeOf((*MockKafkaConsumer)(nil).SubscribeTopics), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeTopics", reflect.TypeOf((*MockKafkaConsumer)(nil).SubscribeTopics), topics, rebalanceCb)
 }

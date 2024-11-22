@@ -20,6 +20,7 @@ import (
 type MockKafkaProducer struct {
 	ctrl     *gomock.Controller
 	recorder *MockKafkaProducerMockRecorder
+	isgomock struct{}
 }
 
 // MockKafkaProducerMockRecorder is the mock recorder for MockKafkaProducer.
@@ -52,15 +53,15 @@ func (mr *MockKafkaProducerMockRecorder) Close() *gomock.Call {
 }
 
 // Produce mocks base method.
-func (m *MockKafkaProducer) Produce(arg0 *kafka.Message, arg1 chan kafka.Event) error {
+func (m *MockKafkaProducer) Produce(msg *kafka.Message, deliveryChan chan kafka.Event) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Produce", arg0, arg1)
+	ret := m.ctrl.Call(m, "Produce", msg, deliveryChan)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Produce indicates an expected call of Produce.
-func (mr *MockKafkaProducerMockRecorder) Produce(arg0, arg1 any) *gomock.Call {
+func (mr *MockKafkaProducerMockRecorder) Produce(msg, deliveryChan any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Produce", reflect.TypeOf((*MockKafkaProducer)(nil).Produce), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Produce", reflect.TypeOf((*MockKafkaProducer)(nil).Produce), msg, deliveryChan)
 }

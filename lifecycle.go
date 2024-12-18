@@ -110,7 +110,7 @@ func ChainLifecycleHooks(hooks ...LifecycleHooks) LifecycleHooks {
 		},
 		PostReadImmediate: func(ctx context.Context, meta LifecyclePostReadImmediateMeta) {
 			for _, h := range hooks {
-				if h.PostRead != nil {
+				if h.PostReadImmediate != nil {
 					h.PostReadImmediate(ctx, meta)
 				}
 			}

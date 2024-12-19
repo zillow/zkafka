@@ -110,7 +110,7 @@ func ChainLifecycleHooks(hooks ...LifecycleHooks) LifecycleHooks {
 		},
 		PostReadImmediate: func(ctx context.Context, meta LifecyclePostReadImmediateMeta) {
 			for _, h := range hooks {
-				if h.PostRead != nil {
+				if h.PostReadImmediate != nil {
 					h.PostReadImmediate(ctx, meta)
 				}
 			}
@@ -168,7 +168,7 @@ func ChainLifecycleHooks(hooks ...LifecycleHooks) LifecycleHooks {
 				Headers: make(map[string][]byte),
 			}
 			for _, h := range hooks {
-				if h.PreProcessing != nil {
+				if h.PreWrite != nil {
 					var err error
 
 					resp, err := h.PreWrite(ctx, meta)
@@ -185,7 +185,7 @@ func ChainLifecycleHooks(hooks ...LifecycleHooks) LifecycleHooks {
 		},
 		PostFanout: func(ctx context.Context) {
 			for _, h := range hooks {
-				if h.PostRead != nil {
+				if h.PostFanout != nil {
 					h.PostFanout(ctx)
 				}
 			}

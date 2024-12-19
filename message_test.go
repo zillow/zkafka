@@ -323,7 +323,7 @@ func TestMessage_Value(t *testing.T) {
 		value: []byte(valueStr),
 	}
 	got := m.Value()
-	require.NotSame(t, m.value, got, "should not return the same reference")
+	require.NotSame(t, &m.value, &got, "should not return the same reference")
 	require.Equal(t, valueStr, string(got), "should return the same string representation")
 }
 

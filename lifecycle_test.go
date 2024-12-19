@@ -70,7 +70,8 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 
 	lh := ChainLifecycleHooks(hooks1, hooks2)
 
-	lh.PreProcessing(context.Background(), LifecyclePreProcessingMeta{})
+	_, err := lh.PreProcessing(context.Background(), LifecyclePreProcessingMeta{})
+	require.NoError(t, err)
 	require.Equal(t, 1, lhState["hooks1-pre-processing"])
 	require.Equal(t, 1, lhState["hooks2-pre-processing"])
 	require.Equal(t, 0, lhState["hooks1-post-processing"])
@@ -88,7 +89,8 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 	require.Equal(t, 0, lhState["hooks1-post-read-immediate"])
 	require.Equal(t, 0, lhState["hooks2-post-read-immediate"])
 
-	lh.PostProcessing(context.Background(), LifecyclePostProcessingMeta{})
+	err = lh.PostProcessing(context.Background(), LifecyclePostProcessingMeta{})
+	require.NoError(t, err)
 	require.Equal(t, 1, lhState["hooks1-pre-processing"])
 	require.Equal(t, 1, lhState["hooks2-pre-processing"])
 	require.Equal(t, 1, lhState["hooks1-post-processing"])
@@ -106,7 +108,8 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 	require.Equal(t, 0, lhState["hooks1-post-read-immediate"])
 	require.Equal(t, 0, lhState["hooks2-post-read-immediate"])
 
-	lh.PostRead(context.Background(), LifecyclePostReadMeta{})
+	_, err = lh.PostRead(context.Background(), LifecyclePostReadMeta{})
+	require.NoError(t, err)
 	require.Equal(t, 1, lhState["hooks1-pre-processing"])
 	require.Equal(t, 1, lhState["hooks2-pre-processing"])
 	require.Equal(t, 1, lhState["hooks1-post-processing"])
@@ -124,7 +127,8 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 	require.Equal(t, 0, lhState["hooks1-post-read-immediate"])
 	require.Equal(t, 0, lhState["hooks2-post-read-immediate"])
 
-	lh.PostAck(context.Background(), LifecyclePostAckMeta{})
+	err = lh.PostAck(context.Background(), LifecyclePostAckMeta{})
+	require.NoError(t, err)
 	require.Equal(t, 1, lhState["hooks1-pre-processing"])
 	require.Equal(t, 1, lhState["hooks2-pre-processing"])
 	require.Equal(t, 1, lhState["hooks1-post-processing"])
@@ -140,7 +144,8 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 	require.Equal(t, 0, lhState["hooks1-post-read-immediate"])
 	require.Equal(t, 0, lhState["hooks2-post-read-immediate"])
 
-	lh.PreWrite(context.Background(), LifecyclePreWriteMeta{})
+	_, err = lh.PreWrite(context.Background(), LifecyclePreWriteMeta{})
+	require.NoError(t, err)
 	require.Equal(t, 1, lhState["hooks1-pre-processing"])
 	require.Equal(t, 1, lhState["hooks2-pre-processing"])
 	require.Equal(t, 1, lhState["hooks1-post-processing"])
@@ -189,4 +194,121 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 	require.Equal(t, 1, lhState["hooks2-post-fanout"])
 	require.Equal(t, 1, lhState["hooks1-post-read-immediate"])
 	require.Equal(t, 1, lhState["hooks2-post-read-immediate"])
+}
+
+// Test_LifecycleChainedNilPostReadImmediateInvocation confirms the invocation of a lifecycle hook method constructed
+// via `ChainLifecycleHooks` which is nil doesn't panic. This in response to a bug where incorrect nil checks resulted
+// in panicked invocations
+func Test_LifecycleChainedNilPostReadImmediateInvocation(t *testing.T) {
+	defer recoverThenFail(t)
+
+	h1 := noopLifecycleHooks()
+	h1.PostReadImmediate = nil
+	h2 := LifecycleHooks{}
+	chained := ChainLifecycleHooks(h1, h2)
+
+	chained.PostReadImmediate(context.Background(), LifecyclePostReadImmediateMeta{})
+}
+
+// Test_LifecycleChainedNilPostReadInvocation confirms the invocation of a lifecycle hook method constructed
+// via `ChainLifecycleHooks` which is nil doesn't panic. This in response to a bug where incorrect nil checks resulted
+// in panicked invocations
+func Test_LifecycleChainedNilPostReadInvocation(t *testing.T) {
+	defer recoverThenFail(t)
+
+	h1 := noopLifecycleHooks()
+	h1.PostRead = nil
+	h2 := LifecycleHooks{}
+	chained := ChainLifecycleHooks(h1, h2)
+
+	_, err := chained.PostRead(context.Background(), LifecyclePostReadMeta{})
+	require.NoError(t, err)
+}
+
+// Test_LifecycleChainedNilPreProcessingInvocation confirms the invocation of a lifecycle hook method constructed
+// via `ChainLifecycleHooks` which is nil doesn't panic. This in response to a bug where incorrect nil checks resulted
+// in panicked invocations
+func Test_LifecycleChainedNilPreProcessingInvocation(t *testing.T) {
+	defer recoverThenFail(t)
+
+	h1 := noopLifecycleHooks()
+	h1.PreProcessing = nil
+	h2 := LifecycleHooks{}
+	chained := ChainLifecycleHooks(h1, h2)
+
+	_, err := chained.PreProcessing(context.Background(), LifecyclePreProcessingMeta{})
+	require.NoError(t, err)
+}
+
+// Test_LifecycleChainedNilPostProcessingInvocation confirms the invocation of a lifecycle hook method constructed
+// via `ChainLifecycleHooks` which is nil doesn't panic. This in response to a bug where incorrect nil checks resulted
+// in panicked invocations
+func Test_LifecycleChainedNilPostProcessingInvocation(t *testing.T) {
+	defer recoverThenFail(t)
+
+	h1 := noopLifecycleHooks()
+	h1.PostProcessing = nil
+	h2 := LifecycleHooks{}
+	chained := ChainLifecycleHooks(h1, h2)
+
+	err := chained.PostProcessing(context.Background(), LifecyclePostProcessingMeta{})
+	require.NoError(t, err)
+}
+
+// Test_LifecycleChainedNiPostAckInvocation confirms the invocation of a lifecycle hook method constructed
+// via `ChainLifecycleHooks` which is nil doesn't panic. This in response to a bug where incorrect nil checks resulted
+// in panicked invocations
+func Test_LifecycleChainedNiPostAckInvocation(t *testing.T) {
+	defer recoverThenFail(t)
+
+	h1 := noopLifecycleHooks()
+	h1.PostAck = nil
+	h2 := LifecycleHooks{}
+	chained := ChainLifecycleHooks(h1, h2)
+
+	err := chained.PostAck(context.Background(), LifecyclePostAckMeta{})
+	require.NoError(t, err)
+}
+
+// Test_LifecycleChainedNilPreWriteInvocation confirms the invocation of a lifecycle hook method constructed
+// via `ChainLifecycleHooks` which is nil doesn't panic. This in response to a bug where incorrect nil checks resulted
+// in panicked invocations
+func Test_LifecycleChainedNilPreWriteInvocation(t *testing.T) {
+	defer recoverThenFail(t)
+
+	h1 := noopLifecycleHooks()
+	h1.PreWrite = nil
+	h2 := LifecycleHooks{}
+	chained := ChainLifecycleHooks(h1, h2)
+
+	_, err := chained.PreWrite(context.Background(), LifecyclePreWriteMeta{})
+	require.NoError(t, err)
+}
+
+// Test_LifecycleChainedNilPostFanoutInvocation confirms the invocation of a lifecycle hook method constructed
+// via `ChainLifecycleHooks` which is nil doesn't panic. This in response to a bug where incorrect nil checks resulted
+// in panicked invocations
+func Test_LifecycleChainedNilPostFanoutInvocation(t *testing.T) {
+	defer recoverThenFail(t)
+
+	h1 := noopLifecycleHooks()
+	h1.PostFanout = nil
+	h2 := LifecycleHooks{}
+	chained := ChainLifecycleHooks(h1, h2)
+
+	chained.PostFanout(context.Background())
+}
+
+func noopLifecycleHooks() LifecycleHooks {
+	return LifecycleHooks{
+		PostRead:          func(ctx context.Context, meta LifecyclePostReadMeta) (context.Context, error) { return nil, nil },
+		PostReadImmediate: func(ctx context.Context, meta LifecyclePostReadImmediateMeta) {},
+		PreProcessing:     func(ctx context.Context, meta LifecyclePreProcessingMeta) (context.Context, error) { return nil, nil },
+		PostProcessing:    func(ctx context.Context, meta LifecyclePostProcessingMeta) error { return nil },
+		PostAck:           func(ctx context.Context, meta LifecyclePostAckMeta) error { return nil },
+		PreWrite: func(ctx context.Context, meta LifecyclePreWriteMeta) (LifecyclePreWriteResp, error) {
+			return LifecyclePreWriteResp{}, nil
+		},
+		PostFanout: func(ctx context.Context) {},
+	}
 }

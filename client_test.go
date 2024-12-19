@@ -1269,6 +1269,7 @@ func assertEqual(t *testing.T, got, want any, opts ...cmp.Option) {
 }
 
 func recoverThenFail(t *testing.T) {
+	t.Helper()
 	if r := recover(); r != nil {
 		fmt.Print(string(debug.Stack()))
 		t.Fatal(r)

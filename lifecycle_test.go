@@ -70,7 +70,8 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 
 	lh := ChainLifecycleHooks(hooks1, hooks2)
 
-	lh.PreProcessing(context.Background(), LifecyclePreProcessingMeta{})
+	_, err := lh.PreProcessing(context.Background(), LifecyclePreProcessingMeta{})
+	require.NoError(t, err)
 	require.Equal(t, 1, lhState["hooks1-pre-processing"])
 	require.Equal(t, 1, lhState["hooks2-pre-processing"])
 	require.Equal(t, 0, lhState["hooks1-post-processing"])
@@ -88,7 +89,8 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 	require.Equal(t, 0, lhState["hooks1-post-read-immediate"])
 	require.Equal(t, 0, lhState["hooks2-post-read-immediate"])
 
-	lh.PostProcessing(context.Background(), LifecyclePostProcessingMeta{})
+	err = lh.PostProcessing(context.Background(), LifecyclePostProcessingMeta{})
+	require.NoError(t, err)
 	require.Equal(t, 1, lhState["hooks1-pre-processing"])
 	require.Equal(t, 1, lhState["hooks2-pre-processing"])
 	require.Equal(t, 1, lhState["hooks1-post-processing"])
@@ -106,7 +108,8 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 	require.Equal(t, 0, lhState["hooks1-post-read-immediate"])
 	require.Equal(t, 0, lhState["hooks2-post-read-immediate"])
 
-	lh.PostRead(context.Background(), LifecyclePostReadMeta{})
+	_, err = lh.PostRead(context.Background(), LifecyclePostReadMeta{})
+	require.NoError(t, err)
 	require.Equal(t, 1, lhState["hooks1-pre-processing"])
 	require.Equal(t, 1, lhState["hooks2-pre-processing"])
 	require.Equal(t, 1, lhState["hooks1-post-processing"])
@@ -124,7 +127,8 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 	require.Equal(t, 0, lhState["hooks1-post-read-immediate"])
 	require.Equal(t, 0, lhState["hooks2-post-read-immediate"])
 
-	lh.PostAck(context.Background(), LifecyclePostAckMeta{})
+	err = lh.PostAck(context.Background(), LifecyclePostAckMeta{})
+	require.NoError(t, err)
 	require.Equal(t, 1, lhState["hooks1-pre-processing"])
 	require.Equal(t, 1, lhState["hooks2-pre-processing"])
 	require.Equal(t, 1, lhState["hooks1-post-processing"])
@@ -140,7 +144,8 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 	require.Equal(t, 0, lhState["hooks1-post-read-immediate"])
 	require.Equal(t, 0, lhState["hooks2-post-read-immediate"])
 
-	lh.PreWrite(context.Background(), LifecyclePreWriteMeta{})
+	_, err = lh.PreWrite(context.Background(), LifecyclePreWriteMeta{})
+	require.NoError(t, err)
 	require.Equal(t, 1, lhState["hooks1-pre-processing"])
 	require.Equal(t, 1, lhState["hooks2-pre-processing"])
 	require.Equal(t, 1, lhState["hooks1-post-processing"])

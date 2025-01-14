@@ -4,7 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
+## 2.0.5 (Jan 14, 2024)
+
+1. Updated confluent-kafka-go-2.8.0
+
 ## 2.0.4 (Dec 19, 2024)
+
 1. Bugfix in `ChainLifecycleHooks` where incorrect nil checks could result in panic
 2. `go get -u` to upgrade deps
 

@@ -1313,7 +1313,7 @@ func Test_DeadletterClientDoesntCollideWithProducer(t *testing.T) {
 		if msgCount.Load()%2 == 0 {
 			return errors.New("random error occurred")
 		}
-		_, err := processorWriter.WriteRaw(ctx, nil, msg.Value())
+		_, err := processorWriter.WriteRaw(ctx, nil, msg.Value(), nil)
 
 		return err
 	})

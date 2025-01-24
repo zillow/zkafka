@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
-## 2.0.5 (Jan 23, 2025)
+## 2.1.0 (Jan 23, 2025)
 
 1. Include `DisableTracePropagation` as a WriterOption
 

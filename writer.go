@@ -100,6 +100,9 @@ func newWriter(args writerArgs) (*KWriter, error) {
 	for _, opt := range args.opts {
 		opt(&s)
 	}
+	if s.DisableTracePropagation {
+		w.p = nil
+	}
 	if s.f != nil {
 		w.formatter = s.f
 	}
@@ -130,6 +133,9 @@ func (w *KWriter) WriteKey(ctx context.Context, key string, value any, opts ...W
 func (w *KWriter) WriteRaw(ctx context.Context, key *string, value []byte, opts ...WriteOption) (Response, error) {
 	kafkaMessage := makeProducerMessageRaw(ctx, w.topicConfig.Topic, key, value)
 	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
 		opt.apply(&kafkaMessage)
 	}
 	if w.lifecycle.PreWrite != nil {
@@ -248,7 +254,8 @@ func (w *KWriter) Close() {
 }
 
 type WriterSettings struct {
-	f kFormatter
+	f                       kFormatter
+	DisableTracePropagation bool
 }
 
 // WriterOption is a function that modify the writer configurations

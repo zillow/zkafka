@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
+## 2.1.1 (Feb 13, 2025)
+
+1. Forward/Backwards compatible schemas used to produce/consume messages were not being properly deserialized. 
+   `Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_OldProducerCanBeConsumedByNewConsumer` and `Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_NewProducerCanBeConsumedByOldConsumer`
+   demonstrated bug. Schema registry aware avro formatter was updated to reconcile the bug.
+
 ## 2.1.0 (Jan 23, 2025)
 
 1. Include `DisableTracePropagation` as a WriterOption

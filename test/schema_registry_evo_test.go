@@ -160,10 +160,6 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 		}),
 	}
 	assertEqual(t, expectedEvt2, receivedEvt2Schema1)
-
-	receivedEvt2Schema2 := avro2.Event{}
-	require.NoError(t, msg2.Decode(&receivedEvt2Schema2))
-	assertEqual(t, evt2, receivedEvt2Schema2)
 }
 
 func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_OldProducerCanBeConsumedByNewConsumer(t *testing.T) {

@@ -21,6 +21,7 @@ func (h *offsetHeap) Pop() kafka.TopicPartition {
 	if len(h.data) == 0 {
 		panic("popped empty heap")
 	}
+	//nolint:errcheck // access control guarantees type is TopicPartition
 	return heap.Pop(&h.data).(kafka.TopicPartition)
 }
 
@@ -56,6 +57,7 @@ func (h _offsetHeap) Less(i, j int) bool { return h[i].Offset < h[j].Offset }
 func (h _offsetHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
 
 func (h *_offsetHeap) Push(x any) {
+	//nolint:errcheck // access control guarantees type is TopicPartition
 	*h = append(*h, x.(kafka.TopicPartition))
 }
 

@@ -25,6 +25,26 @@
         ],
         "default": "created"
       }
+    },
+    {
+      "name": "interactiveContent",
+      "type": [
+        "null",
+        {
+          "type": "array",
+          "items": {
+            "type": "record",
+            "name": "InteractiveContentRecord",
+            "fields": [
+              {
+                "name": "url",
+                "type": "string"
+              }
+            ]
+          }
+        }
+      ],
+      "default": null
     }
   ]
 }

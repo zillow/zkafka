@@ -39,6 +39,14 @@
               {
                 "name": "url",
                 "type": "string"
+              },
+              {
+                "name": "isImx",
+                "type": [
+                  "null",
+                  "boolean"
+                ],
+                "default": null
               }
             ]
           }
@@ -46,5 +54,6 @@
       ],
       "default": null
     }
+
   ]
 }

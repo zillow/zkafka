@@ -8,7 +8,8 @@ import (
 
 // InteractiveContentRecord is a generated struct.
 type InteractiveContentRecord struct {
-	URL string `avro:"url"`
+	URL   string `avro:"url"`
+	IsImx *bool  `avro:"isImx"`
 }
 
 // Event is a generated struct.

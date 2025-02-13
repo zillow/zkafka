@@ -6,9 +6,15 @@ import (
 	"time"
 )
 
+// InteractiveContentRecord is a generated struct.
+type InteractiveContentRecord struct {
+	URL string `avro:"url"`
+}
+
 // Event is a generated struct.
 type Event struct {
-	ID                     string    `avro:"id"`
-	DeliveredAtDateTimeUtc time.Time `avro:"deliveredAtDateTimeUtc"`
-	EventType              string    `avro:"eventType"`
+	ID                     string                      `avro:"id"`
+	DeliveredAtDateTimeUtc time.Time                   `avro:"deliveredAtDateTimeUtc"`
+	EventType              string                      `avro:"eventType"`
+	InteractiveContent     *[]InteractiveContentRecord `avro:"interactiveContent"`
 }

@@ -86,10 +86,16 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 	require.NoError(t, err)
 	id := uuid.NewString()
 
+	u := "http://localhost:8081"
 	evt1 := avro1.Event{
 		ID:                     id,
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "created",
+		InteractiveContent: ptr([]avro1.InteractiveContentRecord{
+			{
+				URL: u,
+			},
+		}),
 	}
 	_, err = writer1.Write(ctx, &evt1)
 	require.NoError(t, err)
@@ -100,6 +106,12 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 		ID:                     listingID2,
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "created",
+		InteractiveContent: ptr([]avro2.InteractiveContentRecord{
+			{
+				URL:   u,
+				IsImx: ptr(true),
+			},
+		}),
 	}
 	_, err = writer2.Write(ctx, &evt2)
 	require.NoError(t, err)
@@ -136,10 +148,16 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 
 	receivedEvt2Schema1 := avro1.Event{}
 	require.NoError(t, msg2.Decode(&receivedEvt2Schema1))
+
 	expectedEvt2 := avro1.Event{
 		ID:                     evt2.ID,
 		DeliveredAtDateTimeUtc: evt2.DeliveredAtDateTimeUtc,
 		EventType:              evt2.EventType,
+		InteractiveContent: ptr([]avro1.InteractiveContentRecord{
+			{
+				URL: u,
+			},
+		}),
 	}
 	assertEqual(t, expectedEvt2, receivedEvt2Schema1)
 

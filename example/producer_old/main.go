@@ -10,7 +10,7 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/zillow/zkafka/v2"
 	"github.com/zillow/zkafka/v2/example/common"
-	"github.com/zillow/zkafka/v2/test/evolution/avro2"
+	"github.com/zillow/zkafka/v2/test/evolution/avro1"
 	"gitlab.zgtools.net/devex/archetypes/gomods/zcommon"
 )
 
@@ -48,11 +48,13 @@ func main() {
 
 	u := "http://localhost:8081"
 
-	evt2 := avro2.Event{
-		InteractiveContent: zcommon.Ptr([]avro2.InteractiveContentRecord{
+	evt2 := avro1.Event{
+		ID:                     "123",
+		DeliveredAtDateTimeUtc: time.Time{},
+		EventType:              "created",
+		InteractiveContent: zcommon.Ptr([]avro1.InteractiveContentRecord{
 			{
-				URL:   u,
-				IsImx: zcommon.Ptr(true),
+				URL: u,
 			},
 		}),
 	}

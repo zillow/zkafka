@@ -49,6 +49,9 @@ func main() {
 	u := "http://localhost:8081"
 
 	evt2 := avro2.Event{
+		ID:                     "123",
+		DeliveredAtDateTimeUtc: time.Time{},
+		EventType:              "created",
 		InteractiveContent: zcommon.Ptr([]avro2.InteractiveContentRecord{
 			{
 				URL:   u,

@@ -2,6 +2,7 @@
 MODULE_DIRS = .
 GOLANGCI_VERSION=1.61.0
 AVRO_CMD_PATH=github.com/hamba/avro/v2/cmd/avrogen@v2.26.0
+SCHEMA_REGISTRY_DOMAIN=schema-registry.dev.zg-int.net:443
 
 
 # Sets up kafka broker using docker compose
@@ -60,3 +61,12 @@ gen: protoc-exists
 .PHONY: protoc-exists
 protoc-exists:
 	@which protoc > /dev/null || (echo "protoc is not installed. Install via `brew install protobuf`"; exit 1)
+
+.PHONY: gen_schemareg_types
+gen_schemareg_types:
+	mkdir -p aryeo_pem_gen2
+	# create a dumping ground for intermediate files to be written to
+	# this gets the latest record from stable schema registry (we can update it to be from prod)
+	curl --location 'https://${SCHEMA_REGISTRY_DOMAIN}/subjects/com.zillowgroup.rmx.pem_schema.AryeoMediaDelivered/versions/-1' | jq -r '.schema|fromjson' > aryeo_pem_gen2/aryeoMediaDeliveredRecord.avsc
+	# this generates the types
+	go run github.com/hamba/avro/v2/cmd/avrogen@v2.26.0  -pkg aryeopem2 -o aryeo_pem_gen2/aryeoMediaDeliveredRecord.go aryeo_pem_gen2/aryeoMediaDeliveredRecord.avsc

@@ -52,6 +52,9 @@ func main() {
 	msg2.Done()
 	reader.Close()
 
+	fmt.Println("Old Msg payload")
+	fmt.Println(msg2.Value())
+
 	receivedEvt2Schema2 := avro2.Event{}
 	if err := msg2.Decode(&receivedEvt2Schema2); err != nil {
 		log.Fatal(err)

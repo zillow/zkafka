@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
@@ -56,7 +57,13 @@ func Test_SchemaRegistry_AutoRegisterSchemasFalse_WillNotWriteMessage(t *testing
 	})
 	require.NoError(t, err)
 
-	evt1 := avro1.Event{}
+	id := uuid.NewString()
+
+	evt1 := avro1.Event{
+		ID:                     id,
+		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
+		EventType:              "listingCreated",
+	}
 
 	_, err = writer1.Write(ctx, evt1)
 	require.ErrorContains(t, err, "failed to get avro schema by id")
@@ -94,8 +101,13 @@ func Test_SchemaRegistry_Avro_AutoRegisterSchemas_RequiresSchemaSpecification(t 
 	})
 	require.NoError(t, err)
 
-	evt1 := avro1.Event{}
+	id := uuid.NewString()
 
+	evt1 := avro1.Event{
+		ID:                     id,
+		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
+		EventType:              "listingCreated",
+	}
 	_, err = writer1.Write(ctx, evt1)
 	require.ErrorContains(t, err, "avro schema is required for schema registry formatter")
 }
@@ -130,7 +142,13 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	evt1 := avro1x.Event{}
+	id := uuid.NewString()
+
+	evt1 := avro1x.Event{
+		Id:                     id,
+		Deliveredatdatetimeutc: rand.Int63(),
+		Eventtype:              avro1x.EventTypeCreated,
+	}
 
 	_, err = writer1.Write(ctx, evt1)
 	require.NoError(t, err)
@@ -196,7 +214,13 @@ func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	evt1 := avro1.Event{}
+	id := uuid.NewString()
+
+	evt1 := avro1.Event{
+		ID:                     id,
+		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
+		EventType:              "created",
+	}
 
 	// write msg1, and msg2
 	_, err = writer1.Write(ctx, evt1)

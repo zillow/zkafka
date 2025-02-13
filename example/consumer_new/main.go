@@ -56,6 +56,7 @@ func main() {
 	if err := msg2.Decode(&receivedEvt2Schema2); err != nil {
 		log.Fatal(err)
 	}
+	log.Println("Received event sucessfully")
 }
 
 type stdLogger struct {

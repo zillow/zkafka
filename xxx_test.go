@@ -45,6 +45,7 @@ func TestABC(t *testing.T) {
 	xformatter2, err := newAvroSchemaRegistryFormatter(formatter2)
 	require.NoError(t, err)
 
+	u := "https://www.vr1.test-automation.zillow.net/view-imx/5c206afd-ab9b-4f23-aeac-0abe3ab0bf1c?setAttribution=mls&wl=true&initialViewType=pano&utm_source=dashboard"
 	data1 := aryeopem1.AryeoMediaDeliveredRecord{
 		EventID:   "70d8bb85-3c48-4e2f-b531-b4d536acab82",
 		EventType: "MediaDelivered",
@@ -61,11 +62,11 @@ func TestABC(t *testing.T) {
 			StateOrProvince: "IL",
 			Country:         "USA",
 		},
-		//InteractiveContent: &[]aryeopem1.InteractiveContentRecord{
-		//	{
-		//		URL: "https://www.vr1.test-automation.zillow.net/view-imx/5c206afd-ab9b-4f23-aeac-0abe3ab0bf1c?setAttribution=mls&wl=true&initialViewType=pano&utm_source=dashboard",
-		//	},
-		//},
+		InteractiveContent: &[]aryeopem1.InteractiveContentRecord{
+			{
+				URL: u,
+			},
+		},
 	}
 
 	topic := "xxxx"
@@ -88,5 +89,6 @@ func TestABC(t *testing.T) {
 	require.Equal(t, data1.EventType, target.EventType)
 	require.NotNil(t, target.InteractiveContent)
 	require.NotEmpty(t, *target.InteractiveContent)
-	require.NotEmpty(t, (*target.InteractiveContent)[0].IsImx)
+	require.Equal(t, u, (*target.InteractiveContent)[0].URL)
+	require.Nil(t, (*target.InteractiveContent)[0].IsImx)
 }

@@ -7,63 +7,54 @@ import (
 	"log"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/google/uuid"
 	"github.com/zillow/zkafka/v2"
 	"github.com/zillow/zkafka/v2/test/evolution/avro2"
-	"gitlab.zgtools.net/devex/archetypes/gomods/zcommon"
 )
 
-//go:embed schema_2.avsc
-var dummyEventSchema2 string
+//go:embed schema_1.avsc
+var dummyEventSchema1 string
 
 func main() {
 	const tempTestingTopic = "my-testing-topic-new-producer-to-old-consumer"
+	const groupID = "my-group-old-consumer"
 
 	ctx := context.Background()
 	bootstrapServer := "localhost:29092"
 
-	err := createTopicWithErr(bootstrapServer, tempTestingTopic, 1)
-	fmt.Printf("Created topic: %s\n", tempTestingTopic)
-
 	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
 	defer func() { client.Close() }()
 
-	fmt.Println("Created writer with auto registered schemas")
+	fmt.Println("Created reader")
 
-	writer2, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  "myclient",
+	consumerTopicConfig := zkafka.ConsumerTopicConfig{
+		ClientID:  groupID,
 		Topic:     tempTestingTopic,
 		Formatter: zkafka.AvroSchemaRegistry,
 		SchemaRegistry: zkafka.SchemaRegistryConfig{
-			URL: "http://localhost:8081",
-			Serialization: zkafka.SerializationConfig{
-				AutoRegisterSchemas: true,
-				Schema:              dummyEventSchema2,
-			},
+			URL:             "http://localhost:8081",
+			Deserialization: zkafka.DeserializationConfig{Schema: dummyEventSchema1},
 		},
-	})
+		GroupID: groupID,
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+	reader, err := client.Reader(ctx, consumerTopicConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	u := "http://localhost:8081"
-
-	listingID2 := uuid.NewString()
-
-	evt2 := avro2.Event{
-		ID:                     listingID2,
-		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
-		EventType:              "created",
-		InteractiveContent: zcommon.Ptr([]avro2.InteractiveContentRecord{
-			{
-				URL:   u,
-				IsImx: zcommon.Ptr(true),
-			},
-		}),
-	}
-	_, err = writer2.Write(ctx, &evt2)
+	results, err := readMessages(reader, 1)
 	if err != nil {
+		log.Fatal(err)
+	}
+
+	msg2 := <-results
+	msg2.Done()
+	reader.Close()
+
+	receivedEvt2Schema2 := avro2.Event{}
+	if err := msg2.Decode(&receivedEvt2Schema2); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -91,17 +82,30 @@ func (l stdLogger) Warnw(_ context.Context, msg string, keysAndValues ...interfa
 	log.Printf(prefix, keysAndValues...)
 }
 
-func createTopicWithErr(bootstrapServer, topic string, partitions int) error {
-	aclient, err := kafka.NewAdminClient(&kafka.ConfigMap{"bootstrap.servers": bootstrapServer})
-	if err != nil {
-		return err
+func readMessages(reader zkafka.Reader, count int) (<-chan *zkafka.Message, error) {
+
+	responses := make(chan *zkafka.Message, count)
+
+	seen := 0
+	for {
+		func() {
+			ctx := context.Background()
+			rmsg, err := reader.Read(ctx)
+			defer func() {
+				if rmsg == nil {
+					return
+				}
+				rmsg.DoneWithContext(ctx)
+			}()
+			if err != nil || rmsg == nil {
+				return
+			}
+			responses <- rmsg
+			seen++
+		}()
+		if seen >= count {
+			close(responses)
+			return responses, nil
+		}
 	}
-	_, err = aclient.CreateTopics(context.Background(), []kafka.TopicSpecification{
-		{
-			Topic:             topic,
-			NumPartitions:     partitions,
-			ReplicationFactor: 1,
-		},
-	})
-	return err
 }

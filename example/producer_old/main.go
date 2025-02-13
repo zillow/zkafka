@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/google/uuid"
 	"github.com/zillow/zkafka/v2"
 	"github.com/zillow/zkafka/v2/example/common"
 	"github.com/zillow/zkafka/v2/test/evolution/avro2"
@@ -49,12 +48,7 @@ func main() {
 
 	u := "http://localhost:8081"
 
-	listingID2 := uuid.NewString()
-
 	evt2 := avro2.Event{
-		ID:                     listingID2,
-		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
-		EventType:              "created",
 		InteractiveContent: zcommon.Ptr([]avro2.InteractiveContentRecord{
 			{
 				URL:   u,

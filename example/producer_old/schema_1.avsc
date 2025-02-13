@@ -4,29 +4,6 @@
   "namespace": "com.zillowgroup",
   "fields": [
     {
-      "name": "id",
-      "type": "string"
-    },
-    {
-      "name": "deliveredAtDateTimeUtc",
-      "type": {
-        "type": "long",
-        "logicalType": "timestamp-millis"
-      }
-    },
-    {
-      "name": "eventType",
-      "type": {
-        "type": "enum",
-        "name": "EventType",
-        "symbols": [
-          "created",
-          "associated"
-        ],
-        "default": "created"
-      }
-    },
-    {
       "name": "interactiveContent",
       "type": [
         "null",

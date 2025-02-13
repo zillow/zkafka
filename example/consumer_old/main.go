@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/zillow/zkafka/v2"
+	"github.com/zillow/zkafka/v2/example/common"
 	"github.com/zillow/zkafka/v2/test/evolution/avro2"
 )
 
@@ -15,8 +16,6 @@ import (
 var dummyEventSchema1 string
 
 func main() {
-	const tempTestingTopic = "my-testing-topic-new-producer-to-old-consumer"
-	const groupID = "my-group-old-consumer"
 
 	ctx := context.Background()
 	bootstrapServer := "localhost:29092"
@@ -27,14 +26,14 @@ func main() {
 	fmt.Println("Created reader")
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
-		ClientID:  groupID,
-		Topic:     tempTestingTopic,
+		ClientID:  common.OldConumser,
+		Topic:     common.TempTestingTopicNewToOld,
 		Formatter: zkafka.AvroSchemaRegistry,
 		SchemaRegistry: zkafka.SchemaRegistryConfig{
 			URL:             "http://localhost:8081",
 			Deserialization: zkafka.DeserializationConfig{Schema: dummyEventSchema1},
 		},
-		GroupID: groupID,
+		GroupID: common.OldConumser,
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
 		},

@@ -10,6 +10,7 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/google/uuid"
 	"github.com/zillow/zkafka/v2"
+	"github.com/zillow/zkafka/v2/example/common"
 	"github.com/zillow/zkafka/v2/test/evolution/avro2"
 	"gitlab.zgtools.net/devex/archetypes/gomods/zcommon"
 )
@@ -18,13 +19,12 @@ import (
 var dummyEventSchema2 string
 
 func main() {
-	const tempTestingTopic = "my-testing-topic-new-producer-to-old-consumer"
 
 	ctx := context.Background()
 	bootstrapServer := "localhost:29092"
 
-	err := createTopicWithErr(bootstrapServer, tempTestingTopic, 1)
-	fmt.Printf("Created topic: %s\n", tempTestingTopic)
+	err := createTopicWithErr(bootstrapServer, common.TempTestingTopicNewToOld, 1)
+	fmt.Printf("Created topic: %s\n", common.TempTestingTopicNewToOld)
 
 	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
 	defer func() { client.Close() }()
@@ -33,7 +33,7 @@ func main() {
 
 	writer2, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
 		ClientID:  "myclient",
-		Topic:     tempTestingTopic,
+		Topic:     common.TempTestingTopicNewToOld,
 		Formatter: zkafka.AvroSchemaRegistry,
 		SchemaRegistry: zkafka.SchemaRegistryConfig{
 			URL: "http://localhost:8081",

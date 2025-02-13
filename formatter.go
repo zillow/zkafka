@@ -172,7 +172,7 @@ func (f avroSchemaRegistryFormatter) unmarshal(req unmarshReq) error {
 	if err != nil {
 		err = avro.Unmarshal(targetSchema, req.data[5:], req.target)
 		if err != nil {
-			return fmt.Errorf("failed to get schema from payload: %w", err)
+			return fmt.Errorf("failed to unmarshal from target schema: %w", err)
 		}
 
 		return fmt.Errorf("failed to deserialize to confluent schema registry avro type: %w", err)

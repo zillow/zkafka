@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	aryeopem "github.com/zillow/zkafka/v2/aryeo_pem_gen1"
+	aryeopem1 "github.com/zillow/zkafka/v2/aryeo_pem_gen1"
 	aryeopem2 "github.com/zillow/zkafka/v2/aryeo_pem_gen2"
 )
 
@@ -15,10 +15,10 @@ func TestABC(t *testing.T) {
 		URL: "https://schema-registry.shared.zg-int.net:443",
 		Serialization: SerializationConfig{
 			AutoRegisterSchemas: false,
-			Schema:              aryeopem.Schema,
+			Schema:              aryeopem1.Schema,
 		},
 		Deserialization: DeserializationConfig{
-			Schema: aryeopem.Schema,
+			Schema: aryeopem1.Schema,
 		},
 		SubjectName: "com.zillowgroup.rmx.pem_schema.AryeoMediaDelivered",
 	}
@@ -45,12 +45,12 @@ func TestABC(t *testing.T) {
 	xformatter2, err := newAvroSchemaRegistryFormatter(formatter2)
 	require.NoError(t, err)
 
-	data1 := aryeopem.AryeoMediaDeliveredRecord{
+	data1 := aryeopem1.AryeoMediaDeliveredRecord{
 		EventID:   "70d8bb85-3c48-4e2f-b531-b4d536acab82",
 		EventType: "MediaDelivered",
 		CompanyID: "70d8bb85-3c48-4e2f-b531-b4d536acab82",
 		ListingID: "70d8bb85-3c48-4e2f-b531-b4d536acab82",
-		Address: aryeopem.AddressRecord{
+		Address: aryeopem1.AddressRecord{
 			Latitude:        41.9104057,
 			Longitude:       -88.3120465,
 			StreetNumber:    "402",
@@ -62,7 +62,7 @@ func TestABC(t *testing.T) {
 			Country:         "USA",
 		},
 		BrandID: ptr("b3b7f7b9-4a6e-4c7f-9c0d-7c5f8b7c8b7d"),
-		Images: &[]aryeopem.ImageRecord{
+		Images: &[]aryeopem1.ImageRecord{
 			{
 				ID:                        "ec4aa710-184b-444c-bf9e-b83966f6abd7",
 				URL:                       ptr("https://cdn.aryeo.com/listings/538-bergen-ave-jersey-city-nj-07304-7956340/ec4aa710-184b-444c-bf9e-b83966f6abd7.jpeg"),
@@ -88,13 +88,13 @@ func TestABC(t *testing.T) {
 				PhotographerAttributionID: ptr("b3b7f7b9-4a6e-4c7f-9c0d-7c5f8b7c8b7d"),
 			},
 		},
-		Orders: &[]aryeopem.OrderRecord{
+		Orders: &[]aryeopem1.OrderRecord{
 			{
 				ID:    "44e87ec4-2324-41c9-ad9c-d5621968d397",
 				IsImx: true,
 			},
 		},
-		InteractiveContent: &[]aryeopem.InteractiveContentRecord{
+		InteractiveContent: &[]aryeopem1.InteractiveContentRecord{
 			{
 				URL: "https://www.vr1.test-automation.zillow.net/view-imx/5c206afd-ab9b-4f23-aeac-0abe3ab0bf1c?setAttribution=mls&wl=true&initialViewType=pano&utm_source=dashboard",
 			},

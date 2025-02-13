@@ -53,8 +53,8 @@ func main() {
 	reader.Close()
 
 	fmt.Println("New Msg payload")
-	fmt.Println(msg2.Value())
-	fmt.Println(string(msg2.Value()))
+	fmt.Println(msg2.Value()[5:])
+	fmt.Println(string(msg2.Value()[5:]))
 	receivedEvt2Schema2 := avro1.Event{}
 	if err := msg2.Decode(&receivedEvt2Schema2); err != nil {
 		log.Fatal(err)

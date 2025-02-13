@@ -108,7 +108,6 @@ func Test_SchemaRegistry_Avro_AutoRegisterSchemas_RequiresSchemaSpecification(t 
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "listingCreated",
 	}
-
 	_, err = writer1.Write(ctx, evt1)
 	require.ErrorContains(t, err, "avro schema is required for schema registry formatter")
 }

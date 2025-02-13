@@ -163,13 +163,14 @@ func (f avroSchemaRegistryFormatter) unmarshal(req unmarshReq) error {
 		return fmt.Errorf("failed to parse schema : %w", err)
 	}
 	sc := avro.NewSchemaCompatibility()
-	resolvedSchema, err := sc.Resolve(dataSchema, targetSchema)
-	if err != nil {
-		return fmt.Errorf("failed to get schema from payload: %w", err)
-	}
 
+	resolvedSchema, err := sc.Resolve(targetSchema, dataSchema)
+	if err != nil {
+		return fmt.Errorf("failed to reconcile producer/consumer schemas: %w", err)
+	}
 	err = avro.Unmarshal(resolvedSchema, req.data[5:], req.target)
 	if err != nil {
+
 		return fmt.Errorf("failed to deserialize to confluent schema registry avro type: %w", err)
 	}
 	return nil

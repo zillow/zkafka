@@ -4,21 +4,21 @@ package avro1
 
 import (
 	"fmt"
-	"strconv"
-
 	"github.com/heetch/avro/avrotypegen"
+	"strconv"
 )
 
 type Event struct {
-	Id                     string    `json:"id"`
-	Deliveredatdatetimeutc int64     `json:"deliveredAtDateTimeUtc"`
-	Eventtype              EventType `json:"eventType"`
+	Id                     string                      `json:"id"`
+	Deliveredatdatetimeutc int64                       `json:"deliveredAtDateTimeUtc"`
+	Eventtype              EventType                   `json:"eventType"`
+	Interactivecontent     *[]InteractiveContentRecord `json:"interactiveContent"`
 }
 
 // AvroRecord implements the avro.AvroRecord interface.
 func (Event) AvroRecord() avrotypegen.RecordInfo {
 	return avrotypegen.RecordInfo{
-		Schema: `{"fields":[{"name":"id","type":"string"},{"name":"deliveredAtDateTimeUtc","type":{"logicalType":"timestamp-millis","type":"long"}},{"name":"eventType","type":{"default":"created","name":"EventType","symbols":["created","associated"],"type":"enum"}}],"name":"com.zillowgroup.Event","type":"record"}`,
+		Schema: `{"fields":[{"name":"id","type":"string"},{"name":"deliveredAtDateTimeUtc","type":{"logicalType":"timestamp-millis","type":"long"}},{"name":"eventType","type":{"default":"created","name":"EventType","symbols":["created","associated"],"type":"enum"}},{"default":null,"name":"interactiveContent","type":["null",{"items":{"fields":[{"name":"url","type":"string"}],"name":"InteractiveContentRecord","type":"record"},"type":"array"}]}],"name":"com.zillowgroup.Event","type":"record"}`,
 		Required: []bool{
 			0: true,
 			1: true,
@@ -67,4 +67,18 @@ func (e *EventType) UnmarshalText(data []byte) error {
 		}
 	}
 	return fmt.Errorf("unknown value %q for EventType", data)
+}
+
+type InteractiveContentRecord struct {
+	Url string `json:"url"`
+}
+
+// AvroRecord implements the avro.AvroRecord interface.
+func (InteractiveContentRecord) AvroRecord() avrotypegen.RecordInfo {
+	return avrotypegen.RecordInfo{
+		Schema: `{"fields":[{"name":"url","type":"string"}],"name":"com.zillowgroup.InteractiveContentRecord","type":"record"}`,
+		Required: []bool{
+			0: true,
+		},
+	}
 }

@@ -9,7 +9,7 @@ import (
 
 	"github.com/zillow/zkafka/v2"
 	"github.com/zillow/zkafka/v2/example/common"
-	"github.com/zillow/zkafka/v2/test/evolution/avro2"
+	"github.com/zillow/zkafka/v2/test/evolution/avro1"
 )
 
 //go:embed schema_1.avsc
@@ -52,7 +52,7 @@ func main() {
 	msg2.Done()
 	reader.Close()
 
-	receivedEvt2Schema2 := avro2.Event{}
+	receivedEvt2Schema2 := avro1.Event{}
 	if err := msg2.Decode(&receivedEvt2Schema2); err != nil {
 		log.Fatal(err)
 	}

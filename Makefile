@@ -1,7 +1,7 @@
 # Directories containing independent Go modules.
 MODULE_DIRS = .
 GOLANGCI_VERSION=1.61.0
-AVRO_CMD_PATH=github.com/hamba/avro/v2/cmd/avrogen@v2.26.0
+AVRO_CMD_PATH=github.com/hamba/avro/v2/cmd/avrogen@v2.28.0
 SCHEMA_REGISTRY_DOMAIN=schema-registry.shared.zg-int.net:443
 
 

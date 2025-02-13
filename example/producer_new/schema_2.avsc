@@ -1,0 +1,59 @@
+{
+  "type": "record",
+  "name": "Event",
+  "namespace": "com.zillowgroup",
+  "fields": [
+    {
+      "name": "id",
+      "type": "string"
+    },
+    {
+      "name": "deliveredAtDateTimeUtc",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }
+    },
+    {
+      "name": "eventType",
+      "type": {
+        "type": "enum",
+        "name": "EventType",
+        "symbols": [
+          "created",
+          "associated"
+        ],
+        "default": "created"
+      }
+    },
+    {
+      "name": "interactiveContent",
+      "type": [
+        "null",
+        {
+          "type": "array",
+          "items": {
+            "type": "record",
+            "name": "InteractiveContentRecord",
+            "fields": [
+              {
+                "name": "url",
+                "type": "string"
+              },
+              {
+                "name": "isImx",
+                "type": [
+                  "null",
+                  "boolean"
+                ],
+                "default": null
+              }
+            ]
+          }
+        }
+      ],
+      "default": null
+    }
+
+  ]
+}

@@ -401,6 +401,8 @@ github.com/yusufpapurcu/wmi v1.2.3 h1:E1ctvB7uKFMOJw3fdOW32DwGE9I7t++CRUEMKvFoFi
 github.com/yusufpapurcu/wmi v1.2.3/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 github.com/zillow/zfmt v1.0.1 h1:JLN5WaxoqqoEPUpVWer83uhXhDPAA2nZkfQqgKnWp+w=
 github.com/zillow/zfmt v1.0.1/go.mod h1:0PpKh4rWh+5Ghr2bbuN5UvEcqEz6PkHfE0Idgjyxy7Y=
+gitlab.zgtools.net/devex/archetypes/gomods/zcommon v0.0.55 h1:txl5iq24BCYW5LOBRZHVVjQUxCKdRcU9lAZw7253SV0=
+gitlab.zgtools.net/devex/archetypes/gomods/zcommon v0.0.55/go.mod h1:qUibJCsWyhyen+wExz9y6RD9CBLzzlnXEE1xlDRMRW0=
 go.opencensus.io v0.24.0 h1:y73uSU6J157QMP2kn2r30vwW1A2W2WFwSCGnAVxeaD0=
 go.opencensus.io v0.24.0/go.mod h1:vNK8G9p7aAivkbmorf4v+7Hgx+Zs0yY+0fOtgBfjQKo=
 go.opentelemetry.io/auto/sdk v1.1.0 h1:cH53jehLUN6UFLY71z+NDOiNJqDdPRaXzTel0sJySYA=

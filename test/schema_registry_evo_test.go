@@ -253,6 +253,94 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_OldProducerCanBeConsumedBy
 	assertEqual(t, expectedEvt2, receivedEvt2Schema1)
 }
 
+func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_NewProducerCanBeConsumedByOldConsumer(t *testing.T) {
+	checkShouldSkipTest(t, enableKafkaBrokerTest, enableSchemaRegistryTest)
+
+	ctx := context.Background()
+	topic := "integration-test-topic-2" + uuid.NewString()
+	bootstrapServer := getBootstrap()
+
+	createTopic(t, bootstrapServer, topic, 1)
+	t.Logf("Created topic: %s", topic)
+
+	groupID := uuid.NewString()
+
+	client := zkafka.NewClient(zkafka.Config{BootstrapServers: []string{bootstrapServer}}, zkafka.LoggerOption(stdLogger{}))
+	defer func() { require.NoError(t, client.Close()) }()
+
+	t.Log("Created writer with auto registered schemas")
+	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
+		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.AvroSchemaRegistry,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL: "http://localhost:8081",
+			Serialization: zkafka.SerializationConfig{
+				AutoRegisterSchemas: true,
+				Schema:              dummyEventSchema2,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	id := uuid.NewString()
+
+	u := "http://localhost:8081"
+	evt1 := avro2.Event{
+		ID:                     id,
+		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
+		EventType:              "created",
+		InteractiveContent: ptr([]avro2.InteractiveContentRecord{
+			{
+				URL:   u,
+				IsImx: ptr(true),
+			},
+		}),
+	}
+	_, err = writer1.Write(ctx, &evt1)
+	require.NoError(t, err)
+
+	consumerTopicConfig := zkafka.ConsumerTopicConfig{
+		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:     topic,
+		Formatter: zkafka.AvroSchemaRegistry,
+		SchemaRegistry: zkafka.SchemaRegistryConfig{
+			URL:             "http://localhost:8081",
+			Deserialization: zkafka.DeserializationConfig{Schema: dummyEventSchema1},
+		},
+		GroupID: groupID,
+		AdditionalProps: map[string]any{
+			"auto.offset.reset": "earliest",
+		},
+	}
+	reader, err := client.Reader(ctx, consumerTopicConfig)
+	require.NoError(t, err)
+
+	t.Log("Begin reading messages")
+	results, err := readMessages(reader, 1)
+	require.NoError(t, err)
+
+	msg2 := <-results
+	t.Log("Close reader")
+
+	require.NoError(t, reader.Close())
+
+	receivedEvt2Schema1 := avro1.Event{}
+	require.NoError(t, msg2.Decode(&receivedEvt2Schema1))
+
+	expectedEvt2 := avro1.Event{
+		ID:                     evt1.ID,
+		DeliveredAtDateTimeUtc: evt1.DeliveredAtDateTimeUtc,
+		EventType:              evt1.EventType,
+		InteractiveContent: ptr([]avro1.InteractiveContentRecord{
+			{
+				URL: u,
+			},
+		}),
+	}
+	assertEqual(t, expectedEvt2, receivedEvt2Schema1)
+}
+
 func Test_SchemaRegistryReal_Proto_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom(t *testing.T) {
 	checkShouldSkipTest(t, enableKafkaBrokerTest, enableSchemaRegistryTest)
 

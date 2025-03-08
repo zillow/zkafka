@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
+## 2.1.2 (March 7, 2025)
+
+1. Updated module to go1.24
+2. Updated dependencies 
+
 ## 2.1.1 (Feb 13, 2025)
 
 1. Forward/Backwards compatible schemas used to produce/consume messages were not being properly deserialized. 

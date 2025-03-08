@@ -1,6 +1,6 @@
 module github.com/zillow/zkafka/v2/example/producer_avro
 
-go 1.23.1
+go 1.24
 
 replace github.com/zillow/zkafka/v2 v2.0.0 => ../..
 

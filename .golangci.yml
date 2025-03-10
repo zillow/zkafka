@@ -14,31 +14,19 @@ linters-settings:
     sections:
       - standard
       - default
-  depguard:
-    rules:
-      Main:
-        files:
-          - $all
-          - "!$test"
-        deny:
-          - github.com/satori/go.uuid: Prefer "github.com/google/uuid"
+linters:
   disable-all: true
   enable:
     - asciicheck
     - bidichk
     - bodyclose
-    - cyclop
     - decorder
-    - depguard
-    - deadcode
     - dupl
     - errcheck
     - errchkjson
     - errname
     - errorlint
-    - exportloopref
     - gci
-    - gocognit
     - goconst
     - gocritic
     - gocyclo
@@ -49,10 +37,9 @@ linters-settings:
     - nolintlint
     - prealloc
     - staticcheck
-    - structcheck
     - typecheck
     - unconvert
     - unparam
     - unused
-    - varcheck
+    - copyloopvar
     - whitespace

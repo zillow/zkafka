@@ -115,6 +115,7 @@ func (r *KReader) Read(ctx context.Context) (*Message, error) {
 	kmsg, err := r.consumer.ReadMessage(time.Duration(*r.topicConfig.ReadTimeoutMillis) * time.Millisecond)
 	if err != nil {
 		var v kafka.Error
+		//nolint:gocritic //single switch is okay
 		switch {
 		case errors.As(err, &v):
 			// timeouts occur (because the assigned partitions aren't being written to, lack of activity, etc.). We'll

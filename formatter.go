@@ -101,10 +101,10 @@ type avroSchemaRegistryFormatter struct {
 	afmt avroFmt
 }
 
-func newAvroSchemaRegistryFormatter(afmt avroFmt) (avroSchemaRegistryFormatter, error) {
+func newAvroSchemaRegistryFormatter(afmt avroFmt) avroSchemaRegistryFormatter {
 	return avroSchemaRegistryFormatter{
 		afmt: afmt,
-	}, nil
+	}
 }
 
 // marshall looks a subject's schema (id) so that it can prefix the eventual message payload.
@@ -170,7 +170,6 @@ func (f avroSchemaRegistryFormatter) unmarshal(req unmarshReq) error {
 	}
 	err = avro.Unmarshal(resolvedSchema, req.data[5:], req.target)
 	if err != nil {
-
 		return fmt.Errorf("failed to deserialize to confluent schema registry avro type: %w", err)
 	}
 	return nil

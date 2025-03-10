@@ -78,6 +78,22 @@ func TestWork_WithOptions(t *testing.T) {
 	require.Equal(t, tp.Tracer(""), work.tracer)
 }
 
+func TestWork_WithTextMapPropagator_CanOverrideFactoryPropagator(t *testing.T) {
+	defer recoverThenFail(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	propagator := propagation.TraceContext{}
+
+	wf := NewWorkFactory(FakeClient{}, WithTextMapPropagator(propagator))
+
+	w1 := wf.Create(ConsumerTopicConfig{}, &timeDelayProcessor{})
+	require.NotNil(t, w1.p)
+
+	w2 := wf.Create(ConsumerTopicConfig{}, &timeDelayProcessor{}, WithWorkTextMapPropagator(nil))
+	require.Nil(t, w2.p)
+}
+
 // TestWork_ShouldCommitMessagesProperly asserts the behavior of committing kafka messages.
 // Messages should be committed as they complete as long as there aren't lower offset messages still in progress.
 // This tests specifies processing delay times such that low offsets finish after high offsets and asserts that the storeOffsets method

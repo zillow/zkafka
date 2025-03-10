@@ -106,7 +106,6 @@ func ChainLifecycleHooks(hooks ...LifecycleHooks) LifecycleHooks {
 			}
 
 			return hookCtx, allErrs
-
 		},
 		PostReadImmediate: func(ctx context.Context, meta LifecyclePostReadImmediateMeta) {
 			for _, h := range hooks {

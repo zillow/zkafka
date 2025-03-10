@@ -19,7 +19,7 @@ func main() {
 		BootstrapServers: []string{"localhost:29092"},
 	},
 	// optionally add a logger, which implements zkafka.Logger, to see detailed information about message processsing
-	//zkafka.LoggerOption(),
+	// zkafka.LoggerOption(),
 	)
 	// It's important to close the client after consumption to gracefully leave the consumer group
 	// (this commits completed work, and informs the broker that this consumer is leaving the group which yields a faster rebalance)
@@ -79,8 +79,8 @@ func (p Processor) Process(_ context.Context, msg *zkafka.Message) error {
 	// optionally, if you don't want to use the configured formatter at all, access the kafka message payload bytes directly.
 	// The commented out block shows accessing the byte array. In this case we're stringifying the bytes, but this could be json unmarshalled,
 	// proto unmarshalled etc., depending on the expected payload
-	//data := msg.Value()
-	//str := string(data)
+	// data := msg.Value()
+	// str := string(data)
 
 	log.Printf(" offset: %d, partition: %d. event.Name: %s, event.Age %d\n", msg.Offset, msg.Partition, event.Name, event.Age)
 	return nil

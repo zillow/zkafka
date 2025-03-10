@@ -79,7 +79,6 @@ func (c *schemaRegistryFactory) createProto(srConfig SchemaRegistryConfig) (prot
 		ser:   ser,
 		deser: deser,
 	}, nil
-
 }
 
 func (c *schemaRegistryFactory) createJson(srConfig SchemaRegistryConfig) (jsonFmt, error) {

@@ -161,7 +161,6 @@ func (w *Work) execProcessors(ctx context.Context, shutdown <-chan struct{}) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(w.virtualPartitions))
 	for i := range w.virtualPartitions {
-		i := i
 		go func() {
 			w.processVirtualPartition(ctx, i, shutdown)
 			wg.Done()
@@ -452,6 +451,7 @@ func (w *Work) processSingle(ctx context.Context, msg *Message, partitionIndex i
 	span.RecordError(err)
 	span.SetStatus(codes.Error, err.Error())
 
+	//nolint:errorlint // guaranteed to not be wrapped
 	if pError, ok := err.(processorError); ok {
 		// Because we assume workers will log their own internal errors once
 		// already, we try to ignore logging them twice by also logging them

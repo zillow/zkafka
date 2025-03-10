@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	"go.opentelemetry.io/otel/propagation"
 )
 
 // WorkOption interface to identify functional options
@@ -62,6 +64,11 @@ func WithDeadLetterTopic(deadLetterTopicConfig ProducerTopicConfig) WorkOption {
 	return dltOption{dltConfig: deadLetterTopicConfig}
 }
 
+// WithWorkTextMapPropagator enables the specification of a propagator at the moment a work instance is instantiated
+func WithWorkTextMapPropagator(p propagation.TextMapPropagator) WorkOption {
+	return textMapPropagator{p: p}
+}
+
 type speedupOption struct{ times uint16 }
 
 func (s speedupOption) apply(w *Work) {
@@ -118,6 +125,14 @@ type disableBlbOption struct {
 
 func (d disableBlbOption) apply(w *Work) {
 	w.blb.disabled = d.disabled
+}
+
+type textMapPropagator struct {
+	p propagation.TextMapPropagator
+}
+
+func (d textMapPropagator) apply(w *Work) {
+	w.p = d.p
 }
 
 type dltOption struct {

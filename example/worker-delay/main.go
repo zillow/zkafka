@@ -18,7 +18,7 @@ func main() {
 		BootstrapServers: []string{"localhost:29092"},
 	},
 	// optionally add a logger, which implements zkafka.Logger, to see detailed information about message processsing
-	//zkafka.LoggerOption(),
+	// zkafka.LoggerOption(),
 	)
 	// It's important to close the client after consumption to gracefully leave the consumer group
 	// (this commits completed work, and informs the broker that this consumer is leaving the group which yields a faster rebalance)

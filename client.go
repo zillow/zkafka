@@ -186,8 +186,7 @@ func (c *Client) getFormatter(args formatterArgs) (kFormatter, error) {
 		if err != nil {
 			return nil, err
 		}
-		cf, err := newAvroSchemaRegistryFormatter(scl)
-		return cf, err
+		return newAvroSchemaRegistryFormatter(scl), nil
 	case ProtoSchemaRegistry:
 		scl, err := c.srf.createProto(args.srCfg)
 		if err != nil {

@@ -4,12 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
-## 2.1.2 (March 9, 2025)
+## 2.2.0 (March 9, 2025)
 
-1. Updated module to go1.24
-2. Updated dependencies 
-3. Fixed linter
-4. Added `WithWorkTextMapPropagator`
+1. Added `WithWorkTextMapPropagator`
+2. Updated module to go1.24
+3. Updated dependencies 
+4. Fixed linter
 
 ## 2.1.1 (Feb 13, 2025)
 

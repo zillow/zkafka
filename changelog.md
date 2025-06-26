@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
+## 2.3.0 (June 26, 2025)
+
+1. Updated dependencies
+2. Clearer error message `client.Reader()` when missing topic names
+
+
 ## 2.2.0 (March 9, 2025)
 
 1. Added `WithWorkTextMapPropagator`

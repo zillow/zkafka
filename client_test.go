@@ -337,7 +337,7 @@ func TestClient_Writer(t *testing.T) {
 		fields  fields
 		args    args
 		want    *KWriter
-		wantErr bool
+		wantErr string
 	}{
 		{
 			name: "create new KWriter with overridden Brokers, error from producer provider",
@@ -356,7 +356,7 @@ func TestClient_Writer(t *testing.T) {
 					BootstrapServers: []string{"remotehost:8080"},
 				},
 			},
-			wantErr: true,
+			wantErr: "fake error",
 		},
 		{
 			name: "create new KWriter for closed writer",
@@ -386,7 +386,7 @@ func TestClient_Writer(t *testing.T) {
 				p:         propagation.TraceContext{},
 				formatter: zfmtShim{&zfmt.ProtobufRawFormatter{}},
 			},
-			wantErr: false,
+			wantErr: "",
 		},
 		{
 			name: "create new KWriter for closed writer with default overrides",
@@ -416,14 +416,21 @@ func TestClient_Writer(t *testing.T) {
 				p:         propagation.TraceContext{},
 				formatter: zfmtShim{&zfmt.ProtobufRawFormatter{}},
 			},
-			wantErr: false,
+			wantErr: "",
 		},
 		{
 			name: "invalid configuration should return error",
 			args: args{
 				topicConfig: ProducerTopicConfig{Topic: "topic"},
 			},
-			wantErr: true,
+			wantErr: "invalid config, ClientID",
+		},
+		{
+			name: "invalid configuration (missing topic) should return error",
+			args: args{
+				topicConfig: ProducerTopicConfig{ClientID: "test-id"},
+			},
+			wantErr: "invalid config, missing topic name",
 		},
 		{
 			name: "get from cache",
@@ -436,7 +443,7 @@ func TestClient_Writer(t *testing.T) {
 				topicConfig: ProducerTopicConfig{ClientID: "test-id", Topic: "topic"},
 			},
 			want:    &KWriter{},
-			wantErr: false,
+			wantErr: "",
 		},
 	}
 	for _, tt := range tests {
@@ -450,8 +457,8 @@ func TestClient_Writer(t *testing.T) {
 				producerProvider: tt.fields.producerProvider,
 			}
 			got, err := c.Writer(tt.args.ctx, tt.args.topicConfig, tt.args.opts...)
-			if tt.wantErr {
-				require.Error(t, err)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
 			} else {
 				require.NoError(t, err)
 			}

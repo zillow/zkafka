@@ -248,7 +248,7 @@ func getDefaultConsumerTopicConfig(topicConfig *ConsumerTopicConfig) error {
 		return errors.New("invalid config, group name cannot be empty")
 	}
 	if len(topicConfig.topics()) == 0 {
-		return errors.New("invalid config, missing topic name")
+		return errors.New("invalid config, no topics specified")
 	}
 
 	if string(topicConfig.Formatter) == "" {

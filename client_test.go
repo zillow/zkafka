@@ -140,7 +140,7 @@ func TestClient_Reader(t *testing.T) {
 		fields  fields
 		args    args
 		want    *KReader
-		wantErr bool
+		wantErr string
 	}{
 		{
 			name: "create new KReader with overridden Brokers, error from consumer provider",
@@ -156,8 +156,25 @@ func TestClient_Reader(t *testing.T) {
 					BootstrapServers: []string{"remotehost:8080"},
 				},
 			},
-			wantErr: true,
+			wantErr: "fake error",
 		},
+		{
+			name: "create new KReader with missing topic results in error",
+			fields: fields{
+				conf: Config{BootstrapServers: []string{"localhost:9092"}},
+				readers: map[string]*KReader{
+					"test-config": {isClosed: true},
+				},
+				consumerProvider: mockConfluentConsumerProvider{c: MockKafkaConsumer{ID: "stew"}}.NewConsumer,
+				logger:           NoopLogger{},
+			},
+			args: args{
+				ctx:         t.Context(),
+				topicConfig: ConsumerTopicConfig{ClientID: "test-config", GroupID: "group"},
+			},
+			wantErr: "invalid config, no topics specified",
+		},
+
 		{
 			name: "create new KReader with bad formatter",
 			fields: fields{
@@ -173,7 +190,7 @@ func TestClient_Reader(t *testing.T) {
 					BootstrapServers: []string{"remotehost:8080"},
 				},
 			},
-			wantErr: true,
+			wantErr: "unsupported formatter nonexistantformatter",
 		},
 		{
 			name: "create new KReader for closed KReader",
@@ -206,7 +223,7 @@ func TestClient_Reader(t *testing.T) {
 				logger:    NoopLogger{},
 				formatter: zfmtShim{&zfmt.AvroFormatter{}},
 			},
-			wantErr: false,
+			wantErr: "",
 		},
 		{
 			name: "create new KReader for closed KReader with default overrides",
@@ -239,15 +256,15 @@ func TestClient_Reader(t *testing.T) {
 				logger:    NoopLogger{},
 				formatter: zfmtShim{&zfmt.AvroFormatter{}},
 			},
-			wantErr: false,
+			wantErr: "",
 		},
 
 		{
 			name: "invalid configuration should return error",
 			args: args{
-				topicConfig: ConsumerTopicConfig{ClientID: "test"},
+				topicConfig: ConsumerTopicConfig{ClientID: "test", Topic: "topic"},
 			},
-			wantErr: true,
+			wantErr: "group name cannot be empty",
 		},
 		{
 			name: "get from cache",
@@ -264,7 +281,7 @@ func TestClient_Reader(t *testing.T) {
 				},
 			},
 			want:    &KReader{},
-			wantErr: false,
+			wantErr: "",
 		},
 	}
 	for _, tt := range tests {
@@ -280,8 +297,8 @@ func TestClient_Reader(t *testing.T) {
 				producerProvider: tt.fields.producerProvider,
 			}
 			got, err := c.Reader(tt.args.ctx, tt.args.topicConfig, tt.args.opts...)
-			if tt.wantErr {
-				require.Error(t, err)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
 			} else {
 				require.NoError(t, err)
 			}

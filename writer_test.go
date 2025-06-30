@@ -17,7 +17,7 @@ import (
 )
 
 func TestWriter_Write(t *testing.T) {
-	recoverThenFail(t)
+	defer recoverThenFail(t)
 
 	ctrl := gomock.NewController(t)
 	p := mock_confluent.NewMockKafkaProducer(ctrl)
@@ -100,7 +100,7 @@ func TestWriter_Write(t *testing.T) {
 }
 
 func TestWriter_WriteKey(t *testing.T) {
-	recoverThenFail(t)
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
 
 	p := mock_confluent.NewMockKafkaProducer(ctrl)
@@ -189,7 +189,7 @@ func TestWriter_WriteKey(t *testing.T) {
 // However, it was noticed, that there was a possible deadlock that occurred when the quick error was returned. This test assures that's
 // no longer the behavior and the error is bubbled up
 func TestWriter_WriteKeyReturnsImmediateError(t *testing.T) {
-	recoverThenFail(t)
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
 
 	p := mock_confluent.NewMockKafkaProducer(ctrl)
@@ -197,7 +197,6 @@ func TestWriter_WriteKeyReturnsImmediateError(t *testing.T) {
 		return errors.New("not implemented error")
 	}).AnyTimes()
 
-	defer recoverThenFail(t)
 	w := &KWriter{
 		producer:    p,
 		topicConfig: ProducerTopicConfig{},
@@ -212,8 +211,10 @@ func TestWriter_WriteKeyReturnsImmediateError(t *testing.T) {
 }
 
 func TestWriter_WritesMetrics(t *testing.T) {
-	recoverThenFail(t)
+	defer recoverThenFail(t)
+
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	p := mock_confluent.NewMockKafkaProducer(ctrl)
 	p.EXPECT().Produce(gomock.Any(), gomock.Any()).DoAndReturn(func(msg *kafka.Message, deliveryChan chan kafka.Event) error {
@@ -257,9 +258,9 @@ func TestWriter_WritesMetrics(t *testing.T) {
 }
 
 func TestWriter_WriteSpecialCase(t *testing.T) {
-	recoverThenFail(t)
-
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	p1 := mock_confluent.NewMockKafkaProducer(ctrl)
 	p1.EXPECT().Produce(gomock.Any(), gomock.Any()).DoAndReturn(func(msg *kafka.Message, deliveryChan chan kafka.Event) error {
@@ -321,8 +322,9 @@ func TestWriter_WriteSpecialCase(t *testing.T) {
 }
 
 func TestWriter_PreWriteLifecycleHookCanAugmentHeaders(t *testing.T) {
-	recoverThenFail(t)
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	p := mock_confluent.NewMockKafkaProducer(ctrl)
 	var capturedMsg *kafka.Message
@@ -361,8 +363,9 @@ func TestWriter_PreWriteLifecycleHookCanAugmentHeaders(t *testing.T) {
 }
 
 func TestWriter_WithHeadersWriteOptionCanAugmentHeaders(t *testing.T) {
-	recoverThenFail(t)
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	p := mock_confluent.NewMockKafkaProducer(ctrl)
 	var capturedMsg *kafka.Message
@@ -392,7 +395,9 @@ func TestWriter_WithHeadersWriteOptionCanAugmentHeaders(t *testing.T) {
 }
 
 func Test_WithHeadersUpdatesOnConflict(t *testing.T) {
-	recoverThenFail(t)
+	defer recoverThenFail(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	opt := WithHeaders(map[string]string{
 		"abc": "def",
@@ -414,8 +419,9 @@ func Test_WithHeadersUpdatesOnConflict(t *testing.T) {
 }
 
 func TestWriter_PreWriteLifecycleHookErrorDoesntHaltProcessing(t *testing.T) {
-	recoverThenFail(t)
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	p := mock_confluent.NewMockKafkaProducer(ctrl)
 	p.EXPECT().Produce(gomock.Any(), gomock.Any()).DoAndReturn(func(msg *kafka.Message, deliveryChan chan kafka.Event) error {
@@ -446,8 +452,9 @@ func TestWriter_PreWriteLifecycleHookErrorDoesntHaltProcessing(t *testing.T) {
 }
 
 func TestWriter_Close(t *testing.T) {
-	recoverThenFail(t)
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 	p1 := mock_confluent.NewMockKafkaProducer(ctrl)
 	p1.EXPECT().Close().AnyTimes()
 	p2 := mock_confluent.NewMockKafkaProducer(ctrl)
@@ -493,6 +500,7 @@ func TestWriter_Close(t *testing.T) {
 }
 
 func Test_newWriter(t *testing.T) {
+	defer recoverThenFail(t)
 	type args struct {
 		conf        Config
 		topicConfig ProducerTopicConfig
@@ -546,7 +554,7 @@ func Test_newWriter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			recoverThenFail(t)
+			defer recoverThenFail(t)
 			args := writerArgs{
 				cfg:              tt.args.conf,
 				pCfg:             tt.args.topicConfig,
@@ -564,7 +572,9 @@ func Test_newWriter(t *testing.T) {
 }
 
 func TestWriter_WithOptions(t *testing.T) {
-	recoverThenFail(t)
+	defer recoverThenFail(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 	w := &KWriter{}
 	require.Nil(t, w.formatter, "expected nil formatter")
 
@@ -574,7 +584,7 @@ func TestWriter_WithOptions(t *testing.T) {
 }
 
 func Test_writeAttributeCarrier_Set(t *testing.T) {
-	recoverThenFail(t)
+	defer recoverThenFail(t)
 	km := kafka.Message{}
 	c := kMsgCarrier{
 		msg: &km,

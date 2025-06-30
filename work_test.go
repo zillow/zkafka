@@ -23,6 +23,7 @@ import (
 )
 
 func TestWork_processTimeoutMillis(t *testing.T) {
+	defer recoverThenFail(t)
 	type fields struct {
 		topicConfig ConsumerTopicConfig
 	}

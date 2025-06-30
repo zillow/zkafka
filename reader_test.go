@@ -167,6 +167,7 @@ func TestReader_Read_TimeoutError(t *testing.T) {
 }
 
 func TestReader_Read_SubscriberError(t *testing.T) {
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockConsumer := mock_confluent.NewMockKafkaConsumer(ctrl)
@@ -191,6 +192,7 @@ func TestReader_Read_SubscriberError(t *testing.T) {
 }
 
 func TestReader_Read_CloseError(t *testing.T) {
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -217,6 +219,7 @@ func TestReader_Read_CloseError(t *testing.T) {
 }
 
 func TestReader_ReadWhenConnectionIsClosed(t *testing.T) {
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockConsumer := mock_confluent.NewMockKafkaConsumer(ctrl)
@@ -245,6 +248,7 @@ func TestReader_ReadWhenConnectionIsClosed(t *testing.T) {
 }
 
 func Test_newReader(t *testing.T) {
+	defer recoverThenFail(t)
 	type args struct {
 		conf            Config
 		topicConfig     ConsumerTopicConfig
@@ -306,6 +310,7 @@ func Test_newReader(t *testing.T) {
 }
 
 func Test_ProcessMessage(t *testing.T) {
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -345,6 +350,7 @@ func Test_ProcessMessage(t *testing.T) {
 }
 
 func Test_ProcessMultipleMessagesFromDifferentTopics_UpdatesInternalStateProperly(t *testing.T) {
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -388,6 +394,7 @@ func Test_ProcessMultipleMessagesFromDifferentTopics_UpdatesInternalStateProperl
 }
 
 func Test_ProcessMessage_StoreOffsetError(t *testing.T) {
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -437,6 +444,7 @@ func Test_ProcessMessage_StoreOffsetError(t *testing.T) {
 }
 
 func Test_ProcessMessage_SetError(t *testing.T) {
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -487,6 +495,7 @@ func Test_ProcessMessage_SetError(t *testing.T) {
 }
 
 func TestReader_CloseCalledMultipleTimesDoesntOnlyTriesToCloseKafkaConsumerOnce(t *testing.T) {
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	// setup mockKafkaConsumer to mimic behavior of real consumer (only being able to be closed once)
@@ -508,6 +517,7 @@ func TestReader_CloseCalledMultipleTimesDoesntOnlyTriesToCloseKafkaConsumerOnce(
 }
 
 func TestReader_Close(t *testing.T) {
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockKafkaConsumer1 := mock_confluent.NewMockKafkaConsumer(ctrl)
@@ -556,6 +566,7 @@ func TestReader_Close(t *testing.T) {
 }
 
 func TestKReader_getRebalanceCb_RevokedPartitionsWhenAssignedLostDoesntErrorDuringStandardExecution(t *testing.T) {
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockKafkaConsumer1 := mock_confluent.NewMockKafkaConsumer(ctrl)
@@ -572,6 +583,7 @@ func TestKReader_getRebalanceCb_RevokedPartitionsWhenAssignedLostDoesntErrorDuri
 }
 
 func TestKReader_getRebalanceCb_RevokedPartitionsWhenAssignedNotLostDoesntErrorDuringStandardExecution(t *testing.T) {
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockKafkaConsumer1 := mock_confluent.NewMockKafkaConsumer(ctrl)
@@ -588,6 +600,7 @@ func TestKReader_getRebalanceCb_RevokedPartitionsWhenAssignedNotLostDoesntErrorD
 }
 
 func TestKReader_getRebalanceCb_RecognizedKafkaErrorOccursDuringNonRebalanceCbEvent(t *testing.T) {
+	defer recoverThenFail(t)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockKafkaConsumer1 := mock_confluent.NewMockKafkaConsumer(ctrl)
@@ -604,6 +617,7 @@ func TestKReader_getRebalanceCb_RecognizedKafkaErrorOccursDuringNonRebalanceCbEv
 }
 
 func Test_getTopics(t *testing.T) {
+	defer recoverThenFail(t)
 	type args struct {
 		partitions []kafka.TopicPartition
 	}

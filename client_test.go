@@ -22,6 +22,7 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
+	defer recoverThenFail(t)
 	type args struct {
 		conf Config
 	}
@@ -122,6 +123,7 @@ func TestClient_WithOptions(t *testing.T) {
 }
 
 func TestClient_Reader(t *testing.T) {
+	defer recoverThenFail(t)
 	type fields struct {
 		conf             Config
 		readers          map[string]*KReader
@@ -286,7 +288,6 @@ func TestClient_Reader(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer recoverThenFail(t)
 			c := &Client{
 				conf:    tt.fields.conf,
 				readers: tt.fields.readers,

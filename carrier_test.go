@@ -8,6 +8,7 @@ import (
 )
 
 func Test_msgCarrier_Get(t *testing.T) {
+	defer recoverThenFail(t)
 	tests := []struct {
 		name string
 		msg  *Message
@@ -39,6 +40,7 @@ func Test_msgCarrier_Get(t *testing.T) {
 }
 
 func Test_msgCarrier_Keys(t *testing.T) {
+	defer recoverThenFail(t)
 	tests := []struct {
 		name string
 		msg  *Message
@@ -62,6 +64,7 @@ func Test_msgCarrier_Keys(t *testing.T) {
 }
 
 func Test_msgCarrier_Set_IsANoop(t *testing.T) {
+	defer recoverThenFail(t)
 	msg := &Message{Headers: map[string][]byte{"key": []byte("value"), "key2": []byte("value2")}}
 	c := &msgCarrier{
 		msg: msg,
@@ -71,6 +74,7 @@ func Test_msgCarrier_Set_IsANoop(t *testing.T) {
 }
 
 func Test_kMsgCarrier_Set(t *testing.T) {
+	defer recoverThenFail(t)
 	msg := &kafka.Message{Headers: []kafka.Header{
 		{
 			Key:   "key",

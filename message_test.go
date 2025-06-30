@@ -12,6 +12,7 @@ import (
 )
 
 func Test_makeProducerMessageRaw(t *testing.T) {
+	defer recoverThenFail(t)
 	type args struct {
 		ctx         context.Context
 		serviceName string
@@ -215,6 +216,7 @@ func TestMessage_Done(t *testing.T) {
 }
 
 func Test_addHeaders(t *testing.T) {
+	defer recoverThenFail(t)
 	type args struct {
 		kafkaMessage kafka.Message
 		headers      map[string][]byte

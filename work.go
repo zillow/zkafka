@@ -207,7 +207,7 @@ func (w *Work) fanOut(ctx context.Context, shutdown <-chan struct{}) error {
 	msg, err := w.readMessage(ctx, shutdown)
 	if err != nil {
 		// some errors are permanent (incorrect configuration for example) and should break the work loop
-		tErr := &permError{e: err}
+		tErr := &permError{}
 		if errors.As(err, &tErr) {
 			return err
 		}
@@ -580,7 +580,7 @@ func (w *Work) ensureReader(ctx context.Context) error {
 
 	rdr, err := w.kafkaProvider.Reader(ctx, w.topicConfig)
 	if err != nil {
-		return err
+		return &permError{e: err}
 	}
 
 	if rdr == nil {

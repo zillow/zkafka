@@ -36,6 +36,7 @@ func TestWork_Run_FailsWithLogsWhenFailedToGetReader(t *testing.T) {
 
 	l := zkafka_mocks.NewMockLogger(ctrl)
 	l.EXPECT().Debugw(gomock.Any(), gomock.Any()).AnyTimes()
+	l.EXPECT().Debugw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	l.EXPECT().Warnw(gomock.Any(), "Kafka worker read message failed", "error", gomock.Any(), "topics", gomock.Any()).MinTimes(1)
 	l.EXPECT().Warnw(gomock.Any(), "Kafka topic processing circuit open", "topics", gomock.Any()).AnyTimes()
 
@@ -44,7 +45,7 @@ func TestWork_Run_FailsWithLogsWhenFailedToGetReader(t *testing.T) {
 
 	kwf := zkafka.NewWorkFactory(cp, zkafka.WithLogger(l))
 	fanOutCount := atomic.Int64{}
-	w := kwf.Create(zkafka.ConsumerTopicConfig{Topic: topicName},
+	w := kwf.Create(zkafka.ConsumerTopicConfig{Topic: topicName, GroupID: uuid.NewString(), ClientID: uuid.NewString()},
 		&fakeProcessor{},
 		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 			fanOutCount.Add(1)
@@ -71,6 +72,36 @@ func TestWork_Run_FailsWithLogsWhenFailedToGetReader(t *testing.T) {
 	require.NoError(t, grp.Wait())
 }
 
+// Start a work run loop where topic hasn't been specified (invalid configuration).
+// Assert that this returns an explicit error from the work loop. (as opposed to logging and continuing to retry, this is a permanent failure).
+//
+// Use a real clientProvider (this test doesn't rely on any infrastructure, like a kafka broker, since of the early failure) and makes
+// the test higher fidelity
+func TestWork_Run_ReturnsExplicitErrorWhenInvalidConfigIsGivenForReader(t *testing.T) {
+	defer recoverThenFail(t)
+	ctx := context.Background()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	l := stdLogger{}
+	kcp := zkafka.NewClient(zkafka.Config{})
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
+
+	// missing topic name
+	w := kwf.Create(zkafka.ConsumerTopicConfig{Topic: "", GroupID: uuid.NewString(), ClientID: uuid.NewString()}, &fakeProcessor{},
+		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
+			cancel()
+		}}))
+
+	err := w.Run(ctx, nil)
+	require.ErrorContains(t, err, "invalid config, no topics specified")
+}
+
 func TestWork_Run_FailsWithLogsWhenGotNilReader(t *testing.T) {
 	defer recoverThenFail(t)
 	ctx := context.Background()
@@ -81,6 +112,7 @@ func TestWork_Run_FailsWithLogsWhenGotNilReader(t *testing.T) {
 	l := zkafka_mocks.NewMockLogger(ctrl)
 	l.EXPECT().Warnw(gomock.Any(), "Kafka worker read message failed", "error", gomock.Any(), "topics", gomock.Any()).Times(1)
 	l.EXPECT().Debugw(gomock.Any(), gomock.Any()).AnyTimes()
+	l.EXPECT().Debugw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
 	kcp := zkafka.FakeClient{R: nil}
 
@@ -88,7 +120,7 @@ func TestWork_Run_FailsWithLogsWhenGotNilReader(t *testing.T) {
 	defer cancel()
 
 	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
-	w := kwf.Create(zkafka.ConsumerTopicConfig{Topic: topicName}, &fakeProcessor{},
+	w := kwf.Create(zkafka.ConsumerTopicConfig{Topic: topicName, GroupID: uuid.NewString(), ClientID: uuid.NewString()}, &fakeProcessor{},
 		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 			cancel()
 		}}))
@@ -107,6 +139,7 @@ func TestWork_Run_FailsWithLogsForReadError(t *testing.T) {
 	l := zkafka_mocks.NewMockLogger(ctrl)
 	l.EXPECT().Warnw(gomock.Any(), "Kafka worker read message failed", "error", gomock.Any(), "topics", gomock.Any()).MinTimes(1)
 	l.EXPECT().Debugw(gomock.Any(), gomock.Any()).AnyTimes()
+	l.EXPECT().Debugw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Times(1).Return(nil, errors.New("error occurred during read"))
@@ -116,7 +149,7 @@ func TestWork_Run_FailsWithLogsForReadError(t *testing.T) {
 	defer cancel()
 
 	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
-	w := kwf.Create(zkafka.ConsumerTopicConfig{Topic: topicName}, &fakeProcessor{},
+	w := kwf.Create(zkafka.ConsumerTopicConfig{Topic: topicName, GroupID: uuid.NewString(), ClientID: uuid.NewString()}, &fakeProcessor{},
 		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
 			cancel()
 		}}))
@@ -432,6 +465,7 @@ func TestWork_Run_DisabledCircuitBreakerContinueReadError(t *testing.T) {
 	l.EXPECT().Warnw(gomock.Any(), "Kafka topic processing circuit open", "topics", gomock.Any()).Times(0)
 	l.EXPECT().Debugw(gomock.Any(), "Kafka topic message received", "offset", gomock.Any(), "partition", gomock.Any(), "topic", gomock.Any(), "groupID", gomock.Any()).AnyTimes()
 	l.EXPECT().Debugw(gomock.Any(), gomock.Any()).AnyTimes()
+	l.EXPECT().Debugw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).MinTimes(4).Return(nil, errors.New("error occurred on read"))
@@ -442,7 +476,7 @@ func TestWork_Run_DisabledCircuitBreakerContinueReadError(t *testing.T) {
 
 	cnt := atomic.Int64{}
 	w := kwf.Create(
-		zkafka.ConsumerTopicConfig{Topic: topicName},
+		zkafka.ConsumerTopicConfig{Topic: topicName, GroupID: uuid.NewString(), ClientID: uuid.NewString()},
 		&fakeProcessor{},
 		zkafka.WithDisableCircuitBreaker(true),
 		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
@@ -562,6 +596,7 @@ func TestKafkaWork_ProcessorReturnsErrorIsLoggedAsWarning(t *testing.T) {
 	l.EXPECT().Warnw(gomock.Any(), "Outside context canceled", "kmsg", gomock.Any(), "error", gomock.Any()).AnyTimes()
 	l.EXPECT().Debugw(gomock.Any(), "Kafka topic message received", "offset", gomock.Any(), "partition", gomock.Any(), "topic", gomock.Any(), "groupID", gomock.Any()).AnyTimes()
 	l.EXPECT().Debugw(gomock.Any(), gomock.Any()).AnyTimes()
+	l.EXPECT().Debugw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 		Key:       ptr("key"),
@@ -580,7 +615,7 @@ func TestKafkaWork_ProcessorReturnsErrorIsLoggedAsWarning(t *testing.T) {
 	wf := zkafka.NewWorkFactory(mockClientProvider, zkafka.WithLogger(l))
 	count := atomic.Int64{}
 	work := wf.Create(
-		zkafka.ConsumerTopicConfig{Topic: topicName},
+		zkafka.ConsumerTopicConfig{Topic: topicName, GroupID: uuid.NewString(), ClientID: uuid.NewString()},
 		&processor,
 		zkafka.WithOnDone(func(ctx context.Context, message *zkafka.Message, err error) {
 			count.Add(1)

@@ -1404,11 +1404,9 @@ func Test_MissingBootstrap_ShouldGiveClearError(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
-	var readErr error
 	wf := zkafka.NewWorkFactory(client, zkafka.WithLogger(stdLogger{}),
 		zkafka.WithWorkLifecycleHooks(zkafka.LifecycleHooks{
 			PostReadImmediate: func(ctx context.Context, meta zkafka.LifecyclePostReadImmediateMeta) {
-				readErr = meta.Err
 				cancel()
 			},
 		}),
@@ -1417,8 +1415,7 @@ func Test_MissingBootstrap_ShouldGiveClearError(t *testing.T) {
 		return nil
 	})
 	err := w.Run(context.Background(), ctx.Done())
-	require.NoError(t, err)
-	require.ErrorContains(t, readErr, "invalid consumer config, missing bootstrap server addresses")
+	require.ErrorContains(t, err, "invalid consumer config, missing bootstrap server addresses")
 }
 
 func createTopic(t *testing.T, bootstrapServer, topic string, partitions int) {

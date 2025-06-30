@@ -27,51 +27,6 @@ const (
 	topicName = "orange"
 )
 
-func TestWork_Run_FailsWithLogsWhenFailedToGetReader(t *testing.T) {
-	defer recoverThenFail(t)
-	ctx := context.Background()
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	l := zkafka_mocks.NewMockLogger(ctrl)
-	l.EXPECT().Debugw(gomock.Any(), gomock.Any()).AnyTimes()
-	l.EXPECT().Debugw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
-	l.EXPECT().Warnw(gomock.Any(), "Kafka worker read message failed", "error", gomock.Any(), "topics", gomock.Any()).MinTimes(1)
-	l.EXPECT().Warnw(gomock.Any(), "Kafka topic processing circuit open", "topics", gomock.Any()).AnyTimes()
-
-	cp := zkafka_mocks.NewMockClientProvider(ctrl)
-	cp.EXPECT().Reader(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("no kafka client reader created")).MinTimes(1)
-
-	kwf := zkafka.NewWorkFactory(cp, zkafka.WithLogger(l))
-	fanOutCount := atomic.Int64{}
-	w := kwf.Create(zkafka.ConsumerTopicConfig{Topic: topicName, GroupID: uuid.NewString(), ClientID: uuid.NewString()},
-		&fakeProcessor{},
-		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{PostFanout: func(ctx context.Context) {
-			fanOutCount.Add(1)
-		}}))
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	grp := errgroup.Group{}
-	grp.Go(func() error {
-		return w.Run(ctx, nil)
-	})
-
-	pollWait(func() bool {
-		return fanOutCount.Load() >= 1
-	}, pollOpts{
-		exit: cancel,
-		timeoutExit: func() {
-			require.Fail(t, "Polling condition not met prior to test timeout")
-		},
-		pollPause: time.Millisecond,
-		maxWait:   10 * time.Second,
-	})
-	cancel()
-	require.NoError(t, grp.Wait())
-}
-
 // Start a work run loop where topic hasn't been specified (invalid configuration).
 // Assert that this returns an explicit error from the work loop. (as opposed to logging and continuing to retry, this is a permanent failure).
 //

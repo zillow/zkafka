@@ -42,6 +42,7 @@ import (
 // We then test we can use the confluent deserializer to decode the messages. For both schema1 and schema2.
 // This confirms that backwards/forward compatible evolution is possible and old schemas can still read messages from new.
 func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest, enableSchemaRegistryTest)
 
 	ctx := context.Background()
@@ -163,6 +164,7 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 }
 
 func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_OldProducerCanBeConsumedByNewConsumer(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest, enableSchemaRegistryTest)
 
 	ctx := context.Background()
@@ -250,6 +252,7 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_OldProducerCanBeConsumedBy
 }
 
 func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_NewProducerCanBeConsumedByOldConsumer(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest, enableSchemaRegistryTest)
 
 	ctx := context.Background()
@@ -338,6 +341,7 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_NewProducerCanBeConsumedBy
 }
 
 func Test_SchemaRegistryReal_Proto_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest, enableSchemaRegistryTest)
 
 	ctx := context.Background()
@@ -449,6 +453,7 @@ func Test_SchemaRegistryReal_Proto_AutoRegisterSchemas_BackwardCompatibleSchemas
 }
 
 func Test_SchemaRegistryReal_JSON_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest, enableSchemaRegistryTest)
 
 	ctx := context.Background()
@@ -558,6 +563,7 @@ func Test_SchemaRegistryReal_JSON_AutoRegisterSchemas_BackwardCompatibleSchemasC
 }
 
 func Test_SchemaRegistry_Proto_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	ctx := context.Background()
@@ -667,6 +673,7 @@ func Test_SchemaRegistry_Proto_AutoRegisterSchemas_BackwardCompatibleSchemasCanB
 }
 
 func Test_SchemaRegistry_JSON_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	ctx := context.Background()

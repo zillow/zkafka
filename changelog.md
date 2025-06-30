@@ -6,7 +6,7 @@ This project adheres to Semantic Versioning.
 
 ## 2.2.1 (June 30, 2025)
 
-1. Updated dependencies
+1. Updated dependencies (fix vulnerabilities)
 2. Clearer error message `client.Reader()` when missing topic names
 
 ## 2.2.0 (March 9, 2025)

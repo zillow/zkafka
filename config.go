@@ -245,10 +245,10 @@ func getDefaultConsumerTopicConfig(topicConfig *ConsumerTopicConfig) error {
 		return errors.New("invalid config, ClientID must not be empty")
 	}
 	if topicConfig.GroupID == "" {
-		return errors.New("invalid config, group name cannot be empty")
+		return &permError{e: errors.New("invalid config, group name cannot be empty")}
 	}
 	if len(topicConfig.topics()) == 0 {
-		return errors.New("invalid config, missing topic name")
+		return &permError{e: errors.New("invalid config, no topics specified")}
 	}
 
 	if string(topicConfig.Formatter) == "" {
@@ -279,10 +279,10 @@ func getDefaultConsumerTopicConfig(topicConfig *ConsumerTopicConfig) error {
 
 func getDefaultProducerTopicConfig(topicConfig *ProducerTopicConfig) error {
 	if topicConfig.ClientID == "" {
-		return errors.New("invalid config, ClientID must not be empty")
+		return &permError{e: errors.New("invalid config, ClientID must not be empty")}
 	}
 	if topicConfig.Topic == "" {
-		return errors.New("invalid config, missing topic name")
+		return &permError{e: errors.New("invalid config, missing topic name")}
 	}
 	if topicConfig.NagleDisable == nil {
 		topicConfig.NagleDisable = ptr(true)
@@ -453,4 +453,16 @@ func makeProducerConfig(conf Config, topicConfig ProducerTopicConfig) (kafka.Con
 		}
 	}
 	return configMap, nil
+}
+
+type permError struct {
+	e error
+}
+
+func (e *permError) Error() string {
+	return e.e.Error()
+}
+
+func (e *permError) Unwrap() error {
+	return e.e
 }

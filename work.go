@@ -121,9 +121,9 @@ func (w *Work) Run(ctx context.Context, shutdown <-chan struct{}) error {
 
 	g := errgroup.Group{}
 	g.Go(func() error {
-		w.execReader(ctx, shutdown)
-		w.logger.Debugw(ctx, "exiting reader loop")
-		return nil
+		err := w.execReader(ctx, shutdown)
+		w.logger.Debugw(ctx, "exiting reader loop", "error", err)
+		return err
 	})
 	g.Go(func() error {
 		w.execProcessors(ctx, shutdown)
@@ -133,7 +133,7 @@ func (w *Work) Run(ctx context.Context, shutdown <-chan struct{}) error {
 	return g.Wait()
 }
 
-func (w *Work) execReader(ctx context.Context, shutdown <-chan struct{}) {
+func (w *Work) execReader(ctx context.Context, shutdown <-chan struct{}) error {
 	defer func() {
 		w.closeProcessors(ctx)
 	}()
@@ -141,11 +141,13 @@ func (w *Work) execReader(ctx context.Context, shutdown <-chan struct{}) {
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		case <-shutdown:
-			return
+			return nil
 		default:
-			w.fanOut(ctx, shutdown)
+			if err := w.fanOut(ctx, shutdown); err != nil {
+				return err
+			}
 		}
 		if w.lifecycle.PostFanout != nil {
 			w.lifecycle.PostFanout(ctx)
@@ -186,7 +188,7 @@ func (w *Work) closeProcessors(_ context.Context) {
 	}
 }
 
-func (w *Work) fanOut(ctx context.Context, shutdown <-chan struct{}) {
+func (w *Work) fanOut(ctx context.Context, shutdown <-chan struct{}) error {
 	successFunc, err := w.cb.Allow()
 	// If circuit is open, Allow() returns error.
 	// If circuit is open, we don't read.
@@ -200,9 +202,16 @@ func (w *Work) fanOut(ctx context.Context, shutdown <-chan struct{}) {
 		case <-ctx.Done():
 			cleanup()
 		}
-		return
+		return nil
 	}
 	msg, err := w.readMessage(ctx, shutdown)
+	if err != nil {
+		// some errors are permanent (incorrect configuration for example) and should break the work loop
+		tErr := &permError{}
+		if errors.As(err, &tErr) {
+			return err
+		}
+	}
 
 	if w.lifecycle.PostReadImmediate != nil {
 		w.lifecycle.PostReadImmediate(ctx, LifecyclePostReadImmediateMeta{
@@ -216,12 +225,12 @@ func (w *Work) fanOut(ctx context.Context, shutdown <-chan struct{}) {
 			"error", err,
 			"topics", w.topicConfig.topics())
 		successFunc(false)
-		return
+		return nil
 	}
 
 	if msg == nil {
 		successFunc(true)
-		return
+		return nil
 	}
 	if w.lifecycle.PostRead != nil {
 		ctx, err = w.lifecycle.PostRead(ctx, LifecyclePostReadMeta{
@@ -259,6 +268,7 @@ func (w *Work) fanOut(ctx context.Context, shutdown <-chan struct{}) {
 		w.removeInWork(msg)
 		break
 	}
+	return nil
 }
 
 func (w *Work) readMessage(ctx context.Context, shutdown <-chan struct{}) (*Message, error) {
@@ -570,7 +580,7 @@ func (w *Work) ensureReader(ctx context.Context) error {
 
 	rdr, err := w.kafkaProvider.Reader(ctx, w.topicConfig)
 	if err != nil {
-		return err
+		return &permError{e: err}
 	}
 
 	if rdr == nil {

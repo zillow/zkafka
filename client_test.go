@@ -22,6 +22,7 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
+	defer recoverThenFail(t)
 	type args struct {
 		conf Config
 	}
@@ -122,6 +123,7 @@ func TestClient_WithOptions(t *testing.T) {
 }
 
 func TestClient_Reader(t *testing.T) {
+	defer recoverThenFail(t)
 	type fields struct {
 		conf             Config
 		readers          map[string]*KReader
@@ -140,7 +142,7 @@ func TestClient_Reader(t *testing.T) {
 		fields  fields
 		args    args
 		want    *KReader
-		wantErr bool
+		wantErr string
 	}{
 		{
 			name: "create new KReader with overridden Brokers, error from consumer provider",
@@ -156,8 +158,25 @@ func TestClient_Reader(t *testing.T) {
 					BootstrapServers: []string{"remotehost:8080"},
 				},
 			},
-			wantErr: true,
+			wantErr: "fake error",
 		},
+		{
+			name: "create new KReader with missing topic results in error",
+			fields: fields{
+				conf: Config{BootstrapServers: []string{"localhost:9092"}},
+				readers: map[string]*KReader{
+					"test-config": {isClosed: true},
+				},
+				consumerProvider: mockConfluentConsumerProvider{c: MockKafkaConsumer{ID: "stew"}}.NewConsumer,
+				logger:           NoopLogger{},
+			},
+			args: args{
+				ctx:         t.Context(),
+				topicConfig: ConsumerTopicConfig{ClientID: "test-config", GroupID: "group"},
+			},
+			wantErr: "invalid config, no topics specified",
+		},
+
 		{
 			name: "create new KReader with bad formatter",
 			fields: fields{
@@ -173,7 +192,7 @@ func TestClient_Reader(t *testing.T) {
 					BootstrapServers: []string{"remotehost:8080"},
 				},
 			},
-			wantErr: true,
+			wantErr: "unsupported formatter nonexistantformatter",
 		},
 		{
 			name: "create new KReader for closed KReader",
@@ -206,7 +225,7 @@ func TestClient_Reader(t *testing.T) {
 				logger:    NoopLogger{},
 				formatter: zfmtShim{&zfmt.AvroFormatter{}},
 			},
-			wantErr: false,
+			wantErr: "",
 		},
 		{
 			name: "create new KReader for closed KReader with default overrides",
@@ -239,15 +258,15 @@ func TestClient_Reader(t *testing.T) {
 				logger:    NoopLogger{},
 				formatter: zfmtShim{&zfmt.AvroFormatter{}},
 			},
-			wantErr: false,
+			wantErr: "",
 		},
 
 		{
 			name: "invalid configuration should return error",
 			args: args{
-				topicConfig: ConsumerTopicConfig{ClientID: "test"},
+				topicConfig: ConsumerTopicConfig{ClientID: "test", Topic: "topic"},
 			},
-			wantErr: true,
+			wantErr: "group name cannot be empty",
 		},
 		{
 			name: "get from cache",
@@ -264,12 +283,11 @@ func TestClient_Reader(t *testing.T) {
 				},
 			},
 			want:    &KReader{},
-			wantErr: false,
+			wantErr: "",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer recoverThenFail(t)
 			c := &Client{
 				conf:    tt.fields.conf,
 				readers: tt.fields.readers,
@@ -280,8 +298,8 @@ func TestClient_Reader(t *testing.T) {
 				producerProvider: tt.fields.producerProvider,
 			}
 			got, err := c.Reader(tt.args.ctx, tt.args.topicConfig, tt.args.opts...)
-			if tt.wantErr {
-				require.Error(t, err)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
 			} else {
 				require.NoError(t, err)
 			}
@@ -320,7 +338,7 @@ func TestClient_Writer(t *testing.T) {
 		fields  fields
 		args    args
 		want    *KWriter
-		wantErr bool
+		wantErr string
 	}{
 		{
 			name: "create new KWriter with overridden Brokers, error from producer provider",
@@ -339,7 +357,7 @@ func TestClient_Writer(t *testing.T) {
 					BootstrapServers: []string{"remotehost:8080"},
 				},
 			},
-			wantErr: true,
+			wantErr: "fake error",
 		},
 		{
 			name: "create new KWriter for closed writer",
@@ -369,7 +387,7 @@ func TestClient_Writer(t *testing.T) {
 				p:         propagation.TraceContext{},
 				formatter: zfmtShim{&zfmt.ProtobufRawFormatter{}},
 			},
-			wantErr: false,
+			wantErr: "",
 		},
 		{
 			name: "create new KWriter for closed writer with default overrides",
@@ -399,14 +417,21 @@ func TestClient_Writer(t *testing.T) {
 				p:         propagation.TraceContext{},
 				formatter: zfmtShim{&zfmt.ProtobufRawFormatter{}},
 			},
-			wantErr: false,
+			wantErr: "",
 		},
 		{
 			name: "invalid configuration should return error",
 			args: args{
 				topicConfig: ProducerTopicConfig{Topic: "topic"},
 			},
-			wantErr: true,
+			wantErr: "invalid config, ClientID",
+		},
+		{
+			name: "invalid configuration (missing topic) should return error",
+			args: args{
+				topicConfig: ProducerTopicConfig{ClientID: "test-id"},
+			},
+			wantErr: "invalid config, missing topic name",
 		},
 		{
 			name: "get from cache",
@@ -419,7 +444,7 @@ func TestClient_Writer(t *testing.T) {
 				topicConfig: ProducerTopicConfig{ClientID: "test-id", Topic: "topic"},
 			},
 			want:    &KWriter{},
-			wantErr: false,
+			wantErr: "",
 		},
 	}
 	for _, tt := range tests {
@@ -433,8 +458,8 @@ func TestClient_Writer(t *testing.T) {
 				producerProvider: tt.fields.producerProvider,
 			}
 			got, err := c.Writer(tt.args.ctx, tt.args.topicConfig, tt.args.opts...)
-			if tt.wantErr {
-				require.Error(t, err)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
 			} else {
 				require.NoError(t, err)
 			}

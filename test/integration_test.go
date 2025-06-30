@@ -39,6 +39,8 @@ import (
 // 1. Restart a consumer (being sure to reuse the same consumer group from before)
 // 1. Read another message. Assert its the second written message (first was already read and committed)
 func TestKafkaClientsCanReadOwnWritesAndBehaveProperlyAfterRestart(t *testing.T) {
+	defer recoverThenFail(t)
+
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	ctx := context.Background()
@@ -194,6 +196,8 @@ func TestKafkaClientsCanReadOwnWritesAndBehaveProperlyAfterRestart(t *testing.T)
 // This is in response to a noted issue where rebalance was prone to replayed messages.
 // There are multiple versions of the tests which vary the processing duration
 func Test_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
+	defer recoverThenFail(t)
+
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	type testCase struct {
@@ -380,6 +384,7 @@ func Test_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
 // when a consumer joins and starts consuming messages and later when another consumer joins
 // then there are no duplicate messages processed.
 func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	type testCase struct {
@@ -555,6 +560,7 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 // The consumer's processing times are set to a range as opposed to a specific duration. This allows lookahead processing (where messages
 // of higher offsets are processed and completed, potentially, before lower offsets
 func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	type testCase struct {
@@ -711,6 +717,7 @@ func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *test
 // The rebalances are handled during the Poll call under the hood (which is only called while a KReader is in the attempt of Reading.
 // So as we simulate two members of a group we'll need to keep calling from both consumers so the rebalance eventually occurs
 func Test_AssignmentsReflectsConsumerAssignments(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	ctx := context.Background()
@@ -829,6 +836,7 @@ func Test_AssignmentsReflectsConsumerAssignments(t *testing.T) {
 // when the second consumer joins and causes a rebalance
 // then the first isn't infinitely blocked in its rebalance
 func Test_UnfinishableWorkDoesntBlockWorkIndefinitely(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	ctx := context.Background()
@@ -925,6 +933,7 @@ func Test_UnfinishableWorkDoesntBlockWorkIndefinitely(t *testing.T) {
 // when processing that message errors and a deadletter is configured
 // then the errored message will be written to the dlt
 func Test_KafkaClientsCanWriteToTheirDeadLetterTopic(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	bootstrapServer := getBootstrap()
@@ -1020,6 +1029,7 @@ func Test_KafkaClientsCanWriteToTheirDeadLetterTopic(t *testing.T) {
 }
 
 func Test_WorkDelay_GuaranteesProcessingDelayedAtLeastSpecifiedDelayDurationFromWhenMessageWritten(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	ctx := context.Background()
@@ -1128,6 +1138,7 @@ func Test_WorkDelay_GuaranteesProcessingDelayedAtLeastSpecifiedDelayDurationFrom
 // 2. It also asserts that the time between the first and last message is very short.
 // This is expected in a backlog situation, since the worker will delay once, and with monotonically increasing timestamps won't have to delay again
 func Test_WorkDelay_DoesntHaveDurationStackEffect(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	ctx := context.Background()
@@ -1243,6 +1254,7 @@ func Test_WorkDelay_DoesntHaveDurationStackEffect(t *testing.T) {
 // This test shows that when a connector processes N messages half of which error (deadletter) and half of which connect
 // to an egress topic, that messages end up in both targets (as opposed to exclusively in the deadletter)
 func Test_DeadletterClientDoesntCollideWithProducer(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	ctx := context.Background()
@@ -1366,6 +1378,7 @@ func Test_DeadletterClientDoesntCollideWithProducer(t *testing.T) {
 }
 
 func Test_MissingBootstrap_ShouldGiveClearError(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	topic := "integration-test-topic-2" + uuid.NewString()
@@ -1391,11 +1404,9 @@ func Test_MissingBootstrap_ShouldGiveClearError(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
-	var readErr error
 	wf := zkafka.NewWorkFactory(client, zkafka.WithLogger(stdLogger{}),
 		zkafka.WithWorkLifecycleHooks(zkafka.LifecycleHooks{
 			PostReadImmediate: func(ctx context.Context, meta zkafka.LifecyclePostReadImmediateMeta) {
-				readErr = meta.Err
 				cancel()
 			},
 		}),
@@ -1404,8 +1415,7 @@ func Test_MissingBootstrap_ShouldGiveClearError(t *testing.T) {
 		return nil
 	})
 	err := w.Run(context.Background(), ctx.Done())
-	require.NoError(t, err)
-	require.ErrorContains(t, readErr, "invalid consumer config, missing bootstrap server addresses")
+	require.ErrorContains(t, err, "invalid consumer config, missing bootstrap server addresses")
 }
 
 func createTopic(t *testing.T, bootstrapServer, topic string, partitions int) {

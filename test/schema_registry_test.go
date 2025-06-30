@@ -30,6 +30,7 @@ const enableSchemaRegistryTest = "ENABLE_SCHEMA_REGISTRY_TESTS"
 const enableKafkaBrokerTest = "ENABLE_KAFKA_BROKER_TESTS"
 
 func Test_SchemaRegistry_AutoRegisterSchemasFalse_WillNotWriteMessage(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	ctx := context.Background()
@@ -73,6 +74,7 @@ func Test_SchemaRegistry_AutoRegisterSchemasFalse_WillNotWriteMessage(t *testing
 // In this case, the underlying lib does
 
 func Test_SchemaRegistry_Avro_AutoRegisterSchemas_RequiresSchemaSpecification(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	ctx := context.Background()
@@ -116,6 +118,7 @@ func Test_SchemaRegistry_Avro_AutoRegisterSchemas_RequiresSchemaSpecification(t 
 // a message for a schema that doesn't exist in shcema registry. This test shows that such a situation would result in a decode error
 
 func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	ctx := context.Background()
@@ -183,6 +186,7 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 }
 
 func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	ctx := context.Background()
@@ -260,6 +264,7 @@ func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
 }
 
 func Test_SchemaRegistry_Proto_SubjectNameSpecification(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	ctx := context.Background()
@@ -335,6 +340,7 @@ func Test_SchemaRegistry_Proto_SubjectNameSpecification(t *testing.T) {
 }
 
 func Test_SchemaRegistry_Json_SubjectNameSpecification(t *testing.T) {
+	defer recoverThenFail(t)
 	checkShouldSkipTest(t, enableKafkaBrokerTest)
 
 	ctx := context.Background()

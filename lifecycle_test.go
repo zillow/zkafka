@@ -8,6 +8,7 @@ import (
 )
 
 func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
+	defer recoverThenFail(t)
 	lhState := make(map[string]int) // Map from state to number of times called
 
 	hooks1 := LifecycleHooks{

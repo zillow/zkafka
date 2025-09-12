@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/zillow/zfmt"
+	zfmt_json "github.com/zillow/zfmt/json"
 )
 
 const (
@@ -76,7 +76,9 @@ type ConsumerTopicConfig struct {
 	AdditionalProps map[string]interface{}
 
 	// Formatter is json if not defined
-	Formatter zfmt.FormatterType
+	Formatter Formatter
+
+	SchematizedFormatter SchematizedFormatter
 
 	SchemaRegistry SchemaRegistryConfig
 
@@ -124,7 +126,7 @@ type ConsumerTopicConfig struct {
 	DeadLetterTopicConfig *ProducerTopicConfig
 }
 
-func (p ConsumerTopicConfig) GetFormatter() zfmt.FormatterType {
+func (p ConsumerTopicConfig) GetFormatter() Formatter {
 	return p.Formatter
 }
 
@@ -172,7 +174,7 @@ type ProducerTopicConfig struct {
 	AdditionalProps map[string]interface{}
 
 	// Formatter is json if not defined
-	Formatter zfmt.FormatterType
+	Formatter Formatter
 
 	// SchemaRegistry provides details about connecting to a schema registry including URL
 	// as well as others.
@@ -205,7 +207,7 @@ type ProducerTopicConfig struct {
 	SaslPassword *string
 }
 
-func (p ProducerTopicConfig) GetFormatter() zfmt.FormatterType {
+func (p ProducerTopicConfig) GetFormatter() Formatter {
 	return p.Formatter
 }
 
@@ -251,9 +253,9 @@ func getDefaultConsumerTopicConfig(topicConfig *ConsumerTopicConfig) error {
 		return &permError{e: errors.New("invalid config, no topics specified")}
 	}
 
-	if string(topicConfig.Formatter) == "" {
+	if topicConfig.Formatter == nil {
 		// default to json formatter
-		topicConfig.Formatter = zfmt.JSONFmt
+		topicConfig.Formatter = &zfmt_json.Formatter{}
 	}
 
 	const defaultProcessTimeoutMillis = 60 * 1000
@@ -288,9 +290,9 @@ func getDefaultProducerTopicConfig(topicConfig *ProducerTopicConfig) error {
 		topicConfig.NagleDisable = ptr(true)
 	}
 
-	if string(topicConfig.Formatter) == "" {
+	if topicConfig.Formatter == nil {
 		// default to json formatter
-		topicConfig.Formatter = zfmt.JSONFmt
+		topicConfig.Formatter = &zfmt_json.Formatter{}
 	}
 
 	return nil

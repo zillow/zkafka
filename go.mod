@@ -10,7 +10,7 @@ require (
 	github.com/heetch/avro v0.4.79
 	github.com/sony/gobreaker v1.0.0
 	github.com/stretchr/testify v1.10.0
-	github.com/zillow/zfmt v1.0.1
+	github.com/zillow/zfmt v1.0.2-0.20250912050045-707af315292f
 	go.opentelemetry.io/otel v1.37.0
 	go.opentelemetry.io/otel/trace v1.37.0
 	go.uber.org/mock v0.5.2
@@ -37,6 +37,8 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
+	github.com/zillow/zfmt/internal v0.0.0-20250903175521-e3b644581340 // indirect
+	github.com/zillow/zfmt/json v0.0.0-20250912050045-707af315292f // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel/metric v1.37.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect

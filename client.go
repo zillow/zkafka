@@ -4,10 +4,9 @@ package zkafka
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sync"
 
-	"github.com/zillow/zfmt"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -83,9 +82,10 @@ func (c *Client) Reader(_ context.Context, topicConfig ConsumerTopicConfig, opts
 	}
 
 	formatter, err := c.getFormatter(formatterArgs{
-		formatter: topicConfig.Formatter,
-		schemaID:  topicConfig.SchemaID,
-		srCfg:     topicConfig.SchemaRegistry,
+		formatter:            topicConfig.Formatter,
+		schematizedFormatter: topicConfig.SchematizedFormatter,
+		schemaID:             topicConfig.SchemaID,
+		srCfg:                topicConfig.SchemaRegistry,
 	})
 	if err != nil {
 		return nil, err
@@ -177,10 +177,7 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) getFormatter(args formatterArgs) (kFormatter, error) {
-	formatter := args.formatter
-	schemaID := args.schemaID
-
-	switch formatter {
+	switch args.schemaRegistryType {
 	case AvroSchemaRegistry:
 		scl, err := c.srf.createAvro(args.srCfg)
 		if err != nil {
@@ -201,15 +198,14 @@ func (c *Client) getFormatter(args formatterArgs) (kFormatter, error) {
 		}
 		cf := newJsonSchemaRegistryFormatter(scl)
 		return cf, nil
-	case CustomFmt:
-		return &errFormatter{}, nil
-	default:
-		f, err := zfmt.GetFormatter(formatter, schemaID)
-		if err != nil {
-			return nil, fmt.Errorf("unsupported formatter %s", formatter)
-		}
-		return zfmtShim{F: f}, nil
 	}
+	if args.schematizedFormatter != nil {
+		return schematizedFormatterShim{F: args.schematizedFormatter, SchemaID: args.schemaID}, nil
+	}
+	if args.formatter != nil {
+		return formatterShim{F: args.formatter}, nil
+	}
+	return nil, errors.New("no formatter provided")
 }
 
 func getTracer(tp trace.TracerProvider) trace.Tracer {
@@ -224,7 +220,9 @@ func getWriterKey(cfg ProducerTopicConfig) string {
 }
 
 type formatterArgs struct {
-	formatter zfmt.FormatterType
-	schemaID  int
-	srCfg     SchemaRegistryConfig
+	formatter            Formatter
+	schematizedFormatter SchematizedFormatter
+	schemaID             int
+	schemaRegistryType   string
+	srCfg                SchemaRegistryConfig
 }

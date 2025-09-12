@@ -5,24 +5,21 @@ import (
 	"fmt"
 
 	"github.com/hamba/avro/v2"
-	"github.com/zillow/zfmt"
 )
 
 const (
-	// CustomFmt indicates that the user would pass in their own Formatter later
-	CustomFmt zfmt.FormatterType = "custom"
 	// AvroSchemaRegistry uses confluent's schema registry. It encodes a schemaID as the first 5 bytes and then avro serializes (binary)
 	// for the remaining part of the payload. It is the successor to `avro_schema` which ships with zfmt,
-	AvroSchemaRegistry zfmt.FormatterType = "avro_schema_registry"
+	AvroSchemaRegistry string = "avro_schema_registry"
 
 	// ProtoSchemaRegistry uses confluent's schema registry. It encodes a schemaID as well as the message types as
 	// a payload prefix and then proto serializes (binary) for the remaining part of the payload.
 	// zfmt.ProtoSchemaDeprecatedFmt had a bug in its implementation and didn't work properly with confluent
-	ProtoSchemaRegistry zfmt.FormatterType = "proto_schema_registry"
+	ProtoSchemaRegistry string = "proto_schema_registry"
 
 	// JSONSchemaRegistry uses confluent's schema registry. It encodes a schemaID as the first 5 bytes and then json serializes (human readable)
 	// for the remaining part of the payload. It is the successor to `json_schema` which ships with zfmt,
-	JSONSchemaRegistry zfmt.FormatterType = "json_schema_registry"
+	JSONSchemaRegistry string = "json_schema_registry"
 )
 
 var errMissingFormatter = errors.New("custom formatter is missing, did you forget to call WithFormatter()")
@@ -31,6 +28,15 @@ var errMissingFormatter = errors.New("custom formatter is missing, did you forge
 type Formatter interface {
 	Marshall(v any) ([]byte, error)
 	Unmarshal(b []byte, v any) error
+}
+
+type SchematizedFormatterMeta struct {
+	SchemaID int
+}
+
+type SchematizedFormatter interface {
+	Marshall(v any, meta SchematizedFormatterMeta) ([]byte, error)
+	Unmarshal(b []byte, v any, meta SchematizedFormatterMeta) error
 }
 
 type marshReq struct {
@@ -60,7 +66,7 @@ type unmarshReq struct {
 }
 
 var _ kFormatter = (*avroSchemaRegistryFormatter)(nil)
-var _ kFormatter = (*zfmtShim)(nil)
+var _ kFormatter = (*formatterShim)(nil)
 
 // kFormatter is zkafka special formatter.
 // It extends zfmt options, and works with schema registry.
@@ -69,18 +75,33 @@ type kFormatter interface {
 	unmarshal(req unmarshReq) error
 }
 
-// zfmtShim is a shim type which allows
-// zfmt formatters to work the kFormatter
-type zfmtShim struct {
-	F zfmt.Formatter
+// formatterShim is a shim type which allows
+// formatters to work as kFormatters
+type formatterShim struct {
+	F Formatter
 }
 
-func (f zfmtShim) marshall(req marshReq) ([]byte, error) {
+func (f formatterShim) marshall(req marshReq) ([]byte, error) {
 	return f.F.Marshall(req.v)
 }
 
-func (f zfmtShim) unmarshal(req unmarshReq) error {
+func (f formatterShim) unmarshal(req unmarshReq) error {
 	return f.F.Unmarshal(req.data, req.target)
+}
+
+// schematizedFormatterShim is a shim type which allows
+// schematized formatters to work as kFormatters
+type schematizedFormatterShim struct {
+	F        SchematizedFormatter
+	SchemaID int
+}
+
+func (f schematizedFormatterShim) marshall(req marshReq) ([]byte, error) {
+	return f.F.Marshall(req.v, SchematizedFormatterMeta{SchemaID: f.SchemaID})
+}
+
+func (f schematizedFormatterShim) unmarshal(req unmarshReq) error {
+	return f.F.Unmarshal(req.data, req.target, SchematizedFormatterMeta{SchemaID: f.SchemaID})
 }
 
 // errFormatter is a formatter that returns error when called. The error will remind the user

@@ -4,7 +4,6 @@ package zkafka
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"go.opentelemetry.io/otel/propagation"
@@ -35,15 +34,12 @@ type Client struct {
 	tp          trace.TracerProvider
 	p           propagation.TextMapPropagator
 
-	srf *schemaRegistryFactory
-
 	producerProvider confluentProducerProvider
 	consumerProvider confluentConsumerProvider
 }
 
 // NewClient instantiates a kafka client to get readers and writers
 func NewClient(conf Config, opts ...Option) *Client {
-	srf := newSchemaRegistryFactory()
 	c := &Client{
 		conf:    conf,
 		readers: make(map[string]*KReader),
@@ -52,7 +48,6 @@ func NewClient(conf Config, opts ...Option) *Client {
 
 		producerProvider: defaultConfluentProducerProvider{}.NewProducer,
 		consumerProvider: defaultConfluentConsumerProvider{}.NewConsumer,
-		srf:              srf,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -80,13 +75,7 @@ func (c *Client) Reader(_ context.Context, topicConfig ConsumerTopicConfig, opts
 	if exist && !r.isClosed {
 		return r, nil
 	}
-
-	formatter, err := c.getFormatter(formatterArgs{
-		formatter:            topicConfig.Formatter,
-		schematizedFormatter: topicConfig.SchematizedFormatter,
-		schemaID:             topicConfig.SchemaID,
-		srCfg:                topicConfig.SchemaRegistry,
-	})
+	marshaler, err := topicConfig.MarshalerFactory.GetMarshaler()
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +83,7 @@ func (c *Client) Reader(_ context.Context, topicConfig ConsumerTopicConfig, opts
 		cfg:              c.conf,
 		cCfg:             topicConfig,
 		consumerProvider: c.consumerProvider,
-		f:                formatter,
+		marshaler:        marshaler,
 		l:                c.logger,
 		prefix:           c.groupPrefix,
 		hooks:            c.lifecycle,
@@ -128,12 +117,7 @@ func (c *Client) Writer(_ context.Context, topicConfig ProducerTopicConfig, opts
 	if exist && !w.isClosed {
 		return w, nil
 	}
-	formatter, err := c.getFormatter(formatterArgs{
-		formatter: topicConfig.Formatter,
-		schemaID:  topicConfig.SchemaID,
-		srCfg:     topicConfig.SchemaRegistry,
-	})
-
+	marshaler, err := topicConfig.MarshalerFactory.GetMarshaler()
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +125,7 @@ func (c *Client) Writer(_ context.Context, topicConfig ProducerTopicConfig, opts
 		cfg:              c.conf,
 		pCfg:             topicConfig,
 		producerProvider: c.producerProvider,
-		f:                formatter,
+		marshaler:        marshaler,
 		l:                c.logger,
 		t:                getTracer(c.tp),
 		p:                c.p,
@@ -176,38 +160,6 @@ func (c *Client) Close() error {
 	return err
 }
 
-func (c *Client) getFormatter(args formatterArgs) (kFormatter, error) {
-	switch args.schemaRegistryType {
-	case AvroSchemaRegistry:
-		scl, err := c.srf.createAvro(args.srCfg)
-		if err != nil {
-			return nil, err
-		}
-		return newAvroSchemaRegistryFormatter(scl), nil
-	case ProtoSchemaRegistry:
-		scl, err := c.srf.createProto(args.srCfg)
-		if err != nil {
-			return nil, err
-		}
-		cf := newProtoSchemaRegistryFormatter(scl)
-		return cf, nil
-	case JSONSchemaRegistry:
-		scl, err := c.srf.createJson(args.srCfg)
-		if err != nil {
-			return nil, err
-		}
-		cf := newJsonSchemaRegistryFormatter(scl)
-		return cf, nil
-	}
-	if args.schematizedFormatter != nil {
-		return schematizedFormatterShim{F: args.schematizedFormatter, SchemaID: args.schemaID}, nil
-	}
-	if args.formatter != nil {
-		return formatterShim{F: args.formatter}, nil
-	}
-	return nil, errors.New("no formatter provided")
-}
-
 func getTracer(tp trace.TracerProvider) trace.Tracer {
 	if tp == nil {
 		return nil
@@ -219,10 +171,8 @@ func getWriterKey(cfg ProducerTopicConfig) string {
 	return cfg.ClientID + "-" + cfg.Topic
 }
 
-type formatterArgs struct {
-	formatter            Formatter
-	schematizedFormatter SchematizedFormatter
-	schemaID             int
-	schemaRegistryType   string
-	srCfg                SchemaRegistryConfig
+type marshalerArgs struct {
+	marshaler KMarshaler
+	schemaID  int
+	rCfg      SchemaRegistryConfig
 }

@@ -34,9 +34,9 @@ func TestWriter_Write(t *testing.T) {
 	}).AnyTimes()
 
 	type fields struct {
-		Mutex    *sync.Mutex
-		Producer KafkaProducer
-		fmt      kFormatter
+		Mutex     *sync.Mutex
+		Producer  KafkaProducer
+		marshaler KMarshaler
 	}
 	type args struct {
 		ctx   context.Context
@@ -52,7 +52,7 @@ func TestWriter_Write(t *testing.T) {
 		{
 			name: "formatter check at minimum",
 			fields: fields{
-				fmt: nil,
+				marshaler: nil,
 			},
 			args:    args{ctx: context.TODO(), value: "1"},
 			want:    Response{Partition: 0, Offset: 0},
@@ -61,8 +61,8 @@ func TestWriter_Write(t *testing.T) {
 		{
 			name: "has formatter and producer",
 			fields: fields{
-				fmt:      zfmtShim{&zfmt.StringFormatter{}},
-				Producer: p,
+				marshaler: KMarshalerShim{F: &zfmt.StringFormatter{}},
+				Producer:  p,
 			},
 			args: args{ctx: context.TODO(), value: "1"},
 			want: Response{Partition: 1, Offset: 1},
@@ -70,8 +70,8 @@ func TestWriter_Write(t *testing.T) {
 		{
 			name: "has formatter, producer, incompatible message type",
 			fields: fields{
-				fmt:      zfmtShim{&zfmt.StringFormatter{}},
-				Producer: p,
+				marshaler: KMarshalerShim{F: &zfmt.StringFormatter{}},
+				Producer:  p,
 			},
 			args:    args{ctx: context.TODO(), value: 5},
 			want:    Response{Partition: 1, Offset: 1},
@@ -84,7 +84,7 @@ func TestWriter_Write(t *testing.T) {
 
 			w := &KWriter{
 				producer:  tt.fields.Producer,
-				formatter: tt.fields.fmt,
+				marshaler: tt.fields.marshaler,
 				logger:    NoopLogger{},
 				tracer:    noop.TracerProvider{}.Tracer(""),
 				p:         propagation.TraceContext{},

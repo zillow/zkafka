@@ -1,11 +1,6 @@
 package zkafka
 
-import (
-	"testing"
-
-	"github.com/stretchr/testify/require"
-)
-
+/*
 func TestNoopFormatter_Marshall_Unmarshal(t *testing.T) {
 	defer recoverThenFail(t)
 	formatter := errFormatter{}
@@ -16,3 +11,4 @@ func TestNoopFormatter_Marshall_Unmarshal(t *testing.T) {
 	err = formatter.unmarshal(unmarshReq{data: []byte("test"), target: &someInt})
 	require.ErrorIs(t, err, errMissingFormatter)
 }
+*/

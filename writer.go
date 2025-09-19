@@ -20,11 +20,11 @@ import (
 type Writer interface {
 	// Write sends messages to kafka with message key set as nil.
 	// The value arg passed to this method is marshalled by
-	// the configured formatter and used as the kafka message's value
+	// the configured marshaler and used as the kafka message's value
 	Write(ctx context.Context, value any, opts ...WriteOption) (Response, error)
 	// WriteKey send message to kafka with a defined keys.
 	// The value arg passed to this method is marshalled by
-	// the configured formatter and used as the kafka message's value
+	// the configured marshaler and used as the kafka message's value
 	WriteKey(ctx context.Context, key string, value any, opts ...WriteOption) (Response, error)
 	// WriteRaw sends messages to kafka. The caller is responsible for marshalling the data themselves.
 	WriteRaw(ctx context.Context, key *string, value []byte, opts ...WriteOption) (Response, error)
@@ -46,7 +46,7 @@ type KWriter struct {
 	mu          sync.Mutex
 	producer    KafkaProducer
 	topicConfig ProducerTopicConfig
-	formatter   kFormatter
+	marshaler   KMarshaler
 	logger      Logger
 	tracer      trace.Tracer
 	p           propagation.TextMapPropagator
@@ -63,7 +63,7 @@ type writerArgs struct {
 	cfg              Config
 	pCfg             ProducerTopicConfig
 	producerProvider confluentProducerProvider
-	f                kFormatter
+	marshaler        KMarshaler
 	l                Logger
 	t                trace.Tracer
 	p                propagation.TextMapPropagator
@@ -75,7 +75,7 @@ func newWriter(args writerArgs) (*KWriter, error) {
 	conf := args.cfg
 	topicConfig := args.pCfg
 	producer := args.producerProvider
-	formatter := args.f
+	marshaler := args.marshaler
 
 	confluentConfig, err := makeProducerConfig(conf, topicConfig)
 	if err != nil {
@@ -90,7 +90,7 @@ func newWriter(args writerArgs) (*KWriter, error) {
 	w := &KWriter{
 		producer:    p,
 		topicConfig: topicConfig,
-		formatter:   formatter,
+		marshaler:   marshaler,
 		logger:      args.l,
 		tracer:      args.t,
 		p:           args.p,
@@ -103,22 +103,22 @@ func newWriter(args writerArgs) (*KWriter, error) {
 	if s.DisableTracePropagation {
 		w.p = nil
 	}
-	if s.f != nil {
-		w.formatter = s.f
+	if s.marshaler != nil {
+		w.marshaler = s.marshaler
 	}
 	return w, nil
 }
 
 // Write sends messages to kafka with message key set as nil.
 // The value arg passed to this method is marshalled by
-// the configured formatter and used as the kafka message's value
+// the configured marshaler and used as the kafka message's value
 func (w *KWriter) Write(ctx context.Context, value any, opts ...WriteOption) (Response, error) {
 	return w.write(ctx, keyValuePair{value: value}, opts...)
 }
 
 // WriteKey send message to kafka with a defined keys.
 // The value arg passed to this method is marshalled by
-// the configured formatter and used as the kafka message's value
+// the configured marshaler and used as the kafka message's value
 func (w *KWriter) WriteKey(ctx context.Context, key string, value any, opts ...WriteOption) (Response, error) {
 	return w.write(ctx, keyValuePair{
 		key:   &key,
@@ -127,7 +127,7 @@ func (w *KWriter) WriteKey(ctx context.Context, key string, value any, opts ...W
 }
 
 // WriteRaw allows you to write messages using a lower level API than Write and WriteKey.
-// WriteRaw raw doesn't use a formatter to marshall the value data and instead takes the bytes as is and places them
+// WriteRaw raw doesn't use a marshaler to marshall the value data and instead takes the bytes as is and places them
 // as the value for the kafka message
 // It's convenient for forwarding message in dead letter operations.
 func (w *KWriter) WriteRaw(ctx context.Context, key *string, value []byte, opts ...WriteOption) (Response, error) {
@@ -226,7 +226,7 @@ func (w *KWriter) startSpan(ctx context.Context, msg *kafka.Message) spanWrapper
 }
 
 func (w *KWriter) write(ctx context.Context, msg keyValuePair, opts ...WriteOption) (Response, error) {
-	value, err := w.marshall(ctx, msg.value, w.topicConfig.SchemaRegistry.Serialization.Schema)
+	value, err := w.marshall(ctx, msg.value)
 	if err != nil {
 		return Response{}, err
 	}
@@ -234,14 +234,13 @@ func (w *KWriter) write(ctx context.Context, msg keyValuePair, opts ...WriteOpti
 	return w.WriteRaw(ctx, msg.key, value, opts...)
 }
 
-func (w *KWriter) marshall(_ context.Context, value any, schema string) ([]byte, error) {
-	if w.formatter == nil {
-		return nil, errors.New("formatter or confluent formatter is not supplied to produce kafka message")
+func (w *KWriter) marshall(_ context.Context, value any) ([]byte, error) {
+	if w.marshaler == nil {
+		return nil, errors.New("marshaler or confluent marshaler is not supplied to produce kafka message")
 	}
-	return w.formatter.marshall(marshReq{
-		topic:  w.topicConfig.Topic,
-		v:      value,
-		schema: schema,
+	return w.marshaler.Marshall(MarshReq{
+		topic: w.topicConfig.Topic,
+		v:     value,
 	})
 }
 
@@ -254,18 +253,18 @@ func (w *KWriter) Close() {
 }
 
 type WriterSettings struct {
-	f                       kFormatter
+	marshaler               KMarshaler
 	DisableTracePropagation bool
 }
 
 // WriterOption is a function that modify the writer configurations
 type WriterOption func(*WriterSettings)
 
-// WFormatterOption sets the formatter for this writer
-func WFormatterOption(f Formatter) WriterOption {
+// WMarshalerOption sets the marshaler for this writer
+func WMarshalerOption(marshaler KMarshaler) WriterOption {
 	return func(s *WriterSettings) {
-		if f != nil {
-			s.f = zfmtShim{F: f}
+		if marshaler != nil {
+			s.marshaler = marshaler
 		}
 	}
 }

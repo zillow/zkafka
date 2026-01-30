@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/zillow/zfmt"
+	zfmt_json "github.com/zillow/zfmt/json"
 )
 
 const (
@@ -75,16 +75,8 @@ type ConsumerTopicConfig struct {
 	// The values here will be overwritten by the values of TopicConfig fields if specified there as well.
 	AdditionalProps map[string]interface{}
 
-	// Formatter is json if not defined
-	Formatter zfmt.FormatterType
-
-	SchemaRegistry SchemaRegistryConfig
-
-	// SchemaID defines the schema registered with Confluent schema Registry
-	// Default value is 0, and it implies that both Writer and Reader do not care about schema validation
-	// and should encode/decode the message based on data type provided.
-	// Currently, this only works with SchematizedAvroFormatter
-	SchemaID int
+	// Marshaler defaults to json if not defined
+	MarshalerFactory KMarshalerFactory
 
 	// Enable kafka transaction, default to false
 	Transaction bool
@@ -122,14 +114,6 @@ type ConsumerTopicConfig struct {
 
 	// DeadLetterTopicConfig allows you to specify a topic for which to write messages which failed during processing to
 	DeadLetterTopicConfig *ProducerTopicConfig
-}
-
-func (p ConsumerTopicConfig) GetFormatter() zfmt.FormatterType {
-	return p.Formatter
-}
-
-func (p ConsumerTopicConfig) GetSchemaID() int {
-	return p.SchemaID
 }
 
 // topics returns a logical slice of the topics specified in the configuration,
@@ -171,18 +155,8 @@ type ProducerTopicConfig struct {
 	// The values here will be overwritten by the values of TopicConfig fields if specified there as well.
 	AdditionalProps map[string]interface{}
 
-	// Formatter is json if not defined
-	Formatter zfmt.FormatterType
-
-	// SchemaRegistry provides details about connecting to a schema registry including URL
-	// as well as others.
-	SchemaRegistry SchemaRegistryConfig
-
-	// SchemaID defines the schema registered with Confluent schema Registry
-	// Default value is 0, and it implies that both Writer and Reader do not care about schema validation
-	// and should encode/decode the message based on data type provided.
-	// Currently, this only works with SchematizedAvroFormatter
-	SchemaID int
+	// Marshaler defaults to json if not defined
+	MarshalerFactory KMarshalerFactory
 
 	// Enable kafka transaction, default to false
 	Transaction bool
@@ -205,41 +179,6 @@ type ProducerTopicConfig struct {
 	SaslPassword *string
 }
 
-func (p ProducerTopicConfig) GetFormatter() zfmt.FormatterType {
-	return p.Formatter
-}
-
-func (p ProducerTopicConfig) GetSchemaID() int {
-	return p.SchemaID
-}
-
-type SchemaRegistryConfig struct {
-	// URL is the schema registry URL. During serialization and deserialization
-	// schema registry is checked against to confirm schema compatability.
-	URL string
-	// Serialization provides additional information used by schema registry formatters during serialization (data write)
-	Serialization SerializationConfig
-	// Deserialization provides additional information used by schema registry formatters during deserialization (data read)
-	Deserialization DeserializationConfig
-	// SubjectName allows the specification of the SubjectName. If not specified defaults to [topic name strategy](https://docs.confluent.io/platform/current/schema-registry/fundamentals/serdes-develop/index.html#subject-name-strategy)
-	SubjectName string
-}
-
-type SerializationConfig struct {
-	// AutoRegisterSchemas indicates whether new schemas (those that evolve existing schemas or are brand new) should be registered
-	// with schema registry dynamically. This feature is typically not used for production workloads
-	AutoRegisterSchemas bool
-	// Schema is used exclusively by the avro schema registry formatter today. Its necessary to provide proper schema evolution properties
-	// expected by typical use cases.
-	Schema string
-}
-
-type DeserializationConfig struct {
-	// Schema is used exclusively by the avro schema registry formatter today. It's necessary to provide proper schema evolution properties
-	// expected by typical use cases.
-	Schema string
-}
-
 func getDefaultConsumerTopicConfig(topicConfig *ConsumerTopicConfig) error {
 	if topicConfig.ClientID == "" {
 		return errors.New("invalid config, ClientID must not be empty")
@@ -251,9 +190,9 @@ func getDefaultConsumerTopicConfig(topicConfig *ConsumerTopicConfig) error {
 		return &permError{e: errors.New("invalid config, no topics specified")}
 	}
 
-	if string(topicConfig.Formatter) == "" {
-		// default to json formatter
-		topicConfig.Formatter = zfmt.JSONFmt
+	if topicConfig.MarshalerFactory == nil {
+		// default to json marshaler
+		topicConfig.MarshalerFactory = KMarshalerFactoryShim{F: &zfmt_json.Formatter{}}
 	}
 
 	const defaultProcessTimeoutMillis = 60 * 1000
@@ -288,9 +227,9 @@ func getDefaultProducerTopicConfig(topicConfig *ProducerTopicConfig) error {
 		topicConfig.NagleDisable = ptr(true)
 	}
 
-	if string(topicConfig.Formatter) == "" {
-		// default to json formatter
-		topicConfig.Formatter = zfmt.JSONFmt
+	if topicConfig.MarshalerFactory == nil {
+		// default to json marshaler
+		topicConfig.MarshalerFactory = KMarshalerFactoryShim{F: &zfmt_json.Formatter{}}
 	}
 
 	return nil

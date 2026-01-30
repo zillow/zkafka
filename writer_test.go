@@ -8,7 +8,7 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/stretchr/testify/require"
-	"github.com/zillow/zfmt"
+	zfmtjson "github.com/zillow/zfmt/json"
 	mock_confluent "github.com/zillow/zkafka/v2/mocks/confluent"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -34,9 +34,9 @@ func TestWriter_Write(t *testing.T) {
 	}).AnyTimes()
 
 	type fields struct {
-		Mutex    *sync.Mutex
-		Producer KafkaProducer
-		fmt      kFormatter
+		Mutex     *sync.Mutex
+		Producer  KafkaProducer
+		marshaler KMarshaler
 	}
 	type args struct {
 		ctx   context.Context
@@ -52,7 +52,7 @@ func TestWriter_Write(t *testing.T) {
 		{
 			name: "formatter check at minimum",
 			fields: fields{
-				fmt: nil,
+				marshaler: nil,
 			},
 			args:    args{ctx: context.TODO(), value: "1"},
 			want:    Response{Partition: 0, Offset: 0},
@@ -61,8 +61,8 @@ func TestWriter_Write(t *testing.T) {
 		{
 			name: "has formatter and producer",
 			fields: fields{
-				fmt:      zfmtShim{&zfmt.StringFormatter{}},
-				Producer: p,
+				marshaler: KMarshalerShim{F: &zfmtjson.StringFormatter{}},
+				Producer:  p,
 			},
 			args: args{ctx: context.TODO(), value: "1"},
 			want: Response{Partition: 1, Offset: 1},
@@ -70,8 +70,8 @@ func TestWriter_Write(t *testing.T) {
 		{
 			name: "has formatter, producer, incompatible message type",
 			fields: fields{
-				fmt:      zfmtShim{&zfmt.StringFormatter{}},
-				Producer: p,
+				marshaler: KMarshalerShim{F: &zfmtjson.StringFormatter{}},
+				Producer:  p,
 			},
 			args:    args{ctx: context.TODO(), value: 5},
 			want:    Response{Partition: 1, Offset: 1},
@@ -84,7 +84,7 @@ func TestWriter_Write(t *testing.T) {
 
 			w := &KWriter{
 				producer:  tt.fields.Producer,
-				formatter: tt.fields.fmt,
+				marshaler: tt.fields.marshaler,
 				logger:    NoopLogger{},
 				tracer:    noop.TracerProvider{}.Tracer(""),
 				p:         propagation.TraceContext{},
@@ -122,7 +122,7 @@ func TestWriter_WriteKey(t *testing.T) {
 		Mutex    *sync.Mutex
 		Producer KafkaProducer
 		conf     ProducerTopicConfig
-		fmt      zfmt.Formatter
+		fmt      Marshaler
 		isClosed bool
 	}
 	type args struct {
@@ -140,7 +140,7 @@ func TestWriter_WriteKey(t *testing.T) {
 		{
 			name: "valid keyValPairs",
 			fields: fields{
-				fmt:      &zfmt.StringFormatter{},
+				fmt:      &zfmtjson.StringFormatter{},
 				Producer: p,
 			},
 			args:    args{ctx: context.TODO(), key: "key1", value: "msg1"},
@@ -150,7 +150,7 @@ func TestWriter_WriteKey(t *testing.T) {
 		{
 			name: "valid keyValPairs with partition spanning context",
 			fields: fields{
-				fmt:      &zfmt.StringFormatter{},
+				fmt:      &zfmtjson.StringFormatter{},
 				Producer: p,
 			},
 			args:    args{ctx: contextWithSpan, key: "key1", value: "msg1"},
@@ -164,7 +164,7 @@ func TestWriter_WriteKey(t *testing.T) {
 			w := &KWriter{
 				producer:    tt.fields.Producer,
 				topicConfig: tt.fields.conf,
-				formatter:   zfmtShim{tt.fields.fmt},
+				marshaler:   KMarshalerShim{F: tt.fields.fmt},
 				isClosed:    tt.fields.isClosed,
 				logger:      NoopLogger{},
 				tracer:      noop.TracerProvider{}.Tracer(""),
@@ -201,7 +201,7 @@ func TestWriter_WriteKeyReturnsImmediateError(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{},
 		isClosed:    false,
-		formatter:   zfmtShim{&zfmt.JSONFormatter{}},
+		marshaler:   KMarshalerShim{F: &zfmtjson.Formatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -241,7 +241,7 @@ func TestWriter_WritesMetrics(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
 		lifecycle:   hooks,
-		formatter:   zfmtShim{&zfmt.StringFormatter{}},
+		marshaler:   KMarshalerShim{F: &zfmtjson.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -277,7 +277,7 @@ func TestWriter_WriteSpecialCase(t *testing.T) {
 	type fields struct {
 		Mutex    *sync.Mutex
 		Producer KafkaProducer
-		fmt      zfmt.Formatter
+		fmt      Marshaler
 	}
 	type args struct {
 		ctx   context.Context
@@ -293,7 +293,7 @@ func TestWriter_WriteSpecialCase(t *testing.T) {
 		{
 			name: "partition message in the batch failed",
 			fields: fields{
-				fmt:      &zfmt.StringFormatter{},
+				fmt:      &zfmtjson.StringFormatter{},
 				Producer: p1,
 			},
 			args:    args{ctx: context.TODO(), value: "mgs2"},
@@ -305,7 +305,7 @@ func TestWriter_WriteSpecialCase(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			w := &KWriter{
 				producer:  tt.fields.Producer,
-				formatter: zfmtShim{tt.fields.fmt},
+				marshaler: KMarshalerShim{F: tt.fields.fmt},
 				logger:    NoopLogger{},
 				tracer:    noop.TracerProvider{}.Tracer(""),
 				p:         propagation.TraceContext{},
@@ -350,7 +350,7 @@ func TestWriter_PreWriteLifecycleHookCanAugmentHeaders(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
 		lifecycle:   hooks,
-		formatter:   zfmtShim{&zfmt.StringFormatter{}},
+		marshaler:   KMarshalerShim{F: &zfmtjson.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -380,7 +380,7 @@ func TestWriter_WithHeadersWriteOptionCanAugmentHeaders(t *testing.T) {
 	wr := &KWriter{
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
-		formatter:   zfmtShim{&zfmt.StringFormatter{}},
+		marshaler:   KMarshalerShim{F: &zfmtjson.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -441,7 +441,7 @@ func TestWriter_PreWriteLifecycleHookErrorDoesntHaltProcessing(t *testing.T) {
 		producer:    p,
 		topicConfig: ProducerTopicConfig{Topic: "orange"},
 		lifecycle:   hooks,
-		formatter:   zfmtShim{&zfmt.StringFormatter{}},
+		marshaler:   KMarshalerShim{F: &zfmtjson.StringFormatter{}},
 		logger:      NoopLogger{},
 		tracer:      noop.TracerProvider{}.Tracer(""),
 		p:           propagation.TraceContext{},
@@ -512,26 +512,14 @@ func Test_newWriter(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "custom formatter, no error. It is implied that user will supply formatter later",
+			name: "custom formatter, no error. It is implied that user will supply marshaler later",
 			args: args{
-				conf: Config{BootstrapServers: []string{"localhost:9092"}},
-				topicConfig: ProducerTopicConfig{
-					Formatter: zfmt.FormatterType("custom"),
-				},
-				producerP: defaultConfluentProducerProvider{}.NewProducer,
+				conf:        Config{BootstrapServers: []string{"localhost:9092"}},
+				topicConfig: ProducerTopicConfig{},
+				producerP:   defaultConfluentProducerProvider{}.NewProducer,
 			},
 			wantErr: false,
 		},
-		//{
-		//	name: "invalid formatter",
-		//	args: args{
-		//		producerP: defaultConfluentProducerProvider{}.NewProducer,
-		//		topicConfig: ProducerTopicConfig{
-		//			Formatter: zfmt.FormatterType("invalid_fmt"),
-		//		},
-		//	},
-		//	wantErr: true,
-		//},
 		{
 			name: "valid formatter but has error from confluent producer constructor",
 			args: args{
@@ -540,13 +528,12 @@ func Test_newWriter(t *testing.T) {
 			wantErr: true,
 		},
 		{
-
-			name: "minimum config with formatter",
+			name: "minimum config with marshaler",
 			args: args{
 				conf:      Config{BootstrapServers: []string{"localhost:9092"}},
 				producerP: defaultConfluentProducerProvider{}.NewProducer,
 				topicConfig: ProducerTopicConfig{
-					Formatter: zfmt.StringFmt,
+					MarshalerFactory: KMarshalerFactoryShim{F: &zfmtjson.StringFormatter{}},
 				},
 			},
 			wantErr: false,
@@ -576,11 +563,11 @@ func TestWriter_WithOptions(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	w := &KWriter{}
-	require.Nil(t, w.formatter, "expected nil formatter")
+	require.Nil(t, w.marshaler, "expected nil marshaler")
 
 	settings := WriterSettings{}
-	WFormatterOption(&zfmt.StringFormatter{})(&settings)
-	require.NotNil(t, settings.f, "expected non-nil formatter")
+	WMarshalerOption(KMarshalerShim{F: &zfmtjson.StringFormatter{}})(&settings)
+	require.NotNil(t, settings.marshaler, "expected non-nil marshaler")
 }
 
 func Test_writeAttributeCarrier_Set(t *testing.T) {

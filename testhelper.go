@@ -6,22 +6,21 @@ import (
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/zillow/zfmt"
 )
 
 // GetFakeMessage is a helper method for creating a *Message instance.
 //
 // Deprecated: As of v1.0.0, Prefer `GetMsgFromFake()`
-func GetFakeMessage(key string, value any, fmt zfmt.Formatter, doneFunc func()) *Message {
+func GetFakeMessage(key string, value any, fmt KMarshaler, doneFunc func()) *Message {
 	return getFakeMessage(key, value, fmt, doneFunc)
 }
 
-func getFakeMessage(key string, value any, fmt zfmt.Formatter, doneFunc func()) *Message {
+func getFakeMessage(key string, value any, fmt KMarshaler, doneFunc func()) *Message {
 	wrapperFunc := func(c context.Context) { doneFunc() }
 	return GetMsgFromFake(&FakeMessage{
 		Key:       &key,
 		ValueData: value,
-		Fmt:       fmt,
+		Marshaler: fmt,
 		DoneFunc:  wrapperFunc,
 	})
 }
@@ -41,7 +40,7 @@ type FakeMessage struct {
 	Topic     string
 	GroupID   string
 	TimeStamp time.Time
-	Fmt       zfmt.Formatter
+	Marshaler KMarshaler
 }
 
 // GetMsgFromFake allows the construction of a Message object (allowing the specification of some private fields).
@@ -67,7 +66,7 @@ func GetMsgFromFake(input *FakeMessage) *Message {
 	}
 	if input.ValueData != nil {
 		//nolint:errcheck // To simplify this helper function's api, we'll suppress marshalling errors.
-		val, _ = input.Fmt.Marshall(input.ValueData)
+		val, _ = input.Marshaler.Marshall(MarshReq{topic: input.Topic, v: input.ValueData})
 	}
 	return &Message{
 		Key:       key,
@@ -84,9 +83,9 @@ func GetMsgFromFake(input *FakeMessage) *Message {
 			Partition: input.Partition,
 			Offset:    kafka.Offset(input.Offset),
 		},
-		fmt:      zfmtShim{F: input.Fmt},
-		doneFunc: doneFunc,
-		doneOnce: sync.Once{},
+		marshaler: input.Marshaler,
+		doneFunc:  doneFunc,
+		doneOnce:  sync.Once{},
 	}
 }
 

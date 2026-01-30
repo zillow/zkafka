@@ -8,7 +8,7 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/stretchr/testify/require"
-	"github.com/zillow/zfmt"
+	zfmtjson "github.com/zillow/zfmt/json"
 )
 
 func Test_makeProducerMessageRaw(t *testing.T) {
@@ -105,7 +105,7 @@ func TestMessage_Headers(t *testing.T) {
 func TestMessage_Decode(t *testing.T) {
 	type fields struct {
 		value []byte
-		fmt   kFormatter
+		fmt   KMarshaler
 	}
 	type args struct {
 		v any
@@ -134,7 +134,7 @@ func TestMessage_Decode(t *testing.T) {
 			name: "valid message, formatter, empty input => error",
 			fields: fields{
 				value: []byte("test"),
-				fmt:   zfmtShim{&zfmt.StringFormatter{}},
+				fmt:   KMarshalerShim{F: &zfmtjson.StringFormatter{}},
 			},
 			args:    args{},
 			wantErr: true,
@@ -143,7 +143,7 @@ func TestMessage_Decode(t *testing.T) {
 			name: "valid message, formatter, valid input => no error",
 			fields: fields{
 				value: []byte("test"),
-				fmt:   zfmtShim{&zfmt.StringFormatter{}},
+				fmt:   KMarshalerShim{F: &zfmtjson.StringFormatter{}},
 			},
 			args: args{
 				v: &bytes.Buffer{},
@@ -155,8 +155,8 @@ func TestMessage_Decode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			defer recoverThenFail(t)
 			m := Message{
-				value: tt.fields.value,
-				fmt:   tt.fields.fmt,
+				value:     tt.fields.value,
+				marshaler: tt.fields.fmt,
 			}
 			err := m.Decode(tt.args.v)
 			if tt.wantErr {
@@ -173,7 +173,7 @@ func TestMessage_Done(t *testing.T) {
 		Key     string
 		Headers map[string][]byte
 		value   []byte
-		fmt     zfmt.Formatter
+		fmt     Marshaler
 		doneSig chan bool
 	}
 	tests := []struct {
@@ -192,10 +192,10 @@ func TestMessage_Done(t *testing.T) {
 			defer recoverThenFail(t)
 			isCalled := false
 			m := &Message{
-				Key:     tt.fields.Key,
-				Headers: tt.fields.Headers,
-				value:   tt.fields.value,
-				fmt:     zfmtShim{F: tt.fields.fmt},
+				Key:       tt.fields.Key,
+				Headers:   tt.fields.Headers,
+				value:     tt.fields.value,
+				marshaler: KMarshalerShim{F: tt.fields.fmt},
 				doneFunc: func(ctx context.Context) {
 					isCalled = true
 				},

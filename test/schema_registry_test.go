@@ -12,7 +12,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka/v2"
 	"github.com/zillow/zkafka/v2/test/evolution/avro1"
 	avro1x "github.com/zillow/zkafka/v2/test/evolution/avro1x"
@@ -45,16 +44,15 @@ func Test_SchemaRegistry_AutoRegisterSchemasFalse_WillNotWriteMessage(t *testing
 
 	t.Log("Created writer with auto registered schemas")
 	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.AvroSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "mock://",
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: false,
 				Schema:              dummyEventSchema1,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
@@ -89,17 +87,16 @@ func Test_SchemaRegistry_Avro_AutoRegisterSchemas_RequiresSchemaSpecification(t 
 
 	t.Log("Created writer with auto registered schemas")
 	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.AvroSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "mock://",
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 				// don't specify schema uses implicit handling
 				Schema: "",
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
@@ -138,10 +135,14 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 
 	t.Log("Created writer - no schema registration")
 	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zfmt.AvroSchemaFmt,
-		SchemaID:  1,
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
+			URL: "mock://",
+			Serialization: zkafka.SerializationConfig{
+				Schema: dummyEventSchema1,
+			},
+		}),
 	})
 	require.NoError(t, err)
 
@@ -157,15 +158,14 @@ func Test_SchemaNotRegistered_ResultsInWorkerDecodeError(t *testing.T) {
 	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
-		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.AvroSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "mock://",
 			Deserialization: zkafka.DeserializationConfig{
 				Schema: dummyEventSchema1,
 			},
-		},
+		}),
 		GroupID: groupID,
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
@@ -204,17 +204,16 @@ func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
 	subjName := uuid.NewString()
 	t.Log("Created writer with auto registered schemas")
 	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.AvroSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL:         "mock://",
 			SubjectName: subjName,
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 				Schema:              dummyEventSchema1,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
@@ -231,16 +230,15 @@ func Test_SchemaRegistry_Avro_SubjectNameSpecification(t *testing.T) {
 	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
-		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.AvroSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL:         "mock://",
 			SubjectName: subjName,
 			Deserialization: zkafka.DeserializationConfig{
 				Schema: dummyEventSchema1,
 			},
-		},
+		}),
 		GroupID: groupID,
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
@@ -282,17 +280,16 @@ func Test_SchemaRegistry_Proto_SubjectNameSpecification(t *testing.T) {
 	subjName := uuid.NewString()
 	t.Log("Created writer with auto registered schemas")
 	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.ProtoSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewProtoSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL:         "mock://",
 			SubjectName: subjName,
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 				Schema:              dummyEventSchema1,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
@@ -307,16 +304,15 @@ func Test_SchemaRegistry_Proto_SubjectNameSpecification(t *testing.T) {
 	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
-		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.ProtoSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewProtoSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL:         "mock://",
 			SubjectName: subjName,
 			Deserialization: zkafka.DeserializationConfig{
 				Schema: dummyEventSchema1,
 			},
-		},
+		}),
 		GroupID: groupID,
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
@@ -358,17 +354,16 @@ func Test_SchemaRegistry_Json_SubjectNameSpecification(t *testing.T) {
 	subjName := uuid.NewString()
 	t.Log("Created writer with auto registered schemas")
 	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.JSONSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewJsonSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL:         "mock://",
 			SubjectName: subjName,
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 				Schema:              dummyEventSchema1,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
@@ -383,16 +378,15 @@ func Test_SchemaRegistry_Json_SubjectNameSpecification(t *testing.T) {
 	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
-		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.JSONSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewJsonSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL:         "mock://",
 			SubjectName: subjName,
 			Deserialization: zkafka.DeserializationConfig{
 				Schema: dummyEventSchema1,
 			},
-		},
+		}),
 		GroupID: groupID,
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",

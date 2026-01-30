@@ -16,7 +16,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/zillow/zfmt"
+	zfmtjson "github.com/zillow/zfmt/json"
 	"github.com/zillow/zkafka/v2"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -64,26 +64,26 @@ func TestKafkaClientsCanReadOwnWritesAndBehaveProperlyAfterRestart(t *testing.T)
 	defer func() { require.NoError(t, client.Close()) }()
 
 	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer1-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zfmt.JSONFmt,
+		ClientID:         fmt.Sprintf("writer1-%s-%s", t.Name(), uuid.NewString()),
+		Topic:            topic,
+		MarshalerFactory: zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 	})
 	require.NoError(t, err)
 
 	writer2, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer2-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zfmt.JSONFmt,
+		ClientID:         fmt.Sprintf("writer2-%s-%s", t.Name(), uuid.NewString()),
+		Topic:            topic,
+		MarshalerFactory: zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 	}, func(settings *zkafka.WriterSettings) {
 		settings.DisableTracePropagation = true
 	})
 	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
-		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zfmt.JSONFmt,
-		GroupID:   groupID,
+		ClientID:         fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:            topic,
+		MarshalerFactory: zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
+		GroupID:          groupID,
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
 		},
@@ -241,9 +241,9 @@ func Test_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
 			defer func() { require.NoError(t, client.Close()) }()
 
 			writer, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
-				ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-				Topic:     topic,
-				Formatter: zfmt.JSONFmt,
+				ClientID:         fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+				Topic:            topic,
+				MarshalerFactory: zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 			})
 			require.NoError(t, err)
 
@@ -263,10 +263,10 @@ func Test_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
 
 			// create work1 which has its own processor
 			cTopicCfg1 := zkafka.ConsumerTopicConfig{
-				ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), tc.name),
-				Topic:     topic,
-				Formatter: zfmt.JSONFmt,
-				GroupID:   groupID,
+				ClientID:         fmt.Sprintf("reader-%s-%s", t.Name(), tc.name),
+				Topic:            topic,
+				MarshalerFactory: zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
+				GroupID:          groupID,
 				AdditionalProps: map[string]any{
 					"auto.offset.reset": "earliest",
 				},
@@ -424,7 +424,7 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 			writer1, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
 				ClientID:            fmt.Sprintf("writer1-%s-%s", t.Name(), tc.name),
 				Topic:               topic1,
-				Formatter:           zfmt.JSONFmt,
+				MarshalerFactory:    zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 				RequestRequiredAcks: ptr("0"),
 				EnableIdempotence:   ptr(false),
 			})
@@ -433,7 +433,7 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 			writer2, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
 				ClientID:            fmt.Sprintf("writer2-%s-%s", t.Name(), tc.name),
 				Topic:               topic2,
-				Formatter:           zfmt.JSONFmt,
+				MarshalerFactory:    zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 				RequestRequiredAcks: ptr("0"),
 				EnableIdempotence:   ptr(false),
 			})
@@ -455,10 +455,10 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 			}
 
 			cTopicCfg1 := zkafka.ConsumerTopicConfig{
-				ClientID:  fmt.Sprintf("dltReader-%s-%s", t.Name(), tc.name),
-				Topics:    []string{topic1, topic2},
-				Formatter: zfmt.JSONFmt,
-				GroupID:   groupID,
+				ClientID:         fmt.Sprintf("dltReader-%s-%s", t.Name(), tc.name),
+				Topics:           []string{topic1, topic2},
+				MarshalerFactory: zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
+				GroupID:          groupID,
 				AdditionalProps: map[string]any{
 					"auto.offset.reset": "earliest",
 				},
@@ -603,7 +603,7 @@ func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *test
 			writer, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
 				ClientID:            fmt.Sprintf("writer-%s-%s", t.Name(), tc.name),
 				Topic:               topic,
-				Formatter:           zfmt.JSONFmt,
+				MarshalerFactory:    zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 				RequestRequiredAcks: ptr("0"),
 				EnableIdempotence:   ptr(false),
 			})
@@ -623,10 +623,10 @@ func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *test
 			t.Logf("Completed writing n message")
 
 			cTopicCfg1 := zkafka.ConsumerTopicConfig{
-				ClientID:  fmt.Sprintf("dltReader-%s-%s", t.Name(), tc.name),
-				Topic:     topic,
-				Formatter: zfmt.JSONFmt,
-				GroupID:   groupID,
+				ClientID:         fmt.Sprintf("dltReader-%s-%s", t.Name(), tc.name),
+				Topic:            topic,
+				MarshalerFactory: zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
+				GroupID:          groupID,
 				AdditionalProps: map[string]any{
 					"auto.offset.reset": "earliest",
 				},
@@ -738,9 +738,9 @@ func Test_AssignmentsReflectsConsumerAssignments(t *testing.T) {
 	defer func() { require.NoError(t, client.Close()) }()
 
 	writer, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zfmt.JSONFmt,
+		ClientID:         fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:            topic,
+		MarshalerFactory: zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 	})
 
 	require.NoError(t, err)
@@ -761,10 +761,10 @@ func Test_AssignmentsReflectsConsumerAssignments(t *testing.T) {
 
 	// create consumer 1 which has its own processor
 	cTopicCfg1 := zkafka.ConsumerTopicConfig{
-		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zfmt.JSONFmt,
-		GroupID:   groupID,
+		ClientID:         fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:            topic,
+		MarshalerFactory: zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
+		GroupID:          groupID,
 		// use increase readtimeout so less likely for reader1 to finish processing before r2 joins.
 		ReadTimeoutMillis: ptr(5000),
 		AdditionalProps: map[string]any{
@@ -858,7 +858,7 @@ func Test_UnfinishableWorkDoesntBlockWorkIndefinitely(t *testing.T) {
 	writer, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
 		ClientID:            fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
 		Topic:               topic,
-		Formatter:           zfmt.JSONFmt,
+		MarshalerFactory:    zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 		RequestRequiredAcks: ptr("0"),
 		EnableIdempotence:   ptr(false),
 	})
@@ -879,7 +879,7 @@ func Test_UnfinishableWorkDoesntBlockWorkIndefinitely(t *testing.T) {
 	cTopicCfg1 := zkafka.ConsumerTopicConfig{
 		ClientID:          fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
 		Topic:             topic,
-		Formatter:         zfmt.JSONFmt,
+		MarshalerFactory:  zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 		GroupID:           groupID,
 		ReadTimeoutMillis: ptr(5000),
 		AdditionalProps: map[string]any{
@@ -951,24 +951,24 @@ func Test_KafkaClientsCanWriteToTheirDeadLetterTopic(t *testing.T) {
 	ctx := context.Background()
 
 	writer, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zfmt.JSONFmt,
+		ClientID:         fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:            topic,
+		MarshalerFactory: zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 	})
 	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
-		ClientID:  fmt.Sprintf("worker-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zfmt.JSONFmt,
-		GroupID:   groupID,
+		ClientID:         fmt.Sprintf("worker-%s-%s", t.Name(), uuid.NewString()),
+		Topic:            topic,
+		MarshalerFactory: zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
+		GroupID:          groupID,
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
 		},
 		DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
-			ClientID:  fmt.Sprintf("dltWriter-%s-%s", t.Name(), uuid.NewString()),
-			Topic:     dlt,
-			Formatter: zfmt.JSONFmt,
+			ClientID:         fmt.Sprintf("dltWriter-%s-%s", t.Name(), uuid.NewString()),
+			Topic:            dlt,
+			MarshalerFactory: zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 		},
 	}
 
@@ -1004,7 +1004,7 @@ func Test_KafkaClientsCanWriteToTheirDeadLetterTopic(t *testing.T) {
 		ClientID:          fmt.Sprintf("reader-for-test-%s-%s", t.Name(), uuid.NewString()),
 		GroupID:           uuid.NewString(),
 		Topic:             dlt,
-		Formatter:         zfmt.JSONFmt,
+		MarshalerFactory:  zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 		ReadTimeoutMillis: ptr(15000),
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
@@ -1052,7 +1052,7 @@ func Test_WorkDelay_GuaranteesProcessingDelayedAtLeastSpecifiedDelayDurationFrom
 	cTopicCfg1 := zkafka.ConsumerTopicConfig{
 		ClientID:           fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
 		Topic:              topic,
-		Formatter:          zfmt.JSONFmt,
+		MarshalerFactory:   zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 		GroupID:            groupID,
 		ProcessDelayMillis: &processDelayMillis,
 		AdditionalProps: map[string]any{
@@ -1088,9 +1088,9 @@ func Test_WorkDelay_GuaranteesProcessingDelayedAtLeastSpecifiedDelayDurationFrom
 	})
 
 	writer, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zfmt.JSONFmt,
+		ClientID:         fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:            topic,
+		MarshalerFactory: zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 	})
 	require.NoError(t, err)
 
@@ -1157,9 +1157,9 @@ func Test_WorkDelay_DoesntHaveDurationStackEffect(t *testing.T) {
 	defer func() { require.NoError(t, client.Close()) }()
 
 	writer, err := wclient.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zfmt.JSONFmt,
+		ClientID:         fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:            topic,
+		MarshalerFactory: zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 	})
 	require.NoError(t, err)
 
@@ -1181,7 +1181,7 @@ func Test_WorkDelay_DoesntHaveDurationStackEffect(t *testing.T) {
 	cTopicCfg1 := zkafka.ConsumerTopicConfig{
 		ClientID:           fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
 		Topic:              topic,
-		Formatter:          zfmt.JSONFmt,
+		MarshalerFactory:   zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 		GroupID:            groupID,
 		ProcessDelayMillis: &processDelayMillis,
 		AdditionalProps: map[string]any{

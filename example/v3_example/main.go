@@ -36,7 +36,7 @@ func main() {
 		// what offset has been committed for a consumer group, and therefore work can be picked up where it was left off
 		// across releases
 		GroupID: uuid.NewString(),
-		//GroupID: "zkafka/example/example-consumer",
+		// GroupID: "zkafka/example/example-consumer",
 		Topic: "zkafka-example-topic",
 		// The formatter is registered internally to the `zkafka.Message` and used when calling `msg.Decode()`
 		// string fmt can be used for both binary and pure strings encoded in the value field of the kafka message. Other options include

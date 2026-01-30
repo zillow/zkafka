@@ -40,7 +40,7 @@ type FakeMessage struct {
 	Topic     string
 	GroupID   string
 	TimeStamp time.Time
-	Marshaler Marshaler
+	Marshaler KMarshaler
 }
 
 // GetMsgFromFake allows the construction of a Message object (allowing the specification of some private fields).
@@ -66,7 +66,7 @@ func GetMsgFromFake(input *FakeMessage) *Message {
 	}
 	if input.ValueData != nil {
 		//nolint:errcheck // To simplify this helper function's api, we'll suppress marshalling errors.
-		val, _ = input.Marshaler.Marshall(input.ValueData)
+		val, _ = input.Marshaler.Marshall(MarshReq{topic: input.Topic, v: input.ValueData})
 	}
 	return &Message{
 		Key:       key,
@@ -83,7 +83,7 @@ func GetMsgFromFake(input *FakeMessage) *Message {
 			Partition: input.Partition,
 			Offset:    kafka.Offset(input.Offset),
 		},
-		marshaler: KMarshalerShim{F: input.Marshaler},
+		marshaler: input.Marshaler,
 		doneFunc:  doneFunc,
 		doneOnce:  sync.Once{},
 	}

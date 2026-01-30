@@ -15,7 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/zillow/zfmt"
+	zfmtjson "github.com/zillow/zfmt/json"
 	"github.com/zillow/zkafka/v2"
 	zkafka_mocks "github.com/zillow/zkafka/v2/mocks"
 	"golang.org/x/sync/errgroup"
@@ -171,8 +171,8 @@ func TestWork_Run_CircuitBreaksOnProcessError(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key: ptr("1"),
-		Fmt: &zfmt.JSONFormatter{},
+		Key:       ptr("1"),
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.Formatter{}},
 	})
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
@@ -229,8 +229,8 @@ func TestWork_Run_DoNotSkipCircuitBreak(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	failureMessage := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key: ptr("1"),
-		Fmt: &zfmt.JSONFormatter{},
+		Key:       ptr("1"),
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.Formatter{}},
 	})
 	r := zkafka_mocks.NewMockReader(ctrl)
 
@@ -290,8 +290,8 @@ func TestWork_Run_DoSkipCircuitBreak(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	failureMessage := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key: ptr("1"),
-		Fmt: &zfmt.JSONFormatter{},
+		Key:       ptr("1"),
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.Formatter{}},
 	})
 
 	r := zkafka_mocks.NewMockReader(ctrl)
@@ -353,8 +353,8 @@ func TestWork_Run_CircuitBreaksOnProcessPanicInsideProcessorGoRoutine(t *testing
 	l := zkafka.NoopLogger{}
 
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key: ptr("1"),
-		Fmt: &zfmt.JSONFormatter{},
+		Key:       ptr("1"),
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.Formatter{}},
 	})
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
@@ -471,8 +471,8 @@ func TestWork_Run_SpedUpIsFaster(t *testing.T) {
 
 	mockReader.EXPECT().Read(gomock.Any()).DoAndReturn(func(ctx context.Context) (*zkafka.Message, error) {
 		return zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-			Key: ptr(uuid.NewString()),
-			Fmt: &zfmt.JSONFormatter{},
+			Key:       ptr(uuid.NewString()),
+			Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.Formatter{}},
 		}), nil
 
 	}).AnyTimes()
@@ -556,7 +556,7 @@ func TestKafkaWork_ProcessorReturnsErrorIsLoggedAsWarning(t *testing.T) {
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 		Key:       ptr("key"),
 		ValueData: "val",
-		Fmt:       &zfmt.JSONFormatter{},
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.Formatter{}},
 	})
 	mockReader := zkafka_mocks.NewMockReader(ctrl)
 	mockReader.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
@@ -605,7 +605,7 @@ func TestKafkaWork_ProcessorTimeoutCausesContextCancellation(t *testing.T) {
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 		Key:       ptr("key"),
 		ValueData: "val",
-		Fmt:       &zfmt.JSONFormatter{},
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.Formatter{}},
 	})
 
 	mockReader := zkafka_mocks.NewMockReader(ctrl)
@@ -1134,7 +1134,7 @@ func TestWork_Run_OnDoneCallbackCalledOnProcessorError(t *testing.T) {
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 		Key:       ptr("1"),
 		ValueData: "val",
-		Fmt:       &zfmt.StringFormatter{},
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.StringFormatter{}},
 	})
 
 	r := zkafka_mocks.NewMockReader(ctrl)
@@ -1194,7 +1194,7 @@ func TestWork_Run_WritesMetrics(t *testing.T) {
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 		Key:       ptr("key"),
 		ValueData: "val",
-		Fmt:       &zfmt.StringFormatter{},
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.StringFormatter{}},
 	})
 
 	msg.Topic = topicName
@@ -1250,7 +1250,7 @@ func TestWork_LifecycleHooksCalledForEachItem_Reader(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	numMsgs := 5
-	msgs := getFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{})
+	msgs := getFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmtjson.Formatter{})
 	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
@@ -1316,7 +1316,7 @@ func TestWork_LifecycleHooksPostReadCanUpdateContext(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	numMsgs := 1
-	msgs := getFakeMessages(topicName, numMsgs, "lydia", &zfmt.JSONFormatter{})
+	msgs := getFakeMessages(topicName, numMsgs, "lydia", &zfmtjson.Formatter{})
 	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
@@ -1376,7 +1376,7 @@ func TestWork_LifecycleHooksPostReadErrorDoesntHaltProcessing(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	numMsgs := 1
-	msgs := getFakeMessages(topicName, numMsgs, "lydia", &zfmt.JSONFormatter{})
+	msgs := getFakeMessages(topicName, numMsgs, "lydia", &zfmtjson.Formatter{})
 	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
@@ -1432,7 +1432,7 @@ func TestWork_LifecycleHooksCalledForEachItem(t *testing.T) {
 
 	l := zkafka.NoopLogger{}
 	numMsgs := 5
-	msgs := getFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmt.JSONFormatter{})
+	msgs := getFakeMessages(topicName, numMsgs, struct{ name string }{name: "arish"}, &zfmtjson.Formatter{})
 	r := zkafka_mocks.NewMockReader(ctrl)
 
 	gomock.InOrder(
@@ -1531,9 +1531,9 @@ func NewFakeLifecycleHooks(mtx *sync.Mutex, state *FakeLifecycleState) zkafka.Li
 
 func getRandomMessage() *zkafka.Message {
 	return zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key:      ptr(fmt.Sprintf("%d", rand.Intn(5))),
-		DoneFunc: func(ctx context.Context) {},
-		Fmt:      &zfmt.JSONFormatter{},
+		Key:       ptr(fmt.Sprintf("%d", rand.Intn(5))),
+		DoneFunc:  func(ctx context.Context) {},
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.Formatter{}},
 	})
 }
 
@@ -1547,7 +1547,7 @@ func TestWork_CircuitBreaker_WithoutBusyLoopBreaker_DoesNotWaitsForCircuitToOpen
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 		Key:       ptr("1"),
 		ValueData: struct{ name string }{name: "arish"},
-		Fmt:       &zfmt.JSONFormatter{},
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.Formatter{}},
 	})
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Return(msg, nil).AnyTimes()
@@ -1611,7 +1611,7 @@ func TestWork_CircuitBreaker_WaitsForCircuitToOpen(t *testing.T) {
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 		Key:       ptr("1"),
 		ValueData: struct{ name string }{name: "arish"},
-		Fmt:       &zfmt.JSONFormatter{},
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.Formatter{}},
 	})
 
 	r := zkafka_mocks.NewMockReader(ctrl)
@@ -1672,7 +1672,7 @@ func TestWork_DontDeadlockWhenCircuitBreakerIsInHalfOpen(t *testing.T) {
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 		Key:       ptr("1"),
 		ValueData: struct{ name string }{name: "stewy"},
-		Fmt:       &zfmt.JSONFormatter{},
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.Formatter{}},
 	})
 	gomock.InOrder(
 		qr.EXPECT().Read(gomock.Any()).Times(1).Return(msg, nil),
@@ -1743,7 +1743,7 @@ func Test_Bugfix_WorkPoolCanBeRestartedAfterShutdown(t *testing.T) {
 	msg1 := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 		Key:       ptr("abc"),
 		ValueData: "def",
-		Fmt:       &zfmt.StringFormatter{},
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.StringFormatter{}},
 	})
 	mockReader.EXPECT().Read(gomock.Any()).Return(msg1, nil).AnyTimes()
 	mockReader.EXPECT().Close().Return(nil).AnyTimes()
@@ -1836,7 +1836,7 @@ func Test_MsgOrderingIsMaintainedPerKeyWithAnyNumberOfVirtualPartitions(t *testi
 		msg1 := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 			Key:       ptr(strconv.Itoa(i % keyCount)),
 			ValueData: strconv.Itoa(i),
-			Fmt:       &zfmt.StringFormatter{},
+			Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.StringFormatter{}},
 		})
 		readerCalls = append(readerCalls, mockReader.EXPECT().Read(gomock.Any()).Return(msg1, nil))
 	}
@@ -1928,7 +1928,7 @@ func TestWork_LifecycleHookReaderPanicIsHandledAndMessagingProceeds(t *testing.T
 		msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 			Key:       ptr("1"),
 			ValueData: struct{ name string }{name: "arish"},
-			Fmt:       &zfmt.JSONFormatter{},
+			Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.Formatter{}},
 		})
 
 		qr.EXPECT().Read(gomock.Any()).AnyTimes().DoAndReturn(func(ctx context.Context) (*zkafka.Message, error) {
@@ -1953,10 +1953,10 @@ func TestWork_LifecycleHookReaderPanicIsHandledAndMessagingProceeds(t *testing.T
 		m := sync.Mutex{}
 		var processedMsgs []*zkafka.Message
 		topicConfig := zkafka.ConsumerTopicConfig{
-			ClientID:  "test-config",
-			GroupID:   "group",
-			Topic:     "topic",
-			Formatter: zfmt.JSONFmt,
+			ClientID:         "test-config",
+			GroupID:          "group",
+			Topic:            "topic",
+			MarshalerFactory: zkafka.KMarshalerFactoryShim{F: &zfmtjson.Formatter{}},
 		}
 		w := wf.Create(topicConfig, &p,
 			zkafka.WithOnDone(func(ctx context.Context, msg *zkafka.Message, err error) {
@@ -2008,7 +2008,7 @@ func TestWork_ShutdownCausesRunExit(t *testing.T) {
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 		Key:       ptr("1"),
 		ValueData: struct{ name string }{name: "arish"},
-		Fmt:       &zfmt.JSONFormatter{},
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.Formatter{}},
 	})
 
 	r := zkafka_mocks.NewMockReader(ctrl)
@@ -2058,7 +2058,7 @@ func BenchmarkWork_Run_CircuitBreaker_BusyLoopBreaker(b *testing.B) {
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 		Key:       ptr("1"),
 		ValueData: struct{ name string }{name: "arish"},
-		Fmt:       &zfmt.JSONFormatter{},
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.Formatter{}},
 	})
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Return(msg, nil).AnyTimes()
@@ -2102,7 +2102,7 @@ func BenchmarkWork_Run_CircuitBreaker_DisableBusyLoopBreaker(b *testing.B) {
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 		Key:       ptr("1"),
 		ValueData: struct{ name string }{name: "arish"},
-		Fmt:       &zfmt.JSONFormatter{},
+		Marshaler: zkafka.KMarshalerShim{F: &zfmtjson.Formatter{}},
 	})
 	r := zkafka_mocks.NewMockReader(ctrl)
 	r.EXPECT().Read(gomock.Any()).Return(msg, nil).AnyTimes()
@@ -2252,7 +2252,7 @@ func pollWait(f func() bool, opts pollOpts) {
 	}
 }
 
-func getFakeMessages(topic string, numMsgs int, value any, formatter zfmt.Formatter) []*zkafka.Message {
+func getFakeMessages(topic string, numMsgs int, value any, formatter zkafka.Marshaler) []*zkafka.Message {
 	msgs := make([]*zkafka.Message, numMsgs)
 
 	for i := 0; i < numMsgs; i++ {
@@ -2260,7 +2260,7 @@ func getFakeMessages(topic string, numMsgs int, value any, formatter zfmt.Format
 		msgs[i] = zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 			Key:       &key,
 			ValueData: value,
-			Fmt:       formatter,
+			Marshaler: zkafka.KMarshalerShim{F: formatter},
 		})
 		msgs[i].Topic = topic
 	}

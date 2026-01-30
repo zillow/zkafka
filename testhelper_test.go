@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/zillow/zfmt"
+	zfmtjson "github.com/zillow/zfmt/json"
 )
 
 func Test_getFakeMessage(t *testing.T) {
 	defer recoverThenFail(t)
 
-	msg := getFakeMessage("key", "value", &zfmt.JSONFormatter{}, nil)
+	msg := getFakeMessage("key", "value", KMarshalerShim{F: &zfmtjson.Formatter{}}, nil)
 	expectedMessage := Message{
 		Key:   "key",
 		value: []byte("\"value\""),
@@ -22,13 +22,13 @@ func Test_getFakeMessage(t *testing.T) {
 func TestGetFakeMessageFromFake(t *testing.T) {
 	defer recoverThenFail(t)
 
-	fmtr := &zfmt.JSONFormatter{}
+	fmtr := &zfmtjson.Formatter{}
 	val, err := fmtr.Marshall("value")
 	require.NoError(t, err)
 	msg := GetMsgFromFake(&FakeMessage{
-		Key:   ptr("key"),
-		Value: val,
-		Fmt:   fmtr,
+		Key:       ptr("key"),
+		Value:     val,
+		Marshaler: KMarshalerShim{F: fmtr},
 	})
 	expectedMessage := Message{
 		Key:   "key",
@@ -43,7 +43,7 @@ func TestMsgFromFake_WhenMarshallError(t *testing.T) {
 	msg := GetMsgFromFake(&FakeMessage{
 		Key:       ptr("key"),
 		ValueData: make(chan int),
-		Fmt:       &zfmt.JSONFormatter{},
+		Marshaler: KMarshalerShim{F: &zfmtjson.Formatter{}},
 	})
 	expectedMessage := Message{
 		Key:   "key",

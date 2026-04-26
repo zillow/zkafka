@@ -1,3 +1,8 @@
+## 2.2.X (Apr 26, 2026)
+
+1. go1.26 upgrade
+2. Updated direct deps
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

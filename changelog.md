@@ -1,14 +1,12 @@
 # Changelog
+All notable changes to this project will be documented in this file.
+
+This project adheres to Semantic Versioning.
 
 ## 2.2.X (Apr 26, 2026)
 
 1. go1.26 upgrade
 2. Updated direct deps
-
-
-All notable changes to this project will be documented in this file.
-
-This project adheres to Semantic Versioning.
 
 ## 2.2.1 (June 30, 2025)
 

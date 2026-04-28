@@ -2,7 +2,6 @@
 // In the pipeline, this error is suppressed  with an envvar. However, this repo wants to remain idiomatic
 // and devs should be able to run `go test ./...` without the package loading runtime error.
 //go:build evolution_test
-// +build evolution_test
 
 package test
 
@@ -92,7 +91,7 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 		ID:                     id,
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "created",
-		InteractiveContent: ptr([]avro1.InteractiveContentRecord{
+		InteractiveContent: new([]avro1.InteractiveContentRecord{
 			{
 				URL: u,
 			},
@@ -107,10 +106,10 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 		ID:                     listingID2,
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "created",
-		InteractiveContent: ptr([]avro2.InteractiveContentRecord{
+		InteractiveContent: new([]avro2.InteractiveContentRecord{
 			{
 				URL:   u,
-				IsImx: ptr(true),
+				IsImx: new(true),
 			},
 		}),
 	}
@@ -154,7 +153,7 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 		ID:                     evt2.ID,
 		DeliveredAtDateTimeUtc: evt2.DeliveredAtDateTimeUtc,
 		EventType:              evt2.EventType,
-		InteractiveContent: ptr([]avro1.InteractiveContentRecord{
+		InteractiveContent: new([]avro1.InteractiveContentRecord{
 			{
 				URL: u,
 			},
@@ -201,7 +200,7 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_OldProducerCanBeConsumedBy
 		ID:                     id,
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "created",
-		InteractiveContent: ptr([]avro1.InteractiveContentRecord{
+		InteractiveContent: new([]avro1.InteractiveContentRecord{
 			{
 				URL: u,
 			},
@@ -242,7 +241,7 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_OldProducerCanBeConsumedBy
 		ID:                     evt1.ID,
 		DeliveredAtDateTimeUtc: evt1.DeliveredAtDateTimeUtc,
 		EventType:              evt1.EventType,
-		InteractiveContent: ptr([]avro2.InteractiveContentRecord{
+		InteractiveContent: new([]avro2.InteractiveContentRecord{
 			{
 				URL: u,
 			},
@@ -289,10 +288,10 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_NewProducerCanBeConsumedBy
 		ID:                     id,
 		DeliveredAtDateTimeUtc: time.Now().UTC().Truncate(time.Millisecond),
 		EventType:              "created",
-		InteractiveContent: ptr([]avro2.InteractiveContentRecord{
+		InteractiveContent: new([]avro2.InteractiveContentRecord{
 			{
 				URL:   u,
-				IsImx: ptr(true),
+				IsImx: new(true),
 			},
 		}),
 	}
@@ -331,7 +330,7 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_NewProducerCanBeConsumedBy
 		ID:                     evt1.ID,
 		DeliveredAtDateTimeUtc: evt1.DeliveredAtDateTimeUtc,
 		EventType:              evt1.EventType,
-		InteractiveContent: ptr([]avro1.InteractiveContentRecord{
+		InteractiveContent: new([]avro1.InteractiveContentRecord{
 			{
 				URL: u,
 			},

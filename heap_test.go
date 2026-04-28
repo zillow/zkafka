@@ -80,7 +80,7 @@ func Test_offsetHeap_SeekPop_DoesntImpactHeapOrdering(t *testing.T) {
 
 	// build up a heap of size N
 	count := 100
-	for i := 0; i < count; i++ {
+	for i := range count {
 		offset := kafka.TopicPartition{Partition: 1, Offset: kafka.Offset(i)}
 		offsets = append(offsets, offset)
 		heap.Push(offset)

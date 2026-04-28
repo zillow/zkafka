@@ -88,19 +88,19 @@ func (p Processor) Process(_ context.Context, msg *zkafka.Message) error {
 type stdLogger struct {
 }
 
-func (l stdLogger) Debugw(_ context.Context, msg string, keysAndValues ...interface{}) {
+func (l stdLogger) Debugw(_ context.Context, msg string, keysAndValues ...any) {
 	log.Printf("Debugw-"+msg, keysAndValues...)
 }
 
-func (l stdLogger) Infow(_ context.Context, msg string, keysAndValues ...interface{}) {
+func (l stdLogger) Infow(_ context.Context, msg string, keysAndValues ...any) {
 	log.Printf("Infow-"+msg, keysAndValues...)
 }
 
-func (l stdLogger) Errorw(_ context.Context, msg string, keysAndValues ...interface{}) {
+func (l stdLogger) Errorw(_ context.Context, msg string, keysAndValues ...any) {
 	log.Printf("Errorw-"+msg, keysAndValues...)
 }
 
-func (l stdLogger) Warnw(_ context.Context, msg string, keysAndValues ...interface{}) {
+func (l stdLogger) Warnw(_ context.Context, msg string, keysAndValues ...any) {
 	prefix := fmt.Sprintf("Warnw-%s-"+msg, time.Now().Format(time.RFC3339Nano))
 	log.Printf(prefix, keysAndValues...)
 }

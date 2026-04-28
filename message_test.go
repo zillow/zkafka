@@ -35,7 +35,7 @@ func Test_makeProducerMessageRaw(t *testing.T) {
 			},
 			want: kafka.Message{
 				TopicPartition: kafka.TopicPartition{
-					Topic: ptr("test_topic"),
+					Topic: new("test_topic"),
 					// this indicates any partition to confluent-kafka-go
 					Partition: -1,
 				},
@@ -203,7 +203,7 @@ func TestMessage_Done(t *testing.T) {
 			// call done multiple times and function should still return
 			var wg sync.WaitGroup
 			wg.Add(3)
-			for i := 0; i < 3; i++ {
+			for range 3 {
 				go func() {
 					defer wg.Done()
 					m.DoneWithContext(context.Background())

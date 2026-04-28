@@ -171,7 +171,7 @@ func TestWork_Run_CircuitBreaksOnProcessError(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key: ptr("1"),
+		Key: new("1"),
 		Fmt: &zfmt.JSONFormatter{},
 	})
 	r := zkafka_mocks.NewMockReader(ctrl)
@@ -229,7 +229,7 @@ func TestWork_Run_DoNotSkipCircuitBreak(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	failureMessage := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key: ptr("1"),
+		Key: new("1"),
 		Fmt: &zfmt.JSONFormatter{},
 	})
 	r := zkafka_mocks.NewMockReader(ctrl)
@@ -290,7 +290,7 @@ func TestWork_Run_DoSkipCircuitBreak(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	failureMessage := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key: ptr("1"),
+		Key: new("1"),
 		Fmt: &zfmt.JSONFormatter{},
 	})
 
@@ -353,7 +353,7 @@ func TestWork_Run_CircuitBreaksOnProcessPanicInsideProcessorGoRoutine(t *testing
 	l := zkafka.NoopLogger{}
 
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key: ptr("1"),
+		Key: new("1"),
 		Fmt: &zfmt.JSONFormatter{},
 	})
 	r := zkafka_mocks.NewMockReader(ctrl)
@@ -471,7 +471,7 @@ func TestWork_Run_SpedUpIsFaster(t *testing.T) {
 
 	mockReader.EXPECT().Read(gomock.Any()).DoAndReturn(func(ctx context.Context) (*zkafka.Message, error) {
 		return zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-			Key: ptr(uuid.NewString()),
+			Key: new(uuid.NewString()),
 			Fmt: &zfmt.JSONFormatter{},
 		}), nil
 
@@ -554,7 +554,7 @@ func TestKafkaWork_ProcessorReturnsErrorIsLoggedAsWarning(t *testing.T) {
 	l.EXPECT().Debugw(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key:       ptr("key"),
+		Key:       new("key"),
 		ValueData: "val",
 		Fmt:       &zfmt.JSONFormatter{},
 	})
@@ -603,7 +603,7 @@ func TestKafkaWork_ProcessorTimeoutCausesContextCancellation(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key:       ptr("key"),
+		Key:       new("key"),
 		ValueData: "val",
 		Fmt:       &zfmt.JSONFormatter{},
 	})
@@ -625,7 +625,7 @@ func TestKafkaWork_ProcessorTimeoutCausesContextCancellation(t *testing.T) {
 	work := wf.Create(
 		zkafka.ConsumerTopicConfig{
 			Topic:                topicName,
-			ProcessTimeoutMillis: ptr(1)},
+			ProcessTimeoutMillis: new(1)},
 		&processor,
 		zkafka.WithOnDone(func(ctx context.Context, message *zkafka.Message, err error) {
 			count.Add(1)
@@ -793,34 +793,34 @@ func TestWork_WithDeadLetterTopic_DLTWriterConfigCanBorrowFromConsumerConfig(t *
 			name: "deadletter-username-password-preferred-over-consumer-config",
 			inputConfig: zkafka.ConsumerTopicConfig{
 				Topic:        topicName,
-				SaslUsername: ptr("user_orig"),
-				SaslPassword: ptr("pw_orig"),
+				SaslUsername: new("user_orig"),
+				SaslPassword: new("pw_orig"),
 				DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
-					SaslUsername: ptr("user"),
-					SaslPassword: ptr("pw"),
+					SaslUsername: new("user"),
+					SaslPassword: new("pw"),
 					ClientID:     uuid.NewString(),
 					Topic:        "topic2",
 				},
 			},
 			expectedDLTConfig: zkafka.ProducerTopicConfig{
-				SaslUsername: ptr("user"),
-				SaslPassword: ptr("pw"),
+				SaslUsername: new("user"),
+				SaslPassword: new("pw"),
 			},
 		},
 		{
 			name: "consumer-config-username-password-used-in-abscense-of-dlt-username-password",
 			inputConfig: zkafka.ConsumerTopicConfig{
 				Topic:        topicName,
-				SaslUsername: ptr("user_orig"),
-				SaslPassword: ptr("pw_orig"),
+				SaslUsername: new("user_orig"),
+				SaslPassword: new("pw_orig"),
 				DeadLetterTopicConfig: &zkafka.ProducerTopicConfig{
 					ClientID: uuid.NewString(),
 					Topic:    "topic2",
 				},
 			},
 			expectedDLTConfig: zkafka.ProducerTopicConfig{
-				SaslUsername: ptr("user_orig"),
-				SaslPassword: ptr("pw_orig"),
+				SaslUsername: new("user_orig"),
+				SaslPassword: new("pw_orig"),
 			},
 		},
 		{
@@ -1132,7 +1132,7 @@ func TestWork_Run_OnDoneCallbackCalledOnProcessorError(t *testing.T) {
 	l := zkafka.NoopLogger{}
 
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key:       ptr("1"),
+		Key:       new("1"),
 		ValueData: "val",
 		Fmt:       &zfmt.StringFormatter{},
 	})
@@ -1192,7 +1192,7 @@ func TestWork_Run_WritesMetrics(t *testing.T) {
 	defer ctrl.Finish()
 
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key:       ptr("key"),
+		Key:       new("key"),
 		ValueData: "val",
 		Fmt:       &zfmt.StringFormatter{},
 	})
@@ -1531,7 +1531,7 @@ func NewFakeLifecycleHooks(mtx *sync.Mutex, state *FakeLifecycleState) zkafka.Li
 
 func getRandomMessage() *zkafka.Message {
 	return zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key:      ptr(fmt.Sprintf("%d", rand.Intn(5))),
+		Key:      new(fmt.Sprintf("%d", rand.Intn(5))),
 		DoneFunc: func(ctx context.Context) {},
 		Fmt:      &zfmt.JSONFormatter{},
 	})
@@ -1545,7 +1545,7 @@ func TestWork_CircuitBreaker_WithoutBusyLoopBreaker_DoesNotWaitsForCircuitToOpen
 	defer ctrl.Finish()
 
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key:       ptr("1"),
+		Key:       new("1"),
 		ValueData: struct{ name string }{name: "arish"},
 		Fmt:       &zfmt.JSONFormatter{},
 	})
@@ -1609,7 +1609,7 @@ func TestWork_CircuitBreaker_WaitsForCircuitToOpen(t *testing.T) {
 	defer ctrl.Finish()
 
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key:       ptr("1"),
+		Key:       new("1"),
 		ValueData: struct{ name string }{name: "arish"},
 		Fmt:       &zfmt.JSONFormatter{},
 	})
@@ -1670,7 +1670,7 @@ func TestWork_DontDeadlockWhenCircuitBreakerIsInHalfOpen(t *testing.T) {
 
 	qr := zkafka_mocks.NewMockReader(ctrl)
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key:       ptr("1"),
+		Key:       new("1"),
 		ValueData: struct{ name string }{name: "stewy"},
 		Fmt:       &zfmt.JSONFormatter{},
 	})
@@ -1741,7 +1741,7 @@ func Test_Bugfix_WorkPoolCanBeRestartedAfterShutdown(t *testing.T) {
 
 	mockReader := zkafka_mocks.NewMockReader(ctrl)
 	msg1 := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key:       ptr("abc"),
+		Key:       new("abc"),
 		ValueData: "def",
 		Fmt:       &zfmt.StringFormatter{},
 	})
@@ -1832,9 +1832,9 @@ func Test_MsgOrderingIsMaintainedPerKeyWithAnyNumberOfVirtualPartitions(t *testi
 	var readerCalls []any
 	keyCount := 3
 	msgCount := 200
-	for i := 0; i < msgCount; i++ {
+	for i := range msgCount {
 		msg1 := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-			Key:       ptr(strconv.Itoa(i % keyCount)),
+			Key:       new(strconv.Itoa(i % keyCount)),
 			ValueData: strconv.Itoa(i),
 			Fmt:       &zfmt.StringFormatter{},
 		})
@@ -1926,7 +1926,7 @@ func TestWork_LifecycleHookReaderPanicIsHandledAndMessagingProceeds(t *testing.T
 		numMsgs := 1
 		sentMsg := false
 		msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-			Key:       ptr("1"),
+			Key:       new("1"),
 			ValueData: struct{ name string }{name: "arish"},
 			Fmt:       &zfmt.JSONFormatter{},
 		})
@@ -2006,7 +2006,7 @@ func TestWork_ShutdownCausesRunExit(t *testing.T) {
 	defer ctrl.Finish()
 
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key:       ptr("1"),
+		Key:       new("1"),
 		ValueData: struct{ name string }{name: "arish"},
 		Fmt:       &zfmt.JSONFormatter{},
 	})
@@ -2056,7 +2056,7 @@ func BenchmarkWork_Run_CircuitBreaker_BusyLoopBreaker(b *testing.B) {
 	defer ctrl.Finish()
 
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key:       ptr("1"),
+		Key:       new("1"),
 		ValueData: struct{ name string }{name: "arish"},
 		Fmt:       &zfmt.JSONFormatter{},
 	})
@@ -2100,7 +2100,7 @@ func BenchmarkWork_Run_CircuitBreaker_DisableBusyLoopBreaker(b *testing.B) {
 	defer ctrl.Finish()
 
 	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
-		Key:       ptr("1"),
+		Key:       new("1"),
 		ValueData: struct{ name string }{name: "arish"},
 		Fmt:       &zfmt.JSONFormatter{},
 	})
@@ -2185,21 +2185,21 @@ type stdLogger struct {
 	includeDebug bool
 }
 
-func (l stdLogger) Debugw(_ context.Context, msg string, keysAndValues ...interface{}) {
+func (l stdLogger) Debugw(_ context.Context, msg string, keysAndValues ...any) {
 	if l.includeDebug {
 		log.Printf("Debugw-"+msg, keysAndValues...)
 	}
 }
 
-func (l stdLogger) Infow(_ context.Context, msg string, keysAndValues ...interface{}) {
+func (l stdLogger) Infow(_ context.Context, msg string, keysAndValues ...any) {
 	log.Printf("Infow-"+msg, keysAndValues...)
 }
 
-func (l stdLogger) Errorw(_ context.Context, msg string, keysAndValues ...interface{}) {
+func (l stdLogger) Errorw(_ context.Context, msg string, keysAndValues ...any) {
 	log.Printf("Errorw-"+msg, keysAndValues...)
 }
 
-func (l stdLogger) Warnw(_ context.Context, msg string, keysAndValues ...interface{}) {
+func (l stdLogger) Warnw(_ context.Context, msg string, keysAndValues ...any) {
 	prefix := fmt.Sprintf("Warnw-%s-"+msg, time.Now().Format(time.RFC3339Nano))
 	log.Printf(prefix, keysAndValues...)
 }
@@ -2210,10 +2210,6 @@ type workSettings struct {
 
 func (w *workSettings) ShutdownSig() <-chan struct{} {
 	return w.shutdownSig
-}
-
-func ptr[T any](v T) *T {
-	return &v
 }
 
 type pollOpts struct {
@@ -2255,7 +2251,7 @@ func pollWait(f func() bool, opts pollOpts) {
 func getFakeMessages(topic string, numMsgs int, value any, formatter zfmt.Formatter) []*zkafka.Message {
 	msgs := make([]*zkafka.Message, numMsgs)
 
-	for i := 0; i < numMsgs; i++ {
+	for i := range numMsgs {
 		key := fmt.Sprint(i)
 		msgs[i] = zkafka.GetMsgFromFake(&zkafka.FakeMessage{
 			Key:       &key,

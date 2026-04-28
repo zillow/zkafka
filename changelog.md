@@ -1,4 +1,5 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
@@ -8,6 +9,7 @@ This project adheres to Semantic Versioning.
 1. go1.26 upgrade
 2. Updated direct deps
 3. Updated golangci to use version 2 (updated github action)
+4. Use go fix ./... to modernize codebase (use 1.26 features)
 
 ## 2.2.1 (June 30, 2025)
 

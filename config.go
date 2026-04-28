@@ -73,7 +73,7 @@ type ConsumerTopicConfig struct {
 
 	// AdditionalProps is defined as an escape hatch to specify properties not specified as strongly typed fields.
 	// The values here will be overwritten by the values of TopicConfig fields if specified there as well.
-	AdditionalProps map[string]interface{}
+	AdditionalProps map[string]any
 
 	// Formatter is json if not defined
 	Formatter zfmt.FormatterType
@@ -169,7 +169,7 @@ type ProducerTopicConfig struct {
 
 	// AdditionalProps is defined as an escape hatch to specify properties not specified as strongly typed fields.
 	// The values here will be overwritten by the values of TopicConfig fields if specified there as well.
-	AdditionalProps map[string]interface{}
+	AdditionalProps map[string]any
 
 	// Formatter is json if not defined
 	Formatter zfmt.FormatterType
@@ -258,15 +258,15 @@ func getDefaultConsumerTopicConfig(topicConfig *ConsumerTopicConfig) error {
 
 	const defaultProcessTimeoutMillis = 60 * 1000
 	if topicConfig.ProcessTimeoutMillis == nil || *topicConfig.ProcessTimeoutMillis == 0 {
-		topicConfig.ProcessTimeoutMillis = ptr(defaultProcessTimeoutMillis)
+		topicConfig.ProcessTimeoutMillis = new(defaultProcessTimeoutMillis)
 	}
 	const defaultSessionTimeoutMillis = 61 * 1000
 	if topicConfig.SessionTimeoutMillis == nil || *topicConfig.SessionTimeoutMillis <= 0 {
-		topicConfig.SessionTimeoutMillis = ptr(defaultSessionTimeoutMillis)
+		topicConfig.SessionTimeoutMillis = new(defaultSessionTimeoutMillis)
 	}
 	const defaultMaxPollTimeoutMillis = 61 * 1000
 	if topicConfig.MaxPollIntervalMillis == nil || *topicConfig.MaxPollIntervalMillis <= 0 {
-		topicConfig.MaxPollIntervalMillis = ptr(defaultMaxPollTimeoutMillis)
+		topicConfig.MaxPollIntervalMillis = new(defaultMaxPollTimeoutMillis)
 	}
 
 	var defaultReadTimeoutMillis = 1000
@@ -285,7 +285,7 @@ func getDefaultProducerTopicConfig(topicConfig *ProducerTopicConfig) error {
 		return &permError{e: errors.New("invalid config, missing topic name")}
 	}
 	if topicConfig.NagleDisable == nil {
-		topicConfig.NagleDisable = ptr(true)
+		topicConfig.NagleDisable = new(true)
 	}
 
 	if string(topicConfig.Formatter) == "" {

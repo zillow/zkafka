@@ -24,8 +24,8 @@ func TestReader_Read_NilReturn(t *testing.T) {
 	mockConsumer.EXPECT().ReadMessage(gomock.Any()).Times(1)
 
 	topicConfig := ConsumerTopicConfig{
-		AutoCommitIntervalMs: ptr(10),
-		ReadTimeoutMillis:    ptr(1000),
+		AutoCommitIntervalMs: new(10),
+		ReadTimeoutMillis:    new(1000),
 		Formatter:            zfmt.StringFmt,
 	}
 	m := mockConfluentConsumerProvider{
@@ -53,14 +53,14 @@ func TestReader_Read(t *testing.T) {
 	mockConsumer.EXPECT().SubscribeTopics(gomock.Any(), gomock.Any()).Times(1)
 	mockConsumer.EXPECT().ReadMessage(gomock.Any()).Return(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{
-			Topic: ptr("topic"),
+			Topic: new("topic"),
 		},
 		Value: []byte("test"),
 	}, nil).Times(1)
 
 	topicConfig := ConsumerTopicConfig{
-		AutoCommitIntervalMs: ptr(10),
-		ReadTimeoutMillis:    ptr(1000),
+		AutoCommitIntervalMs: new(10),
+		ReadTimeoutMillis:    new(1000),
 		Formatter:            zfmt.StringFmt,
 	}
 	m := mockConfluentConsumerProvider{
@@ -99,15 +99,15 @@ func TestReader_Read_Error(t *testing.T) {
 			mockConsumer.EXPECT().SubscribeTopics(gomock.Any(), gomock.Any()).Times(1)
 			mockConsumer.EXPECT().ReadMessage(gomock.Any()).Return(&kafka.Message{
 				TopicPartition: kafka.TopicPartition{
-					Topic: ptr("topic"),
+					Topic: new("topic"),
 				},
 				Value: []byte("test"),
 			}, nil).Return(nil, readMessageError).Times(1)
 
 			topicConfig := ConsumerTopicConfig{
 				Topic:                "topic",
-				AutoCommitIntervalMs: ptr(10),
-				ReadTimeoutMillis:    ptr(10),
+				AutoCommitIntervalMs: new(10),
+				ReadTimeoutMillis:    new(10),
 				Formatter:            zfmt.StringFmt,
 			}
 			m := mockConfluentConsumerProvider{
@@ -138,16 +138,16 @@ func TestReader_Read_TimeoutError(t *testing.T) {
 	mockConsumer.EXPECT().SubscribeTopics(gomock.Any(), gomock.Any()).Times(1)
 	mockConsumer.EXPECT().ReadMessage(gomock.Any()).Return(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{
-			Topic: ptr("topic"),
+			Topic: new("topic"),
 		},
 		Value: []byte("test"),
 	}, nil).Return(nil, kafka.NewError(kafka.ErrTimedOut, "error", false)).Times(1)
 
 	topicConfig := ConsumerTopicConfig{
 		Topic:                "topic",
-		AutoCommitIntervalMs: ptr(10),
+		AutoCommitIntervalMs: new(10),
 		Formatter:            zfmt.StringFmt,
-		ReadTimeoutMillis:    ptr(1000),
+		ReadTimeoutMillis:    new(1000),
 	}
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
@@ -173,7 +173,7 @@ func TestReader_Read_SubscriberError(t *testing.T) {
 	mockConsumer := mock_confluent.NewMockKafkaConsumer(ctrl)
 	mockConsumer.EXPECT().SubscribeTopics(gomock.Any(), gomock.Any()).Return(errors.New("subscriber error")).Times(1)
 	topicConfig := ConsumerTopicConfig{
-		AutoCommitIntervalMs: ptr(10),
+		AutoCommitIntervalMs: new(10),
 		Formatter:            zfmt.ProtoRawFmt,
 	}
 	m := mockConfluentConsumerProvider{
@@ -200,7 +200,7 @@ func TestReader_Read_CloseError(t *testing.T) {
 	mockConsumer.EXPECT().Close().Return(errors.New("close error")).Times(1)
 	l := mockLogger{}
 	topicConfig := ConsumerTopicConfig{
-		AutoCommitIntervalMs: ptr(10),
+		AutoCommitIntervalMs: new(10),
 		Formatter:            zfmt.StringFmt,
 	}
 	m := mockConfluentConsumerProvider{
@@ -227,7 +227,7 @@ func TestReader_ReadWhenConnectionIsClosed(t *testing.T) {
 	mockConsumer.EXPECT().Close().Times(1)
 
 	topicConfig := ConsumerTopicConfig{
-		AutoCommitIntervalMs: ptr(10),
+		AutoCommitIntervalMs: new(10),
 		Formatter:            zfmt.StringFmt,
 	}
 	m := mockConfluentConsumerProvider{
@@ -316,7 +316,7 @@ func Test_ProcessMessage(t *testing.T) {
 
 	dupMessage := kafka.Message{
 		TopicPartition: kafka.TopicPartition{
-			Topic:     ptr("test-topic"),
+			Topic:     new("test-topic"),
 			Partition: 10,
 			Offset:    99,
 		},
@@ -326,7 +326,7 @@ func Test_ProcessMessage(t *testing.T) {
 
 	topicConfig := ConsumerTopicConfig{
 		GroupID:              "test-group",
-		AutoCommitIntervalMs: ptr(10),
+		AutoCommitIntervalMs: new(10),
 		Formatter:            zfmt.StringFmt,
 	}
 	m := mockConfluentConsumerProvider{
@@ -366,7 +366,7 @@ func Test_ProcessMultipleMessagesFromDifferentTopics_UpdatesInternalStateProperl
 
 	topicConfig := ConsumerTopicConfig{
 		GroupID:              "test-group",
-		AutoCommitIntervalMs: ptr(10),
+		AutoCommitIntervalMs: new(10),
 		Formatter:            zfmt.StringFmt,
 	}
 	m := mockConfluentConsumerProvider{
@@ -401,13 +401,13 @@ func Test_ProcessMessage_StoreOffsetError(t *testing.T) {
 	topicConfig := ConsumerTopicConfig{
 		GroupID:              "test-group",
 		Topic:                "test-topic",
-		AutoCommitIntervalMs: ptr(10),
+		AutoCommitIntervalMs: new(10),
 		Formatter:            zfmt.StringFmt,
 	}
 
 	dupMessage := kafka.Message{
 		TopicPartition: kafka.TopicPartition{
-			Topic:     ptr("test-topic"),
+			Topic:     new("test-topic"),
 			Partition: 10,
 			Offset:    99,
 		},
@@ -451,13 +451,13 @@ func Test_ProcessMessage_SetError(t *testing.T) {
 	topicConfig := ConsumerTopicConfig{
 		GroupID:              "test-group",
 		Topic:                "topic",
-		AutoCommitIntervalMs: ptr(10),
+		AutoCommitIntervalMs: new(10),
 		Formatter:            zfmt.StringFmt,
 	}
 
 	dupMessage := kafka.Message{
 		TopicPartition: kafka.TopicPartition{
-			Topic:     ptr(topicConfig.Topic),
+			Topic:     new(topicConfig.Topic),
 			Partition: 10,
 			Offset:    99,
 		},
@@ -634,10 +634,10 @@ func Test_getTopics(t *testing.T) {
 						Topic: nil,
 					},
 					{
-						Topic: ptr("a"),
+						Topic: new("a"),
 					},
 					{
-						Topic: ptr("b"),
+						Topic: new("b"),
 					},
 				},
 			},

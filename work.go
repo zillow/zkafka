@@ -822,10 +822,6 @@ func (s spanWrapper) SetAttributes(kv ...attribute.KeyValue) {
 	s.span.SetAttributes(kv...)
 }
 
-func ptr[T any](v T) *T {
-	return &v
-}
-
 type delayCalculator struct {
 	getNow func() time.Time
 }

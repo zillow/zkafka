@@ -26,7 +26,7 @@ func TestGetFakeMessageFromFake(t *testing.T) {
 	val, err := fmtr.Marshall("value")
 	require.NoError(t, err)
 	msg := GetMsgFromFake(&FakeMessage{
-		Key:   ptr("key"),
+		Key:   new("key"),
 		Value: val,
 		Fmt:   fmtr,
 	})
@@ -41,7 +41,7 @@ func TestGetFakeMessageFromFake(t *testing.T) {
 func TestMsgFromFake_WhenMarshallError(t *testing.T) {
 	// pass in some invalid object for marshalling
 	msg := GetMsgFromFake(&FakeMessage{
-		Key:       ptr("key"),
+		Key:       new("key"),
 		ValueData: make(chan int),
 		Fmt:       &zfmt.JSONFormatter{},
 	})

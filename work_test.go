@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -37,7 +38,7 @@ func TestWork_processTimeoutMillis(t *testing.T) {
 			name: "topic config has specified processTimeoutDuration",
 			fields: fields{
 				topicConfig: ConsumerTopicConfig{
-					ProcessTimeoutMillis: ptr(1000),
+					ProcessTimeoutMillis: new(1000),
 				},
 			},
 			want: time.Second,
@@ -196,7 +197,7 @@ func TestWork_ShouldCommitMessagesProperly(t *testing.T) {
 		tCommitMgr: newTopicCommitMgr(),
 		consumer:   consumer,
 		topicConfig: ConsumerTopicConfig{
-			ReadTimeoutMillis: ptr(1),
+			ReadTimeoutMillis: new(1),
 		},
 		logger: l,
 	}
@@ -284,7 +285,7 @@ func TestWork_CommitManagerIsEmptyAfterAllProcessingCompletes(t *testing.T) {
 	messageCount := 10000
 	partitionCount := 3
 	topicName := "topic-name"
-	for i := 0; i < messageCount; i++ {
+	for i := range messageCount {
 		randPartition := i % partitionCount
 		offset := i
 		randDelayMillis := rand.Intn(10)
@@ -329,7 +330,7 @@ func TestWork_CommitManagerIsEmptyAfterAllProcessingCompletes(t *testing.T) {
 		tCommitMgr: newTopicCommitMgr(),
 		consumer:   consumer,
 		topicConfig: ConsumerTopicConfig{
-			ReadTimeoutMillis: ptr(1),
+			ReadTimeoutMillis: new(1),
 		},
 		logger: l,
 	}
@@ -380,7 +381,7 @@ func TestWork_CommitManagerIsEmptyAfterAllProcessingCompletes(t *testing.T) {
 		break
 	}
 
-	for partition := 0; partition < partitionCount; partition++ {
+	for partition := range partitionCount {
 		c := r.tCommitMgr.get(topicName)
 		require.Contains(t, c.partitionToInWork, int32(partition), "expect inwork message map to contain holder for visited partition")
 		require.Empty(t, c.partitionToInWork[int32(partition)].data, "expect inwork message map to contain holder for visited partition")
@@ -405,7 +406,7 @@ func TestWork_WithDoneWithContext(t *testing.T) {
 	messageCount := 100
 	partitionCount := 3
 	topicName := "topic-name"
-	for i := 0; i < messageCount; i++ {
+	for i := range messageCount {
 		randPartition := i % partitionCount
 		offset := i
 		randDelayMillis := rand.Intn(10)
@@ -448,7 +449,7 @@ func TestWork_WithDoneWithContext(t *testing.T) {
 		tCommitMgr: newTopicCommitMgr(),
 		consumer:   consumer,
 		topicConfig: ConsumerTopicConfig{
-			ReadTimeoutMillis: ptr(1),
+			ReadTimeoutMillis: new(1),
 		},
 		logger: NoopLogger{},
 	}
@@ -478,8 +479,7 @@ func TestWork_WithDoneWithContext(t *testing.T) {
 	}))
 	work.reader = &r
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go func() {
 		work.Run(ctx, nil)
 	}()
@@ -614,7 +614,7 @@ func Test_ShouldNotCircuitBreak(t *testing.T) {
 // there are no collisions in 10 runs, but the probability of that is (1/10)^10, so it's unlikely.
 // This test is meant to catch any obvious issues with the implementation (always returning the same index).
 func Test_selectPartitionIndex_SelectsDifferentForDifferentInputsSometimes(t *testing.T) {
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		str1 := uuid.NewString()
 		str2 := uuid.NewString()
 		index1, err := selectPartitionIndex(str1, false, 10)
@@ -632,7 +632,7 @@ func Test_selectPartitionIndex_SelectsDifferentForDifferentInputsSometimes(t *te
 }
 
 func Test_selectPartitionIndex_SelectsDifferentForEmptyStringWithNilKeySometimes(t *testing.T) {
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		index1, err := selectPartitionIndex("", true, 10)
 		require.NoError(t, err)
 
@@ -648,7 +648,7 @@ func Test_selectPartitionIndex_SelectsDifferentForEmptyStringWithNilKeySometimes
 }
 
 func Test_selectPartitionIndex_SelectsSamePartitionWithEmptyKey(t *testing.T) {
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		index1, err := selectPartitionIndex("", false, 10)
 		require.NoError(t, err)
 
@@ -801,10 +801,8 @@ func (m *timeDelayProcessor) Process(_ context.Context, message *Message) error 
 
 func assertContains(t *testing.T, wantIn kafka.TopicPartition, options []kafka.TopicPartition) {
 	t.Helper()
-	for _, want := range options {
-		if wantIn == want {
-			return
-		}
+	if slices.Contains(options, wantIn) {
+		return
 	}
 	msg := fmt.Sprintf("expected wantIn to appear in provided options\nwantIn: %s\noptions: %+v\n", wantIn, options)
 	t.Fatal(msg)

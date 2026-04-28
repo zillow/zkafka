@@ -508,7 +508,6 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 			t.Log("starting work1")
 			wg := sync.WaitGroup{}
 			wg.Go(func() {
-				defer wg.Done()
 				work1.Run(ctx1, nil)
 			})
 
@@ -522,7 +521,6 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 
 			t.Log("starting work2")
 			wg.Go(func() {
-				defer wg.Done()
 				work2.Run(ctx2, nil)
 			})
 			wg.Wait()

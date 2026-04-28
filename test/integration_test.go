@@ -254,7 +254,7 @@ func Test_RebalanceDoesntCauseDuplicateMessages(t *testing.T) {
 			// write N messages to topic
 			msgCount := tc.messageCount
 			writtenMsgs := map[int32][]int{}
-			for i := 0; i < msgCount; i++ {
+			for range msgCount {
 				msgResp, err := writer.WriteKey(ctx, uuid.NewString(), msg)
 				writtenMsgs[msgResp.Partition] = append(writtenMsgs[msgResp.Partition], int(msgResp.Offset))
 				require.NoError(t, err)
@@ -425,8 +425,8 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 				ClientID:            fmt.Sprintf("writer1-%s-%s", t.Name(), tc.name),
 				Topic:               topic1,
 				Formatter:           zfmt.JSONFmt,
-				RequestRequiredAcks: ptr("0"),
-				EnableIdempotence:   ptr(false),
+				RequestRequiredAcks: new("0"),
+				EnableIdempotence:   new(false),
 			})
 			require.NoError(t, err)
 
@@ -434,8 +434,8 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 				ClientID:            fmt.Sprintf("writer2-%s-%s", t.Name(), tc.name),
 				Topic:               topic2,
 				Formatter:           zfmt.JSONFmt,
-				RequestRequiredAcks: ptr("0"),
-				EnableIdempotence:   ptr(false),
+				RequestRequiredAcks: new("0"),
+				EnableIdempotence:   new(false),
 			})
 			require.NoError(t, err)
 
@@ -446,7 +446,7 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 			t.Log("Begin writing to Test topic")
 			// write N messages to topic1
 			msgCount := tc.messageCount
-			for i := 0; i < msgCount; i++ {
+			for range msgCount {
 				_, err = writer1.WriteKey(ctx, uuid.NewString(), msg)
 				require.NoError(t, err)
 
@@ -507,11 +507,9 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 
 			t.Log("starting work1")
 			wg := sync.WaitGroup{}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				work1.Run(ctx1, nil)
-			}()
+			})
 
 			// wait until processor1 has begun to process messages
 			for {
@@ -522,11 +520,9 @@ func Test_WithMultipleTopics_RebalanceDoesntCauseDuplicateMessages(t *testing.T)
 			}
 
 			t.Log("starting work2")
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				work2.Run(ctx2, nil)
-			}()
+			})
 			wg.Wait()
 
 			messageProcessCounter := make(map[partition]int)
@@ -604,8 +600,8 @@ func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *test
 				ClientID:            fmt.Sprintf("writer-%s-%s", t.Name(), tc.name),
 				Topic:               topic,
 				Formatter:           zfmt.JSONFmt,
-				RequestRequiredAcks: ptr("0"),
-				EnableIdempotence:   ptr(false),
+				RequestRequiredAcks: new("0"),
+				EnableIdempotence:   new(false),
 			})
 			require.NoError(t, err)
 
@@ -616,7 +612,7 @@ func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *test
 			// write N messages to topic
 			t.Logf("Writing n = %d", tc.messageCount)
 			msgCount := tc.messageCount
-			for i := 0; i < msgCount; i++ {
+			for range msgCount {
 				_, err = writer.WriteKey(ctx, uuid.NewString(), msg)
 				require.NoError(t, err)
 			}
@@ -662,11 +658,9 @@ func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *test
 
 			t.Log("starting work1")
 			wg := sync.WaitGroup{}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				work1.Run(ctx1, nil)
-			}()
+			})
 
 			// wait until processor1 has begun to process messages
 			for {
@@ -677,11 +671,9 @@ func Test_WithConcurrentProcessing_RebalanceDoesntCauseDuplicateMessages(t *test
 			}
 
 			t.Log("starting work2")
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				work2.Run(ctx2, nil)
-			}()
+			})
 			wg.Wait()
 			// keep track of how many messages
 			messageProcessCounter := make(map[partition]int)
@@ -752,7 +744,7 @@ func Test_AssignmentsReflectsConsumerAssignments(t *testing.T) {
 	t.Log("Begin writing messages")
 	// write N messages to topic
 	msgCount := 40
-	for i := 0; i < msgCount; i++ {
+	for range msgCount {
 		_, err = writer.WriteKey(ctx, uuid.NewString(), msg)
 		require.NoError(t, err)
 	}
@@ -766,7 +758,7 @@ func Test_AssignmentsReflectsConsumerAssignments(t *testing.T) {
 		Formatter: zfmt.JSONFmt,
 		GroupID:   groupID,
 		// use increase readtimeout so less likely for reader1 to finish processing before r2 joins.
-		ReadTimeoutMillis: ptr(5000),
+		ReadTimeoutMillis: new(5000),
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
 		},
@@ -859,8 +851,8 @@ func Test_UnfinishableWorkDoesntBlockWorkIndefinitely(t *testing.T) {
 		ClientID:            fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
 		Topic:               topic,
 		Formatter:           zfmt.JSONFmt,
-		RequestRequiredAcks: ptr("0"),
-		EnableIdempotence:   ptr(false),
+		RequestRequiredAcks: new("0"),
+		EnableIdempotence:   new(false),
 	})
 	require.NoError(t, err)
 
@@ -870,7 +862,7 @@ func Test_UnfinishableWorkDoesntBlockWorkIndefinitely(t *testing.T) {
 
 	// write N messages to topic
 	msgCount := 40
-	for i := 0; i < msgCount; i++ {
+	for range msgCount {
 		_, err = writer.WriteKey(ctx, uuid.NewString(), msg)
 		require.NoError(t, err)
 	}
@@ -881,7 +873,7 @@ func Test_UnfinishableWorkDoesntBlockWorkIndefinitely(t *testing.T) {
 		Topic:             topic,
 		Formatter:         zfmt.JSONFmt,
 		GroupID:           groupID,
-		ReadTimeoutMillis: ptr(5000),
+		ReadTimeoutMillis: new(5000),
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
 		},
@@ -1005,7 +997,7 @@ func Test_KafkaClientsCanWriteToTheirDeadLetterTopic(t *testing.T) {
 		GroupID:           uuid.NewString(),
 		Topic:             dlt,
 		Formatter:         zfmt.JSONFmt,
-		ReadTimeoutMillis: ptr(15000),
+		ReadTimeoutMillis: new(15000),
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
 		},
@@ -1101,7 +1093,7 @@ func Test_WorkDelay_GuaranteesProcessingDelayedAtLeastSpecifiedDelayDurationFrom
 	t.Log("Started writing messages")
 	// write N messages to topic
 	msgCount := 1000
-	for i := 0; i < msgCount; i++ {
+	for range msgCount {
 		_, err = writer.Write(ctx, msg)
 		require.NoError(t, err)
 	}
@@ -1170,7 +1162,7 @@ func Test_WorkDelay_DoesntHaveDurationStackEffect(t *testing.T) {
 	t.Log("Started writing messages")
 	// write N messages to topic
 	msgCount := 500
-	for i := 0; i < msgCount; i++ {
+	for range msgCount {
 		_, err = writer.Write(ctx, msg)
 		require.NoError(t, err)
 	}

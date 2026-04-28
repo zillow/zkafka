@@ -3,6 +3,7 @@ package zkafka
 import (
 	"context"
 	"errors"
+	"maps"
 	"time"
 )
 
@@ -174,9 +175,7 @@ func ChainLifecycleHooks(hooks ...LifecycleHooks) LifecycleHooks {
 					if err != nil {
 						allErrs = errors.Join(allErrs, err)
 					}
-					for k, v := range resp.Headers {
-						out.Headers[k] = v
-					}
+					maps.Copy(out.Headers, resp.Headers)
 				}
 			}
 

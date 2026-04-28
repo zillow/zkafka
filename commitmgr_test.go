@@ -56,7 +56,7 @@ func Test_commitMgr_GetCommitOffset_ShouldReturnProperCandidateCommitOffsetsAndU
 	maxCount := 10000
 
 	var partition int32 = 1
-	for i := 0; i < maxCount; i++ {
+	for i := range maxCount {
 		offsets = append(offsets, kafka.TopicPartition{
 			Partition: partition,
 			Offset:    kafka.Offset(i),
@@ -182,7 +182,7 @@ func Test_commitMgr_PerPartitionDataStructuresBuiltUpConcurrentlyCorrectly(t *te
 
 	wg := sync.WaitGroup{}
 	partitionCount := 1000
-	for i := 0; i < partitionCount; i++ {
+	for i := range partitionCount {
 		wg.Add(1)
 		go func(partition int) {
 			mgr.PushInWork(kafka.TopicPartition{Partition: int32(partition)})
@@ -204,7 +204,7 @@ func Test_commitMgr_mutex_ShouldReturnReferenceToSameMutexForSamePartition(t *te
 	defer recoverThenFail(t)
 	mgr := newCommitMgr()
 	mgr.mutex(0)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		wg := sync.WaitGroup{}
 		wg.Add(2)
 		var m1 *sync.Mutex
@@ -226,7 +226,7 @@ func Test_commitMgr_mutex_ShouldReturnReferenceToSameCompletedHeapForSamePartiti
 	defer recoverThenFail(t)
 	mgr := newCommitMgr()
 	mgr.mutex(0)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		wg := sync.WaitGroup{}
 		wg.Add(2)
 		var h1 *offsetHeap
@@ -248,7 +248,7 @@ func Test_commitMgr_mutex_ShouldReturnReferenceToSameInWorkHeapForSamePartition(
 	defer recoverThenFail(t)
 	mgr := newCommitMgr()
 	mgr.mutex(0)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		wg := sync.WaitGroup{}
 		wg.Add(2)
 		var h1 *offsetHeap
@@ -270,7 +270,7 @@ func Test_topicCommitMgr_mutex_ShouldReturnReferenceToSameCommitMgrForSameTopic(
 	defer recoverThenFail(t)
 	mgr := newTopicCommitMgr()
 	loopCount := 10000
-	for i := 0; i < loopCount; i++ {
+	for i := range loopCount {
 		wg := sync.WaitGroup{}
 		wg.Add(2)
 		var h1 *commitMgr

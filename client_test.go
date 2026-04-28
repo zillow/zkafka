@@ -217,10 +217,10 @@ func TestClient_Reader(t *testing.T) {
 					Topic:    "topic",
 					// some sensible default filled out by the client
 					Formatter:             zfmt.JSONFmt,
-					ReadTimeoutMillis:     ptr(1000),
-					ProcessTimeoutMillis:  ptr(60000),
-					SessionTimeoutMillis:  ptr(61000),
-					MaxPollIntervalMillis: ptr(61000),
+					ReadTimeoutMillis:     new(1000),
+					ProcessTimeoutMillis:  new(60000),
+					SessionTimeoutMillis:  new(61000),
+					MaxPollIntervalMillis: new(61000),
 				},
 				logger:    NoopLogger{},
 				formatter: zfmtShim{&zfmt.AvroFormatter{}},
@@ -239,7 +239,7 @@ func TestClient_Reader(t *testing.T) {
 			},
 			args: args{
 				ctx:         context.TODO(),
-				topicConfig: ConsumerTopicConfig{ClientID: "test-config", GroupID: "group", Topic: "topic", ReadTimeoutMillis: ptr(10000), ProcessTimeoutMillis: ptr(10000), SessionTimeoutMillis: ptr(20000), MaxPollIntervalMillis: ptr(21000)},
+				topicConfig: ConsumerTopicConfig{ClientID: "test-config", GroupID: "group", Topic: "topic", ReadTimeoutMillis: new(10000), ProcessTimeoutMillis: new(10000), SessionTimeoutMillis: new(20000), MaxPollIntervalMillis: new(21000)},
 				opts:        []ReaderOption{RFormatterOption(&zfmt.AvroFormatter{})},
 			},
 			want: &KReader{
@@ -250,10 +250,10 @@ func TestClient_Reader(t *testing.T) {
 					Topic:    "topic",
 					// some sensible default filled out by the client
 					Formatter:             zfmt.JSONFmt,
-					ReadTimeoutMillis:     ptr(10000),
-					ProcessTimeoutMillis:  ptr(10000),
-					SessionTimeoutMillis:  ptr(20000),
-					MaxPollIntervalMillis: ptr(21000),
+					ReadTimeoutMillis:     new(10000),
+					ProcessTimeoutMillis:  new(10000),
+					SessionTimeoutMillis:  new(20000),
+					MaxPollIntervalMillis: new(21000),
 				},
 				logger:    NoopLogger{},
 				formatter: zfmtShim{&zfmt.AvroFormatter{}},
@@ -346,8 +346,8 @@ func TestClient_Writer(t *testing.T) {
 				producerProvider: mockConfluentProducerProvider{err: true}.NewProducer,
 				writers:          make(map[string]*KWriter),
 				conf: Config{
-					SaslUsername: ptr("test-user"),
-					SaslPassword: ptr("test-password"),
+					SaslUsername: new("test-user"),
+					SaslPassword: new("test-password"),
 				},
 			},
 			args: args{
@@ -379,7 +379,7 @@ func TestClient_Writer(t *testing.T) {
 					Topic:    "topic",
 					// some sensible default filled out by the client
 					Formatter:    zfmt.JSONFmt,
-					NagleDisable: ptr(true),
+					NagleDisable: new(true),
 					LingerMillis: 0,
 				},
 				logger:    NoopLogger{},
@@ -400,7 +400,7 @@ func TestClient_Writer(t *testing.T) {
 				logger:           NoopLogger{},
 			},
 			args: args{
-				topicConfig: ProducerTopicConfig{ClientID: "test-id", Topic: "topic", LingerMillis: 1, NagleDisable: ptr(false)},
+				topicConfig: ProducerTopicConfig{ClientID: "test-id", Topic: "topic", LingerMillis: 1, NagleDisable: new(false)},
 				opts:        []WriterOption{WFormatterOption(&zfmt.ProtobufRawFormatter{})},
 			},
 			want: &KWriter{
@@ -409,7 +409,7 @@ func TestClient_Writer(t *testing.T) {
 					Topic:    "topic",
 					// some sensible default filled out by the client
 					Formatter:    zfmt.JSONFmt,
-					NagleDisable: ptr(false),
+					NagleDisable: new(false),
 					LingerMillis: 1,
 				},
 				logger:    NoopLogger{},
@@ -861,7 +861,7 @@ func Test_makeConfig_Consumer(t *testing.T) {
 				topicConfig: ConsumerTopicConfig{
 					ClientID:             "clientid",
 					GroupID:              "group",
-					AutoCommitIntervalMs: ptr(200),
+					AutoCommitIntervalMs: new(200),
 				},
 			},
 			want: kafka.ConfigMap{
@@ -882,7 +882,7 @@ func Test_makeConfig_Consumer(t *testing.T) {
 				topicConfig: ConsumerTopicConfig{
 					ClientID:             "clientid",
 					GroupID:              "group",
-					AutoCommitIntervalMs: ptr(200),
+					AutoCommitIntervalMs: new(200),
 					AdditionalProps: map[string]any{
 						"stewarts.random.property.not.included.in.topicconfig": 123,
 					},
@@ -903,8 +903,8 @@ func Test_makeConfig_Consumer(t *testing.T) {
 			args: args{
 				conf: Config{
 					BootstrapServers: []string{"http://localhost:8080"},
-					SaslUsername:     ptr("username"),
-					SaslPassword:     ptr("password"),
+					SaslUsername:     new("username"),
+					SaslPassword:     new("password"),
 				},
 				prefix: "xxxx",
 				topicConfig: ConsumerTopicConfig{
@@ -935,14 +935,14 @@ func Test_makeConfig_Consumer(t *testing.T) {
 			args: args{
 				conf: Config{
 					BootstrapServers: []string{"http://localhost:8080"},
-					SaslUsername:     ptr("username"),
-					SaslPassword:     ptr("password"),
+					SaslUsername:     new("username"),
+					SaslPassword:     new("password"),
 				},
 				prefix: "xxxx",
 				topicConfig: ConsumerTopicConfig{
 					ClientID:     "clientid",
 					GroupID:      "group",
-					SaslUsername: ptr(""),
+					SaslUsername: new(""),
 				},
 			},
 			want: kafka.ConfigMap{
@@ -958,14 +958,14 @@ func Test_makeConfig_Consumer(t *testing.T) {
 			args: args{
 				conf: Config{
 					BootstrapServers: []string{"http://localhost:8080"},
-					SaslUsername:     ptr("username"),
-					SaslPassword:     ptr("password"),
+					SaslUsername:     new("username"),
+					SaslPassword:     new("password"),
 				},
 				prefix: "xxxx",
 				topicConfig: ConsumerTopicConfig{
 					ClientID:     "clientid",
 					GroupID:      "group",
-					SaslUsername: ptr("usernameOverride"),
+					SaslUsername: new("usernameOverride"),
 				},
 			},
 			want: kafka.ConfigMap{
@@ -985,14 +985,14 @@ func Test_makeConfig_Consumer(t *testing.T) {
 			args: args{
 				conf: Config{
 					BootstrapServers: []string{"http://localhost:8080"},
-					SaslUsername:     ptr("username"),
-					SaslPassword:     ptr("password"),
+					SaslUsername:     new("username"),
+					SaslPassword:     new("password"),
 				},
 				prefix: "xxxx",
 				topicConfig: ConsumerTopicConfig{
 					ClientID:     "clientid",
 					GroupID:      "group",
-					SaslPassword: ptr("passwordOverride"),
+					SaslPassword: new("passwordOverride"),
 				},
 			},
 			want: kafka.ConfigMap{
@@ -1012,15 +1012,15 @@ func Test_makeConfig_Consumer(t *testing.T) {
 			args: args{
 				conf: Config{
 					BootstrapServers: []string{"http://localhost:8080"},
-					SaslUsername:     ptr("username"),
-					SaslPassword:     ptr("password"),
+					SaslUsername:     new("username"),
+					SaslPassword:     new("password"),
 				},
 				prefix: "xxxx",
 				topicConfig: ConsumerTopicConfig{
 					ClientID:     "clientid",
 					GroupID:      "group",
-					SaslUsername: ptr("usernameOverride"),
-					SaslPassword: ptr("passwordOverride"),
+					SaslUsername: new("usernameOverride"),
+					SaslPassword: new("passwordOverride"),
 				},
 			},
 			want: kafka.ConfigMap{
@@ -1104,7 +1104,7 @@ func Test_makeConfig_Producer(t *testing.T) {
 				topicConfig: ProducerTopicConfig{
 					ClientID:          "clientid",
 					Topic:             "zzz",
-					DeliveryTimeoutMs: ptr(100),
+					DeliveryTimeoutMs: new(100),
 				},
 			},
 			want: kafka.ConfigMap{
@@ -1124,7 +1124,7 @@ func Test_makeConfig_Producer(t *testing.T) {
 				topicConfig: ProducerTopicConfig{
 					ClientID:          "clientid",
 					Topic:             "zzz",
-					DeliveryTimeoutMs: ptr(100),
+					DeliveryTimeoutMs: new(100),
 					AdditionalProps: map[string]any{
 						"stewarts.random.property.not.included.in.topicconfig": 123,
 					},
@@ -1144,15 +1144,15 @@ func Test_makeConfig_Producer(t *testing.T) {
 			args: args{
 				conf: Config{
 					BootstrapServers: []string{"http://localhost:8080"},
-					SaslUsername:     ptr("username"),
-					SaslPassword:     ptr("password"),
+					SaslUsername:     new("username"),
+					SaslPassword:     new("password"),
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:            "clientid",
 					Topic:               "abc",
-					DeliveryTimeoutMs:   ptr(100),
-					EnableIdempotence:   ptr(false),
-					RequestRequiredAcks: ptr("all"),
+					DeliveryTimeoutMs:   new(100),
+					EnableIdempotence:   new(false),
+					RequestRequiredAcks: new("all"),
 					AdditionalProps: map[string]any{
 						"auto.commit.interval.ms": float32(20),
 						"linger.ms":               float64(5),
@@ -1178,13 +1178,13 @@ func Test_makeConfig_Producer(t *testing.T) {
 			args: args{
 				conf: Config{
 					BootstrapServers: []string{"http://localhost:8080"},
-					SaslUsername:     ptr("username"),
-					SaslPassword:     ptr("password"),
+					SaslUsername:     new("username"),
+					SaslPassword:     new("password"),
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:     "clientid",
 					Topic:        "xxx",
-					SaslUsername: ptr(""),
+					SaslUsername: new(""),
 				},
 			},
 			want: kafka.ConfigMap{
@@ -1199,13 +1199,13 @@ func Test_makeConfig_Producer(t *testing.T) {
 			args: args{
 				conf: Config{
 					BootstrapServers: []string{"http://localhost:8080"},
-					SaslUsername:     ptr("username"),
-					SaslPassword:     ptr("password"),
+					SaslUsername:     new("username"),
+					SaslPassword:     new("password"),
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:     "clientid",
 					Topic:        "xxx",
-					SaslUsername: ptr("usernameOverride"),
+					SaslUsername: new("usernameOverride"),
 				},
 			},
 			want: kafka.ConfigMap{
@@ -1224,13 +1224,13 @@ func Test_makeConfig_Producer(t *testing.T) {
 			args: args{
 				conf: Config{
 					BootstrapServers: []string{"http://localhost:8080"},
-					SaslUsername:     ptr("username"),
-					SaslPassword:     ptr("password"),
+					SaslUsername:     new("username"),
+					SaslPassword:     new("password"),
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:     "clientid",
 					Topic:        "xxx",
-					SaslPassword: ptr("passwordOverride"),
+					SaslPassword: new("passwordOverride"),
 				},
 			},
 			want: kafka.ConfigMap{
@@ -1249,14 +1249,14 @@ func Test_makeConfig_Producer(t *testing.T) {
 			args: args{
 				conf: Config{
 					BootstrapServers: []string{"http://localhost:8080"},
-					SaslUsername:     ptr("username"),
-					SaslPassword:     ptr("password"),
+					SaslUsername:     new("username"),
+					SaslPassword:     new("password"),
 				},
 				topicConfig: ProducerTopicConfig{
 					ClientID:     "clientid",
 					Topic:        "xxx",
-					SaslUsername: ptr("usernameOverride"),
-					SaslPassword: ptr("passwordOverride"),
+					SaslUsername: new("usernameOverride"),
+					SaslPassword: new("passwordOverride"),
 				},
 			},
 			want: kafka.ConfigMap{

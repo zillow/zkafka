@@ -1,45 +1,63 @@
+version: "2"
 run:
+  go: "1.26"
   tests: false
-  go: '1.24'
-issues:
-  exclude-files:
-    - 'wire_gen.go'
-  exclude-dirs:
-    - docs
-linters-settings:
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-  gci:
-    sections:
-      - standard
-      - default
 linters:
-  disable-all: true
+  default: none
   enable:
     - asciicheck
     - bidichk
     - bodyclose
+    - copyloopvar
     - decorder
     - dupl
     - errcheck
     - errchkjson
     - errname
     - errorlint
-    - gci
     - goconst
     - gocritic
     - gocyclo
-    - gofmt
-    - gosimple
     - govet
     - ineffassign
     - nolintlint
     - prealloc
     - staticcheck
-    - typecheck
     - unconvert
     - unparam
     - unused
-    - copyloopvar
     - whitespace
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - wire_gen.go
+      - docs
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+  exclusions:
+    generated: lax
+    paths:
+      - wire_gen.go
+      - docs
+      - third_party$
+      - builtin$
+      - examples$

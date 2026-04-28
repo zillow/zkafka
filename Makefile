@@ -1,6 +1,6 @@
 # Directories containing independent Go modules.
 MODULE_DIRS = .
-GOLANGCI_VERSION=1.64.6
+GOLANGCI_VERSION=2.11.4
 AVRO_CMD_PATH=github.com/hamba/avro/v2/cmd/avrogen@v2.28.0
 
 
@@ -42,7 +42,11 @@ golangci-lint:
 	@$(foreach mod,$(MODULE_DIRS), \
 		(cd $(mod) && \
 		echo "[lint] golangci-lint: $(mod)" && \
-		go run github.com/golangci/golangci-lint/cmd/golangci-lint@v${GOLANGCI_VERSION} run $(ARGS) --path-prefix $(mod) ./...) &&) true
+		go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v${GOLANGCI_VERSION} run $(ARGS) --path-prefix $(mod) ./...) &&) true
+
+.PHONY: golangci-migrate
+golangci-migrate:
+		go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v${GOLANGCI_VERSION} migrate
 
 .PHONY: gen
 gen: protoc-exists

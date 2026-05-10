@@ -54,6 +54,16 @@ type LifecyclePreWriteResp struct {
 	Headers map[string][]byte
 }
 
+// LifecyclePostCircuitBreakerOpened is the meta passed to PostCircuitBreakerOpened.
+// It is intentionally an empty struct so additional fields can be introduced
+// without breaking changes to existing hooks.
+type LifecyclePostCircuitBreakerOpened struct{}
+
+// LifecyclePostCircuitBreakerClosed is the meta passed to PostCircuitBreakerClosed.
+// It is intentionally an empty struct so additional fields can be introduced
+// without breaking changes to existing hooks.
+type LifecyclePostCircuitBreakerClosed struct{}
+
 type LifecycleHooks struct {
 	// Called by work after reading a message (guaranteed non nil), offers the ability to customize the context object (resulting context object passed to work processor)
 	PostRead func(ctx context.Context, meta LifecyclePostReadMeta) (context.Context, error)
@@ -76,6 +86,14 @@ type LifecycleHooks struct {
 
 	// Call after the reader attempts a fanOut call.
 	PostFanout func(ctx context.Context)
+
+	// Called when the circuit breaker transitions into the open state (e.g., after consecutive
+	// processing errors trip the breaker).
+	PostCircuitBreakerOpened func(ctx context.Context, meta LifecyclePostCircuitBreakerOpened)
+
+	// Called when the circuit breaker transitions into the closed state (e.g., after the
+	// breaker recovers from open/half-open).
+	PostCircuitBreakerClosed func(ctx context.Context, meta LifecyclePostCircuitBreakerClosed)
 }
 
 // ChainLifecycleHooks chains multiple lifecycle hooks into one.  The hooks are
@@ -185,6 +203,20 @@ func ChainLifecycleHooks(hooks ...LifecycleHooks) LifecycleHooks {
 			for _, h := range hooks {
 				if h.PostFanout != nil {
 					h.PostFanout(ctx)
+				}
+			}
+		},
+		PostCircuitBreakerOpened: func(ctx context.Context, meta LifecyclePostCircuitBreakerOpened) {
+			for _, h := range hooks {
+				if h.PostCircuitBreakerOpened != nil {
+					h.PostCircuitBreakerOpened(ctx, meta)
+				}
+			}
+		},
+		PostCircuitBreakerClosed: func(ctx context.Context, meta LifecyclePostCircuitBreakerClosed) {
+			for _, h := range hooks {
+				if h.PostCircuitBreakerClosed != nil {
+					h.PostCircuitBreakerClosed(ctx, meta)
 				}
 			}
 		},

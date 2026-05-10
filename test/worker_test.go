@@ -343,6 +343,165 @@ func TestWork_Run_DoSkipCircuitBreak(t *testing.T) {
 	require.NoError(t, grp.Wait())
 }
 
+// TestWork_Run_CircuitBreakerLifecycleHooksInvoked verifies that processing a stream of
+// failures opens the circuit breaker and triggers PostCircuitBreakerOpened, and that once
+// the processor begins succeeding the breaker closes again and triggers
+// PostCircuitBreakerClosed.
+func TestWork_Run_CircuitBreakerLifecycleHooksInvoked(t *testing.T) {
+	defer recoverThenFail(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	l := zkafka.NoopLogger{}
+
+	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key: new("1"),
+		Fmt: &zfmt.JSONFormatter{},
+	})
+	r := zkafka_mocks.NewMockReader(ctrl)
+	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
+
+	kcp := zkafka.FakeClient{R: r}
+
+	// processor returns errors until the breaker has opened (and PostCircuitBreakerOpened
+	// has been observed). Once we observe the open transition, the processor begins
+	// succeeding so that the next allowed (half-open) call closes the breaker.
+	openedCnt := atomic.Int64{}
+	closedCnt := atomic.Int64{}
+
+	kproc := &fakeProcessor{
+		process: func(ctx context.Context, message *zkafka.Message) error {
+			if openedCnt.Load() == 0 {
+				return errors.New("simulated processing failure")
+			}
+			return nil
+		},
+	}
+
+	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
+	w := kwf.Create(
+		zkafka.ConsumerTopicConfig{Topic: topicName},
+		kproc,
+		zkafka.CircuitBreakAfter(1),
+		zkafka.CircuitBreakFor(50*time.Millisecond),
+		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{
+			PostCircuitBreakerOpened: func(ctx context.Context, meta zkafka.LifecyclePostCircuitBreakerOpened) {
+				openedCnt.Add(1)
+			},
+			PostCircuitBreakerClosed: func(ctx context.Context, meta zkafka.LifecyclePostCircuitBreakerClosed) {
+				closedCnt.Add(1)
+			},
+		}),
+	)
+
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
+
+	pollWait(func() bool {
+		return openedCnt.Load() >= 1 && closedCnt.Load() >= 1
+	}, pollOpts{
+		exit: cancel,
+		timeoutExit: func() {
+			require.Failf(t, "Polling condition not met prior to test timeout",
+				"opened=%d closed=%d", openedCnt.Load(), closedCnt.Load())
+		},
+	})
+
+	require.GreaterOrEqual(t, openedCnt.Load(), int64(1), "PostCircuitBreakerOpened should be invoked at least once when consecutive errors trip the breaker")
+	require.GreaterOrEqual(t, closedCnt.Load(), int64(1), "PostCircuitBreakerClosed should be invoked at least once when the breaker recovers")
+	require.NoError(t, grp.Wait())
+}
+
+// TestWork_Run_CircuitBreakerHooksChained verifies that PostCircuitBreaker* hooks are
+// invoked across all entries when chained via ChainLifecycleHooks.
+func TestWork_Run_CircuitBreakerHooksChained(t *testing.T) {
+	defer recoverThenFail(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	l := zkafka.NoopLogger{}
+
+	msg := zkafka.GetMsgFromFake(&zkafka.FakeMessage{
+		Key: new("1"),
+		Fmt: &zfmt.JSONFormatter{},
+	})
+	r := zkafka_mocks.NewMockReader(ctrl)
+	r.EXPECT().Read(gomock.Any()).AnyTimes().Return(msg, nil)
+
+	kcp := zkafka.FakeClient{R: r}
+
+	openedA := atomic.Int64{}
+	openedB := atomic.Int64{}
+	closedA := atomic.Int64{}
+	closedB := atomic.Int64{}
+
+	kproc := &fakeProcessor{
+		process: func(ctx context.Context, message *zkafka.Message) error {
+			if openedA.Load() == 0 {
+				return errors.New("simulated processing failure")
+			}
+			return nil
+		},
+	}
+
+	hooksA := zkafka.LifecycleHooks{
+		PostCircuitBreakerOpened: func(ctx context.Context, meta zkafka.LifecyclePostCircuitBreakerOpened) {
+			openedA.Add(1)
+		},
+		PostCircuitBreakerClosed: func(ctx context.Context, meta zkafka.LifecyclePostCircuitBreakerClosed) {
+			closedA.Add(1)
+		},
+	}
+	hooksB := zkafka.LifecycleHooks{
+		PostCircuitBreakerOpened: func(ctx context.Context, meta zkafka.LifecyclePostCircuitBreakerOpened) {
+			openedB.Add(1)
+		},
+		PostCircuitBreakerClosed: func(ctx context.Context, meta zkafka.LifecyclePostCircuitBreakerClosed) {
+			closedB.Add(1)
+		},
+	}
+
+	kwf := zkafka.NewWorkFactory(kcp, zkafka.WithLogger(l))
+	w := kwf.Create(
+		zkafka.ConsumerTopicConfig{Topic: topicName},
+		kproc,
+		zkafka.CircuitBreakAfter(1),
+		zkafka.CircuitBreakFor(50*time.Millisecond),
+		zkafka.WithLifecycleHooks(zkafka.ChainLifecycleHooks(hooksA, hooksB)),
+	)
+
+	grp := errgroup.Group{}
+	grp.Go(func() error {
+		return w.Run(ctx, nil)
+	})
+
+	pollWait(func() bool {
+		return openedA.Load() >= 1 && openedB.Load() >= 1 &&
+			closedA.Load() >= 1 && closedB.Load() >= 1
+	}, pollOpts{
+		exit: cancel,
+		timeoutExit: func() {
+			require.Failf(t, "Polling condition not met prior to test timeout",
+				"openedA=%d openedB=%d closedA=%d closedB=%d",
+				openedA.Load(), openedB.Load(), closedA.Load(), closedB.Load())
+		},
+	})
+
+	require.GreaterOrEqual(t, openedA.Load(), int64(1))
+	require.GreaterOrEqual(t, openedB.Load(), int64(1))
+	require.GreaterOrEqual(t, closedA.Load(), int64(1))
+	require.GreaterOrEqual(t, closedB.Load(), int64(1))
+	require.NoError(t, grp.Wait())
+}
+
 func TestWork_Run_CircuitBreaksOnProcessPanicInsideProcessorGoRoutine(t *testing.T) {
 	defer recoverThenFail(t)
 	ctx := context.Background()

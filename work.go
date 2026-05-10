@@ -718,8 +718,14 @@ func (f WorkFactory) Create(topicConfig ConsumerTopicConfig, processor processor
 
 				// returned timer ignored. have no need to call Stop on it anyplace yet.
 				_ = time.AfterFunc(b, func() { work.blb.release() })
+				if work.lifecycle.PostCircuitBreakerOpened != nil {
+					work.lifecycle.PostCircuitBreakerOpened(context.Background(), LifecyclePostCircuitBreakerOpened{})
+				}
 			case gobreaker.StateClosed:
 				work.blb.release()
+				if work.lifecycle.PostCircuitBreakerClosed != nil {
+					work.lifecycle.PostCircuitBreakerClosed(context.Background(), LifecyclePostCircuitBreakerClosed{})
+				}
 			}
 		}
 	}

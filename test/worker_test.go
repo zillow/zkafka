@@ -402,18 +402,11 @@ func TestWork_Run_CircuitBreakerLifecycleHooksInvoked(t *testing.T) {
 		return w.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventually(t, func() bool {
 		return openedCnt.Load() >= 1 && closedCnt.Load() >= 1
-	}, pollOpts{
-		exit: cancel,
-		timeoutExit: func() {
-			require.Failf(t, "Polling condition not met prior to test timeout",
-				"opened=%d closed=%d", openedCnt.Load(), closedCnt.Load())
-		},
-	})
+	}, time.Minute, time.Millisecond, "PostCircuitBreakerOpened/Closed hooks should fire as the breaker trips and recovers (opened=%d closed=%d)", openedCnt.Load(), closedCnt.Load())
 
-	require.GreaterOrEqual(t, openedCnt.Load(), int64(1), "PostCircuitBreakerOpened should be invoked at least once when consecutive errors trip the breaker")
-	require.GreaterOrEqual(t, closedCnt.Load(), int64(1), "PostCircuitBreakerClosed should be invoked at least once when the breaker recovers")
+	cancel()
 	require.NoError(t, grp.Wait())
 }
 
@@ -483,22 +476,13 @@ func TestWork_Run_CircuitBreakerHooksChained(t *testing.T) {
 		return w.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventually(t, func() bool {
 		return openedA.Load() >= 1 && openedB.Load() >= 1 &&
 			closedA.Load() >= 1 && closedB.Load() >= 1
-	}, pollOpts{
-		exit: cancel,
-		timeoutExit: func() {
-			require.Failf(t, "Polling condition not met prior to test timeout",
-				"openedA=%d openedB=%d closedA=%d closedB=%d",
-				openedA.Load(), openedB.Load(), closedA.Load(), closedB.Load())
-		},
-	})
+	}, time.Minute, time.Millisecond, "all chained CB hooks should fire (openedA=%d openedB=%d closedA=%d closedB=%d)",
+		openedA.Load(), openedB.Load(), closedA.Load(), closedB.Load())
 
-	require.GreaterOrEqual(t, openedA.Load(), int64(1))
-	require.GreaterOrEqual(t, openedB.Load(), int64(1))
-	require.GreaterOrEqual(t, closedA.Load(), int64(1))
-	require.GreaterOrEqual(t, closedB.Load(), int64(1))
+	cancel()
 	require.NoError(t, grp.Wait())
 }
 

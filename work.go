@@ -713,17 +713,17 @@ func (f WorkFactory) Create(topicConfig ConsumerTopicConfig, processor processor
 		}
 		work.blb.maxPause = b
 		cbSetting.OnStateChange = func(name string, from, to gobreaker.State) {
+			if work.lifecycle.CircuitBreakerStateChanged != nil {
+				work.lifecycle.CircuitBreakerStateChanged(context.Background(), LifecyclePostCircuitBreakerStateChange{
+					From: toCircuitBreakerState(from),
+					To:   toCircuitBreakerState(to),
+				})
+			}
 			switch to {
 			case gobreaker.StateOpen:
-				if work.lifecycle.PostCircuitBreakerOpened != nil {
-					work.lifecycle.PostCircuitBreakerOpened(context.Background(), LifecyclePostCircuitBreakerOpened{})
-				}
 				// returned timer ignored. have no need to call Stop on it anyplace yet.
 				_ = time.AfterFunc(b, func() { work.blb.release() })
 			case gobreaker.StateClosed:
-				if work.lifecycle.PostCircuitBreakerClosed != nil {
-					work.lifecycle.PostCircuitBreakerClosed(context.Background(), LifecyclePostCircuitBreakerClosed{})
-				}
 				work.blb.release()
 			}
 		}

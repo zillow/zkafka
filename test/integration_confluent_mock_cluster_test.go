@@ -89,14 +89,16 @@ func Test_MockCluster_CircuitBreakerLifecycleHooksInvoked(t *testing.T) {
 		zkafka.CircuitBreakAfter(2),
 		zkafka.CircuitBreakFor(500*time.Millisecond),
 		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{
-			PostCircuitBreakerOpened: func(ctx context.Context, meta zkafka.LifecyclePostCircuitBreakerOpened) {
-				openedCount.Add(1)
-			},
-			PostCircuitBreakerClosed: func(ctx context.Context, meta zkafka.LifecyclePostCircuitBreakerClosed) {
-				closedCount.Add(1)
-				// flip back to failing so the breaker can open again on
-				// subsequent runs (mirrors the zsqs reference test).
-				failing.Store(true)
+			CircuitBreakerStateChanged: func(ctx context.Context, meta zkafka.LifecyclePostCircuitBreakerStateChange) {
+				switch meta.To {
+				case zkafka.CircuitBreakerStateOpen:
+					openedCount.Add(1)
+				case zkafka.CircuitBreakerStateClosed:
+					closedCount.Add(1)
+					// flip back to failing so the breaker can open again on
+					// subsequent runs (mirrors the zsqs reference test).
+					failing.Store(true)
+				}
 			},
 		}),
 	)
@@ -108,7 +110,7 @@ func Test_MockCluster_CircuitBreakerLifecycleHooksInvoked(t *testing.T) {
 
 	require.Eventually(t, func() bool { return openedCount.Load() >= 1 },
 		20*time.Second, 10*time.Millisecond,
-		"PostCircuitBreakerOpened should fire after consecutive errors")
+		"CircuitBreakerStateChanged should fire with To=open after consecutive errors")
 
 	// Stop failing so that once the breaker enters half-open, the next
 	// successful processor call transitions it back to closed.
@@ -116,5 +118,5 @@ func Test_MockCluster_CircuitBreakerLifecycleHooksInvoked(t *testing.T) {
 
 	require.Eventually(t, func() bool { return closedCount.Load() >= 1 },
 		20*time.Second, 10*time.Millisecond,
-		"PostCircuitBreakerClosed should fire after the breaker recovers")
+		"CircuitBreakerStateChanged should fire with To=closed after the breaker recovers")
 }

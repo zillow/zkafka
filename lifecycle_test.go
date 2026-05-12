@@ -38,11 +38,8 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 		PostFanout: func(ctx context.Context) {
 			lhState["hooks1-post-fanout"] += 1
 		},
-		PostCircuitBreakerOpened: func(ctx context.Context, meta LifecyclePostCircuitBreakerOpened) {
-			lhState["hooks1-post-cb-opened"] += 1
-		},
-		PostCircuitBreakerClosed: func(ctx context.Context, meta LifecyclePostCircuitBreakerClosed) {
-			lhState["hooks1-post-cb-closed"] += 1
+		CircuitBreakerStateChanged: func(ctx context.Context, meta LifecyclePostCircuitBreakerStateChange) {
+			lhState["hooks1-cb-state-change"] += 1
 		},
 	}
 
@@ -73,11 +70,8 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 		PostFanout: func(ctx context.Context) {
 			lhState["hooks2-post-fanout"] += 1
 		},
-		PostCircuitBreakerOpened: func(ctx context.Context, meta LifecyclePostCircuitBreakerOpened) {
-			lhState["hooks2-post-cb-opened"] += 1
-		},
-		PostCircuitBreakerClosed: func(ctx context.Context, meta LifecyclePostCircuitBreakerClosed) {
-			lhState["hooks2-post-cb-closed"] += 1
+		CircuitBreakerStateChanged: func(ctx context.Context, meta LifecyclePostCircuitBreakerStateChange) {
+			lhState["hooks2-cb-state-change"] += 1
 		},
 	}
 
@@ -207,48 +201,35 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 	require.Equal(t, 1, lhState["hooks2-post-fanout"])
 	require.Equal(t, 1, lhState["hooks1-post-read-immediate"])
 	require.Equal(t, 1, lhState["hooks2-post-read-immediate"])
-	require.Equal(t, 0, lhState["hooks1-post-cb-opened"])
-	require.Equal(t, 0, lhState["hooks2-post-cb-opened"])
-	require.Equal(t, 0, lhState["hooks1-post-cb-closed"])
-	require.Equal(t, 0, lhState["hooks2-post-cb-closed"])
+	require.Equal(t, 0, lhState["hooks1-cb-state-change"])
+	require.Equal(t, 0, lhState["hooks2-cb-state-change"])
 
-	lh.PostCircuitBreakerOpened(context.Background(), LifecyclePostCircuitBreakerOpened{})
-	require.Equal(t, 1, lhState["hooks1-post-cb-opened"])
-	require.Equal(t, 1, lhState["hooks2-post-cb-opened"])
-	require.Equal(t, 0, lhState["hooks1-post-cb-closed"])
-	require.Equal(t, 0, lhState["hooks2-post-cb-closed"])
+	lh.CircuitBreakerStateChanged(context.Background(), LifecyclePostCircuitBreakerStateChange{
+		From: CircuitBreakerStateClosed,
+		To:   CircuitBreakerStateOpen,
+	})
+	require.Equal(t, 1, lhState["hooks1-cb-state-change"])
+	require.Equal(t, 1, lhState["hooks2-cb-state-change"])
 
-	lh.PostCircuitBreakerClosed(context.Background(), LifecyclePostCircuitBreakerClosed{})
-	require.Equal(t, 1, lhState["hooks1-post-cb-opened"])
-	require.Equal(t, 1, lhState["hooks2-post-cb-opened"])
-	require.Equal(t, 1, lhState["hooks1-post-cb-closed"])
-	require.Equal(t, 1, lhState["hooks2-post-cb-closed"])
+	lh.CircuitBreakerStateChanged(context.Background(), LifecyclePostCircuitBreakerStateChange{
+		From: CircuitBreakerStateHalfOpen,
+		To:   CircuitBreakerStateClosed,
+	})
+	require.Equal(t, 2, lhState["hooks1-cb-state-change"])
+	require.Equal(t, 2, lhState["hooks2-cb-state-change"])
 }
 
-// Test_LifecycleChainedNilPostCircuitBreakerOpenedInvocation confirms the invocation of a lifecycle hook method
-// constructed via `ChainLifecycleHooks` which is nil doesn't panic.
-func Test_LifecycleChainedNilPostCircuitBreakerOpenedInvocation(t *testing.T) {
+// Test_LifecycleChainedNilCircuitBreakerStateChangedInvocation confirms the invocation of a
+// lifecycle hook method constructed via `ChainLifecycleHooks` which is nil doesn't panic.
+func Test_LifecycleChainedNilCircuitBreakerStateChangedInvocation(t *testing.T) {
 	defer recoverThenFail(t)
 
 	h1 := noopLifecycleHooks()
-	h1.PostCircuitBreakerOpened = nil
+	h1.CircuitBreakerStateChanged = nil
 	h2 := LifecycleHooks{}
 	chained := ChainLifecycleHooks(h1, h2)
 
-	chained.PostCircuitBreakerOpened(context.Background(), LifecyclePostCircuitBreakerOpened{})
-}
-
-// Test_LifecycleChainedNilPostCircuitBreakerClosedInvocation confirms the invocation of a lifecycle hook method
-// constructed via `ChainLifecycleHooks` which is nil doesn't panic.
-func Test_LifecycleChainedNilPostCircuitBreakerClosedInvocation(t *testing.T) {
-	defer recoverThenFail(t)
-
-	h1 := noopLifecycleHooks()
-	h1.PostCircuitBreakerClosed = nil
-	h2 := LifecycleHooks{}
-	chained := ChainLifecycleHooks(h1, h2)
-
-	chained.PostCircuitBreakerClosed(context.Background(), LifecyclePostCircuitBreakerClosed{})
+	chained.CircuitBreakerStateChanged(context.Background(), LifecyclePostCircuitBreakerStateChange{})
 }
 
 // Test_LifecycleChainedNilPostReadImmediateInvocation confirms the invocation of a lifecycle hook method constructed
@@ -364,8 +345,7 @@ func noopLifecycleHooks() LifecycleHooks {
 		PreWrite: func(ctx context.Context, meta LifecyclePreWriteMeta) (LifecyclePreWriteResp, error) {
 			return LifecyclePreWriteResp{}, nil
 		},
-		PostFanout:               func(ctx context.Context) {},
-		PostCircuitBreakerOpened: func(ctx context.Context, meta LifecyclePostCircuitBreakerOpened) {},
-		PostCircuitBreakerClosed: func(ctx context.Context, meta LifecyclePostCircuitBreakerClosed) {},
+		PostFanout:                 func(ctx context.Context) {},
+		CircuitBreakerStateChanged: func(ctx context.Context, meta LifecyclePostCircuitBreakerStateChange) {},
 	}
 }

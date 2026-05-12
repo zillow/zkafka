@@ -15,15 +15,15 @@ import (
 	"github.com/zillow/zkafka/v2"
 )
 
-// Test_MockCluster_CircuitBreakerLifecycleHooksInvoked exercises the circuit
-// breaker lifecycle hooks against an in-process Kafka mock cluster
+// Exercises the circuit breaker lifecycle hooks against an in-process Kafka
+// mock cluster
 // (https://github.com/confluentinc/confluent-kafka-go/blob/master/examples/mockcluster_example/mockcluster.go).
 //
 // The topic is seeded with messages and a worker is started whose processor
 // initially returns errors so the breaker trips into the open state. Once the
 // breaker opens we flip the processor to succeed, allowing the next half-open
-// probe to close the breaker. Both PostCircuitBreakerOpened and
-// PostCircuitBreakerClosed should fire.
+// probe to close the breaker. CircuitBreakerStateChanged should fire with
+// To=open and then To=closed.
 func Test_MockCluster_CircuitBreakerLifecycleHooksInvoked(t *testing.T) {
 	defer recoverThenFail(t)
 

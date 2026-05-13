@@ -58,12 +58,12 @@ type LifecyclePreWriteResp struct {
 
 // CircuitBreakerState describes the state of the work circuit breaker as it
 // transitions in response to processing outcomes.
-type CircuitBreakerState string
+type CircuitBreakerState int
 
 const (
-	CircuitBreakerStateOpen     CircuitBreakerState = "open"
-	CircuitBreakerStateHalfOpen CircuitBreakerState = "halfopen"
-	CircuitBreakerStateClosed   CircuitBreakerState = "closed"
+	CircuitBreakerStateOpen CircuitBreakerState = iota + 1
+	CircuitBreakerStateHalfOpen
+	CircuitBreakerStateClosed
 )
 
 // LifecyclePostCircuitBreakerStateChange is the meta passed to
@@ -83,7 +83,7 @@ func toCircuitBreakerState(s gobreaker.State) CircuitBreakerState {
 	case gobreaker.StateClosed:
 		return CircuitBreakerStateClosed
 	default:
-		return CircuitBreakerState(s.String())
+		return 0
 	}
 }
 

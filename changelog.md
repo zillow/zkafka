@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
-## 6.3.0 (May 10, 2026)
+## 2.3.0 (May 18, 2026)
 
 1. Added `CircuitBreakerStateChanged` lifecycle hook invoked on every per-queue circuit breaker transition. The hook receives a `LifecycleCircuitBreakerStateChanged` payload carrying the previous and next `CircuitBreakerState` (`open`, `halfopen`, `closed`). Chained in `ChainLifecycleHooks`.
 

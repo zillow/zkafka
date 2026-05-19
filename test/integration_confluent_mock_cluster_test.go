@@ -39,7 +39,7 @@ func Test_MockCluster_CircuitBreakerLifecycleHooksInvoked(t *testing.T) {
 	clientID := fmt.Sprintf("%s-%s", t.Name(), uuid.NewString())
 	groupID := uuid.NewString()
 
-	l := zkafka.NoopLogger{}
+	l := stdLogger{}
 	client := zkafka.NewClient(
 		zkafka.Config{BootstrapServers: []string{bootstrap}},
 		zkafka.LoggerOption(l),

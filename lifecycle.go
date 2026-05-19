@@ -5,6 +5,8 @@ import (
 	"errors"
 	"maps"
 	"time"
+
+	"github.com/sony/gobreaker"
 )
 
 type LifecyclePostReadMeta struct {
@@ -54,6 +56,42 @@ type LifecyclePreWriteResp struct {
 	Headers map[string][]byte
 }
 
+// CircuitBreakerState describes the state of the work circuit breaker as it
+// transitions in response to processing outcomes.
+type CircuitBreakerState int
+
+const (
+	// CircuitBreakerStateOpen indicates that messages are paused (a configurable amount of time). Circuit breaker opens
+	// after N consequtive errors.
+	CircuitBreakerStateOpen CircuitBreakerState = iota + 1
+	// CircuitBreakerStateHalfOpen is transitioned to after Open. It's used to see if error condition has resolved.
+	// A sucessful processing of  message will close the circuit breaker
+	CircuitBreakerStateHalfOpen
+	// CircuitBreakerStateClosed is the default operating status for a circuit breaker. Messages aren't artificially throttled.
+	CircuitBreakerStateClosed
+)
+
+// LifecycleCircuitBreakerStateChanged is the meta passed to
+// CircuitBreakerStateChanged. Additional fields may be added later without
+// breaking callers.
+type LifecycleCircuitBreakerStateChanged struct {
+	From CircuitBreakerState
+	To   CircuitBreakerState
+}
+
+func toCircuitBreakerState(s gobreaker.State) CircuitBreakerState {
+	switch s {
+	case gobreaker.StateOpen:
+		return CircuitBreakerStateOpen
+	case gobreaker.StateHalfOpen:
+		return CircuitBreakerStateHalfOpen
+	case gobreaker.StateClosed:
+		return CircuitBreakerStateClosed
+	default:
+		return 0
+	}
+}
+
 type LifecycleHooks struct {
 	// Called by work after reading a message (guaranteed non nil), offers the ability to customize the context object (resulting context object passed to work processor)
 	PostRead func(ctx context.Context, meta LifecyclePostReadMeta) (context.Context, error)
@@ -76,6 +114,10 @@ type LifecycleHooks struct {
 
 	// Call after the reader attempts a fanOut call.
 	PostFanout func(ctx context.Context)
+
+	// Called whenever the work circuit breaker transitions between states
+	// (closed -> open -> half-open -> closed, etc.).
+	CircuitBreakerStateChanged func(ctx context.Context, meta LifecycleCircuitBreakerStateChanged)
 }
 
 // ChainLifecycleHooks chains multiple lifecycle hooks into one.  The hooks are
@@ -185,6 +227,13 @@ func ChainLifecycleHooks(hooks ...LifecycleHooks) LifecycleHooks {
 			for _, h := range hooks {
 				if h.PostFanout != nil {
 					h.PostFanout(ctx)
+				}
+			}
+		},
+		CircuitBreakerStateChanged: func(ctx context.Context, meta LifecycleCircuitBreakerStateChanged) {
+			for _, h := range hooks {
+				if h.CircuitBreakerStateChanged != nil {
+					h.CircuitBreakerStateChanged(ctx, meta)
 				}
 			}
 		},

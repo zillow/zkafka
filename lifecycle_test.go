@@ -38,7 +38,7 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 		PostFanout: func(ctx context.Context) {
 			lhState["hooks1-post-fanout"] += 1
 		},
-		CircuitBreakerStateChanged: func(ctx context.Context, meta LifecyclePostCircuitBreakerStateChange) {
+		CircuitBreakerStateChanged: func(ctx context.Context, meta LifecycleCircuitBreakerStateChanged) {
 			lhState["hooks1-cb-state-change"] += 1
 		},
 	}
@@ -70,7 +70,7 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 		PostFanout: func(ctx context.Context) {
 			lhState["hooks2-post-fanout"] += 1
 		},
-		CircuitBreakerStateChanged: func(ctx context.Context, meta LifecyclePostCircuitBreakerStateChange) {
+		CircuitBreakerStateChanged: func(ctx context.Context, meta LifecycleCircuitBreakerStateChanged) {
 			lhState["hooks2-cb-state-change"] += 1
 		},
 	}
@@ -204,14 +204,14 @@ func Test_LifecycleChainedHooksAreCalled(t *testing.T) {
 	require.Equal(t, 0, lhState["hooks1-cb-state-change"])
 	require.Equal(t, 0, lhState["hooks2-cb-state-change"])
 
-	lh.CircuitBreakerStateChanged(context.Background(), LifecyclePostCircuitBreakerStateChange{
+	lh.CircuitBreakerStateChanged(context.Background(), LifecycleCircuitBreakerStateChanged{
 		From: CircuitBreakerStateClosed,
 		To:   CircuitBreakerStateOpen,
 	})
 	require.Equal(t, 1, lhState["hooks1-cb-state-change"])
 	require.Equal(t, 1, lhState["hooks2-cb-state-change"])
 
-	lh.CircuitBreakerStateChanged(context.Background(), LifecyclePostCircuitBreakerStateChange{
+	lh.CircuitBreakerStateChanged(context.Background(), LifecycleCircuitBreakerStateChanged{
 		From: CircuitBreakerStateHalfOpen,
 		To:   CircuitBreakerStateClosed,
 	})
@@ -229,7 +229,7 @@ func Test_LifecycleChainedNilCircuitBreakerStateChangedInvocation(t *testing.T) 
 	h2 := LifecycleHooks{}
 	chained := ChainLifecycleHooks(h1, h2)
 
-	chained.CircuitBreakerStateChanged(context.Background(), LifecyclePostCircuitBreakerStateChange{})
+	chained.CircuitBreakerStateChanged(context.Background(), LifecycleCircuitBreakerStateChanged{})
 }
 
 // Test_LifecycleChainedNilPostReadImmediateInvocation confirms the invocation of a lifecycle hook method constructed
@@ -346,6 +346,6 @@ func noopLifecycleHooks() LifecycleHooks {
 			return LifecyclePreWriteResp{}, nil
 		},
 		PostFanout:                 func(ctx context.Context) {},
-		CircuitBreakerStateChanged: func(ctx context.Context, meta LifecyclePostCircuitBreakerStateChange) {},
+		CircuitBreakerStateChanged: func(ctx context.Context, meta LifecycleCircuitBreakerStateChanged) {},
 	}
 }

@@ -61,15 +61,20 @@ type LifecyclePreWriteResp struct {
 type CircuitBreakerState int
 
 const (
+	// CircuitBreakerStateOpen indicates that messages are paused (a configurable amount of time). Circuit breaker opens
+	// after N consequtive errors.
 	CircuitBreakerStateOpen CircuitBreakerState = iota + 1
+	// CircuitBreakerStateHalfOpen is transitioned to after Open. It's used to see if error condition has resolved.
+	// A sucessful processing of  message will close the circuit breaker
 	CircuitBreakerStateHalfOpen
+	// CircuitBreakerStateClosed is the default operating status for a circuit breaker. Messages aren't artificially throttled.
 	CircuitBreakerStateClosed
 )
 
-// LifecyclePostCircuitBreakerStateChange is the meta passed to
-// CircuitBreakerStateChanged. Additional fields can be added without breaking
-// existing callers.
-type LifecyclePostCircuitBreakerStateChange struct {
+// LifecycleCircuitBreakerStateChanged is the meta passed to
+// CircuitBreakerStateChanged. Additional fields may be added later without
+// breaking callers.
+type LifecycleCircuitBreakerStateChanged struct {
 	From CircuitBreakerState
 	To   CircuitBreakerState
 }
@@ -112,7 +117,7 @@ type LifecycleHooks struct {
 
 	// Called whenever the work circuit breaker transitions between states
 	// (closed -> open -> half-open -> closed, etc.).
-	CircuitBreakerStateChanged func(ctx context.Context, meta LifecyclePostCircuitBreakerStateChange)
+	CircuitBreakerStateChanged func(ctx context.Context, meta LifecycleCircuitBreakerStateChanged)
 }
 
 // ChainLifecycleHooks chains multiple lifecycle hooks into one.  The hooks are
@@ -225,7 +230,7 @@ func ChainLifecycleHooks(hooks ...LifecycleHooks) LifecycleHooks {
 				}
 			}
 		},
-		CircuitBreakerStateChanged: func(ctx context.Context, meta LifecyclePostCircuitBreakerStateChange) {
+		CircuitBreakerStateChanged: func(ctx context.Context, meta LifecycleCircuitBreakerStateChanged) {
 			for _, h := range hooks {
 				if h.CircuitBreakerStateChanged != nil {
 					h.CircuitBreakerStateChanged(ctx, meta)

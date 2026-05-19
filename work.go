@@ -714,7 +714,7 @@ func (f WorkFactory) Create(topicConfig ConsumerTopicConfig, processor processor
 		work.blb.maxPause = b
 		cbSetting.OnStateChange = func(name string, from, to gobreaker.State) {
 			if work.lifecycle.CircuitBreakerStateChanged != nil {
-				work.lifecycle.CircuitBreakerStateChanged(context.Background(), LifecyclePostCircuitBreakerStateChange{
+				work.lifecycle.CircuitBreakerStateChanged(context.Background(), LifecycleCircuitBreakerStateChanged{
 					From: toCircuitBreakerState(from),
 					To:   toCircuitBreakerState(to),
 				})

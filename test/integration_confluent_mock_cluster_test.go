@@ -89,7 +89,7 @@ func Test_MockCluster_CircuitBreakerLifecycleHooksInvoked(t *testing.T) {
 		zkafka.CircuitBreakAfter(2),
 		zkafka.CircuitBreakFor(500*time.Millisecond),
 		zkafka.WithLifecycleHooks(zkafka.LifecycleHooks{
-			CircuitBreakerStateChanged: func(ctx context.Context, meta zkafka.LifecyclePostCircuitBreakerStateChange) {
+			CircuitBreakerStateChanged: func(ctx context.Context, meta zkafka.LifecycleCircuitBreakerStateChanged) {
 				switch meta.To {
 				case zkafka.CircuitBreakerStateOpen:
 					openedCount.Add(1)

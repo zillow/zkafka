@@ -1954,15 +1954,18 @@ func TestWork_ShutdownCausesRunExit(t *testing.T) {
 	settings := &workSettings{
 		shutdownSig: make(chan struct{}, 1),
 	}
-	go func() {
-		require.Eventually(t, func() bool {
-			return fanOutCount.Load() >= 1
-		}, 10*time.Second, time.Millisecond)
-		close(settings.shutdownSig)
-	}()
 
-	err := w.Run(ctx, settings.ShutdownSig())
-	require.NoError(t, err)
+	g := errgroup.Group{}
+	g.Go(func() error {
+		return w.Run(ctx, settings.ShutdownSig())
+	})
+
+	require.Eventually(t, func() bool {
+		return fanOutCount.Load() >= 1
+	}, 10*time.Second, time.Millisecond)
+	close(settings.shutdownSig)
+
+	require.NoError(t, g.Wait())
 }
 
 // $ go test -run=XXX -bench=BenchmarkWork_Run_CircuitBreaker_BusyLoopBreaker -cpuprofile profile_cpu.out

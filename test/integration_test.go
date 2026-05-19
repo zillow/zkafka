@@ -1100,16 +1100,10 @@ func Test_WorkDelay_GuaranteesProcessingDelayedAtLeastSpecifiedDelayDurationFrom
 	t.Log("Completed writing messages")
 
 	t.Log("starting exit polling")
-	pollWait(func() bool {
+	require.Eventuallyf(t, func() bool {
 		return len(results) >= msgCount
-	},
-		pollOpts{
-			exit: cancel1,
-			timeoutExit: func() {
-				require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %s", len(results))
-			},
-		},
-	)
+	}, time.Minute, time.Millisecond, "Polling condition not met prior to test timeout: Processing count %d", len(results))
+	cancel1()
 	err = grp.Wait()
 	require.NoError(t, err)
 
@@ -1209,16 +1203,10 @@ func Test_WorkDelay_DoesntHaveDurationStackEffect(t *testing.T) {
 	})
 
 	t.Log("starting exit polling")
-	pollWait(func() bool {
+	require.Eventuallyf(t, func() bool {
 		return len(results) >= msgCount
-	},
-		pollOpts{
-			exit: cancel1,
-			timeoutExit: func() {
-				require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %s", len(results))
-			},
-		},
-	)
+	}, time.Minute, time.Millisecond, "Polling condition not met prior to test timeout: Processing count %d", len(results))
+	cancel1()
 	err = grp.Wait()
 	require.NoError(t, err)
 

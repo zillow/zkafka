@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zillow/zfmt"
 	"github.com/zillow/zkafka/v2"
@@ -149,14 +150,10 @@ func TestWork_Run_CircuitBreakerOpensOnReadError(t *testing.T) {
 		return w.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventuallyf(t, func() bool {
 		return cnt.Load() >= 10
-	}, pollOpts{
-		exit: cancel,
-		timeoutExit: func() {
-			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %d", 10)
-		},
-	})
+	}, time.Minute, time.Millisecond, "Polling condition not met prior to test timeout: Processing count %d", 10)
+	cancel()
 	require.GreaterOrEqual(t, time.Since(start), 150*time.Millisecond, "Every circuit breaker stoppage is 50ms, and we expect it to be in open state (stoppage) for half the messages  (and half open for the other half, 1 message through). (10/2-1)*50ms = 200ms. Subtract 50ms for fuzz")
 	require.NoError(t, grp.Wait())
 }
@@ -207,14 +204,10 @@ func TestWork_Run_CircuitBreaksOnProcessError(t *testing.T) {
 		return w.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventuallyf(t, func() bool {
 		return cnt.Load() >= 10
-	}, pollOpts{
-		exit: cancel,
-		timeoutExit: func() {
-			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %d", 10)
-		},
-	})
+	}, time.Minute, time.Millisecond, "Polling condition not met prior to test timeout: Processing count %d", 10)
+	cancel()
 
 	require.GreaterOrEqual(t, time.Since(start), 400*time.Millisecond, "Every circuit breaker stoppage is 50ms, and we expect it to be executed for each of the n -2 failed messages (first one results in error and trips the circuit breaker. Second message read prior to trip")
 	require.NoError(t, grp.Wait())
@@ -268,15 +261,10 @@ func TestWork_Run_DoNotSkipCircuitBreak(t *testing.T) {
 		return w.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventuallyf(t, func() bool {
 		return cnt.Load() > 10
-	}, pollOpts{
-		exit:      cancel,
-		pollPause: time.Microsecond * 100,
-		timeoutExit: func() {
-			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %d", 10)
-		},
-	})
+	}, time.Minute, time.Microsecond*100, "Polling condition not met prior to test timeout: Processing count %d", 10)
+	cancel()
 	require.GreaterOrEqual(t, time.Since(start), 450*time.Millisecond, "Every circuit breaker stoppage is 50ms, and we expect it to be executed for each of the n -1 failed messages (first one results in error and trips the circuit breaker")
 	require.NoError(t, grp.Wait())
 }
@@ -330,14 +318,10 @@ func TestWork_Run_DoSkipCircuitBreak(t *testing.T) {
 		return w.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventuallyf(t, func() bool {
 		return cnt.Load() >= 10
-	}, pollOpts{
-		exit: cancel,
-		timeoutExit: func() {
-			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %d", 10)
-		},
-	})
+	}, time.Minute, time.Millisecond, "Polling condition not met prior to test timeout: Processing count %d", 10)
+	cancel()
 
 	require.LessOrEqual(t, time.Since(start), 50*time.Millisecond, "Every circuit breaker stoppage is 50ms, and we expect it to be skipped for each of the 10 failed messages. The expected time to process 10 messages is on the order of micro/nanoseconds, but we'll conservatively be happy with being less than a single circuit break cycle")
 	require.NoError(t, grp.Wait())
@@ -388,17 +372,13 @@ func TestWork_Run_CircuitBreaksOnProcessPanicInsideProcessorGoRoutine(t *testing
 		return w.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventuallyf(t, func() bool {
 		ok := cnt.Load() >= 10
 		if ok {
 			cancel()
 		}
 		return ok
-	}, pollOpts{
-		timeoutExit: func() {
-			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %d", 10)
-		},
-	})
+	}, time.Minute, time.Millisecond, "Polling condition not met prior to test timeout: Processing count %d", 10)
 
 	require.GreaterOrEqual(t, time.Since(start), 400*time.Millisecond, "Every circuit breaker stoppage is 50ms, and we expect it to be executed for each of the n failed messages with the exception of the first and second message (first trips, and second is read before the trip)")
 	require.NoError(t, grp.Wait())
@@ -447,17 +427,13 @@ func TestWork_Run_DisabledCircuitBreakerContinueReadError(t *testing.T) {
 		return w.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventuallyf(t, func() bool {
 		ok := cnt.Load() >= int64(processingCount)
 		if ok {
 			cancel()
 		}
 		return ok
-	}, pollOpts{
-		timeoutExit: func() {
-			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %d", processingCount)
-		},
-	})
+	}, time.Minute, time.Millisecond, "Polling condition not met prior to test timeout: Processing count %d", processingCount)
 	require.NoError(t, grp.Wait())
 }
 
@@ -699,18 +675,13 @@ func TestWork_WithDeadLetterTopic_NoMessagesWrittenToDLTSinceNoErrorsOccurred(t 
 		return w1.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventually(t, func() bool {
 		stop := cnt.Load() == 2
 		if stop {
 			cancel()
 		}
 		return stop
-	}, pollOpts{
-		timeoutExit: func() {
-			require.Fail(t, "Timed out during poll")
-		},
-		maxWait: 10 * time.Second,
-	})
+	}, 10*time.Second, time.Millisecond, "Timed out during poll")
 
 	require.NoError(t, grp.Wait())
 }
@@ -768,15 +739,9 @@ func TestWork_WithDeadLetterTopic_MessagesWrittenToDLTSinceErrorOccurred(t *test
 		return w1.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventually(t, func() bool {
 		return len(processor.ProcessedMessages()) == 2
-	}, pollOpts{
-		timeoutExit: func() {
-			require.Fail(t, "Timed out during poll")
-		},
-		pollPause: time.Millisecond,
-		maxWait:   10 * time.Second,
-	})
+	}, 10*time.Second, time.Millisecond, "Timed out during poll")
 	cancel()
 	require.NoError(t, grp.Wait())
 }
@@ -889,15 +854,9 @@ func TestWork_WithDeadLetterTopic_DLTWriterConfigCanBorrowFromConsumerConfig(t *
 				return w1.Run(ctx, nil)
 			})
 
-			pollWait(func() bool {
+			require.Eventually(t, func() bool {
 				return len(processor.ProcessedMessages()) >= 1
-			}, pollOpts{
-				timeoutExit: func() {
-					require.Fail(t, "Timed out during poll")
-				},
-				pollPause: time.Millisecond,
-				maxWait:   10 * time.Second,
-			})
+			}, 10*time.Second, time.Millisecond, "Timed out during poll")
 			cancel()
 			require.NoError(t, grp.Wait())
 			if tc.expectedDLTConfig.SaslUsername == nil {
@@ -968,15 +927,9 @@ func TestWork_WithDeadLetterTopic_FailedToGetWriterDoesntPauseProcessing(t *test
 	})
 
 	// the previous poll doesn't fully guarantee that the piece of code that
-	pollWait(func() bool {
-		return len(processor.ProcessedMessages()) == 10
-	}, pollOpts{
-		timeoutExit: func() {
-			require.Failf(t, "Timed out during poll", "Processed Messages %d", len(processor.ProcessedMessages()))
-		},
-		pollPause: time.Millisecond,
-		maxWait:   10 * time.Second,
-	})
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Equal(c, 10, len(processor.ProcessedMessages()), "Timed out during poll: Processed Messages %d", len(processor.ProcessedMessages()))
+	}, 10*time.Second, time.Millisecond)
 	cancel()
 	require.NoError(t, grp.Wait())
 }
@@ -1037,15 +990,9 @@ func TestWork_WithDeadLetterTopic_FailedToWriteToDLTDoesntPauseProcessing(t *tes
 	})
 
 	// the previous poll doesn't fully guarantee that the piece of code that
-	pollWait(func() bool {
-		return len(processor.ProcessedMessages()) == 10
-	}, pollOpts{
-		timeoutExit: func() {
-			require.Failf(t, "Timed out during poll", "Processed Messages %d", len(processor.ProcessedMessages()))
-		},
-		pollPause: time.Millisecond,
-		maxWait:   10 * time.Second,
-	})
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Equal(c, 10, len(processor.ProcessedMessages()), "Timed out during poll: Processed Messages %d", len(processor.ProcessedMessages()))
+	}, 10*time.Second, time.Millisecond)
 	cancel()
 	require.NoError(t, grp.Wait())
 }
@@ -1106,15 +1053,9 @@ func TestWork_DisableDLTWrite(t *testing.T) {
 		return w1.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventually(t, func() bool {
 		return len(processor.ProcessedMessages()) == 2
-	}, pollOpts{
-		timeoutExit: func() {
-			require.Fail(t, "Timed out during poll")
-		},
-		pollPause: time.Millisecond,
-		maxWait:   10 * time.Second,
-	})
+	}, 10*time.Second, time.Millisecond, "Timed out during poll")
 	cancel()
 	require.NoError(t, grp.Wait())
 }
@@ -1172,12 +1113,10 @@ func TestWork_Run_OnDoneCallbackCalledOnProcessorError(t *testing.T) {
 		return w.Run(ctx, nil)
 	})
 	// wait until channel from error callback is written to
-	pollWait(func() bool {
+	require.Eventually(t, func() bool {
 		return errCount.Load() >= 1
-	}, pollOpts{
-		exit:        cancel,
-		timeoutExit: cancel,
-	})
+	}, time.Minute, time.Millisecond)
+	cancel()
 
 	require.ErrorIs(t, errReceived, processingError, "Expected processing error to be passed to callback")
 	cancel()
@@ -1231,12 +1170,10 @@ func TestWork_Run_WritesMetrics(t *testing.T) {
 	grp.Go(func() error {
 		return w.Run(ctx, nil)
 	})
-	pollWait(func() bool {
+	require.Eventually(t, func() bool {
 		return onDoneCount.Load() >= 1
-	}, pollOpts{
-		exit:        cancel,
-		timeoutExit: cancel,
-	})
+	}, time.Minute, time.Millisecond)
+	cancel()
 	require.NoError(t, grp.Wait())
 }
 
@@ -1284,11 +1221,10 @@ func TestWork_LifecycleHooksCalledForEachItem_Reader(t *testing.T) {
 		return w.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventually(t, func() bool {
 		return int(atomic.LoadInt32(&numProcessedItems)) == numMsgs
-	}, pollOpts{
-		exit: cancel,
-	})
+	}, time.Minute, time.Millisecond)
+	cancel()
 
 	require.Equal(t, numMsgs, int(atomic.LoadInt32(&numProcessedItems)))
 
@@ -1357,11 +1293,10 @@ func TestWork_LifecycleHooksPostReadCanUpdateContext(t *testing.T) {
 		return w.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventually(t, func() bool {
 		return int(atomic.LoadInt32(&numProcessedItems)) == numMsgs
-	}, pollOpts{
-		exit: cancel,
-	})
+	}, time.Minute, time.Millisecond)
+	cancel()
 
 	require.Equal(t, capturedContext.Value("stewy"), "hello", "Expect context passed to process to include data injected at post read step")
 	require.NoError(t, grp.Wait())
@@ -1415,11 +1350,10 @@ func TestWork_LifecycleHooksPostReadErrorDoesntHaltProcessing(t *testing.T) {
 		return w.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventually(t, func() bool {
 		return int(atomic.LoadInt32(&numProcessedItems)) == numMsgs
-	}, pollOpts{
-		exit: cancel,
-	})
+	}, time.Minute, time.Millisecond)
+	cancel()
 	require.NoError(t, grp.Wait())
 }
 
@@ -1466,11 +1400,10 @@ func TestWork_LifecycleHooksCalledForEachItem(t *testing.T) {
 		return w.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventually(t, func() bool {
 		return int(atomic.LoadInt32(&numProcessedItems)) == numMsgs
-	}, pollOpts{
-		exit: cancel,
-	})
+	}, time.Minute, time.Millisecond)
+	cancel()
 
 	require.Equal(t, numMsgs, lhState.numCalls["pre-processing"])
 	require.Equal(t, numMsgs, lhState.numCalls["post-processing"])
@@ -1584,15 +1517,10 @@ func TestWork_CircuitBreaker_WithoutBusyLoopBreaker_DoesNotWaitsForCircuitToOpen
 		return w.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
-		return fanOutCount.Load() >= 100
-	}, pollOpts{
-		exit: cancel,
-		timeoutExit: func() {
-			require.Failf(t, "Timed out during poll", "Fanout Count %d", fanOutCount.Load())
-		},
-		maxWait: 10 * time.Second,
-	})
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.GreaterOrEqual(c, fanOutCount.Load(), int64(100), "Timed out during poll: Fanout Count %d", fanOutCount.Load())
+	}, 10*time.Second, time.Millisecond)
+	cancel()
 	require.LessOrEqual(t, processorCount.Load(), int64(2), "circuit breaker should prevent processor from being called after circuit break opens, since circuit breaker won't close again until after test completes. At most two messages are read prior to circuit breaker opening")
 	require.LessOrEqual(t, time.Since(start), time.Second, "without busy loop breaker we expect fanOut to called rapidly. Circuit break is open for 10 seconds. So asserting that fanOut was called 100 times in a second is a rough assertion that busy loop breaker is not in effect. Typically these 100 calls should be on the order of micro or nanoseconds. But with resource contention in the pipeline we're more conservative with timing based assertions")
 	t.Log("begin")
@@ -1804,15 +1732,10 @@ func Test_Bugfix_WorkPoolCanBeRestartedAfterShutdown(t *testing.T) {
 	// This is the assertion portion of the test. We're asserting the processing will continue
 	// and then message count will increase beyond what was originally counted.
 	// If we exit the test was a success. A bug will indefinitely block
-	pollWait(func() bool {
-		return len(processor.ProcessedMessages()) > startCount
-	}, pollOpts{
-		exit: cancel,
-		timeoutExit: func() {
-			require.Failf(t, "Polling condition not met prior to test timeout", "Processing count %d, startcount %d", len(processor.ProcessedMessages()), startCount)
-		},
-		maxWait: 10 * time.Second,
-	})
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Greater(c, len(processor.ProcessedMessages()), startCount, "Polling condition not met prior to test timeout: Processing count %d, startcount %d", len(processor.ProcessedMessages()), startCount)
+	}, 10*time.Second, time.Millisecond)
+	cancel()
 }
 
 // Test_MsgOrderingIsMaintainedPerKeyWithAnyNumberOfVirtualPartitions
@@ -1878,11 +1801,10 @@ func Test_MsgOrderingIsMaintainedPerKeyWithAnyNumberOfVirtualPartitions(t *testi
 		return w.Run(ctx, nil)
 	})
 
-	pollWait(func() bool {
+	require.Eventually(t, func() bool {
 		return len(processor.ProcessedMessages()) == msgCount
-	}, pollOpts{
-		exit: cancel,
-	})
+	}, time.Minute, time.Millisecond)
+	cancel()
 
 	keyToMsgs := make(map[string][]*zkafka.Message)
 	for _, m := range processor.ProcessedMessages() {
@@ -2032,17 +1954,18 @@ func TestWork_ShutdownCausesRunExit(t *testing.T) {
 	settings := &workSettings{
 		shutdownSig: make(chan struct{}, 1),
 	}
-	go func() {
-		pollWait(func() bool {
-			return fanOutCount.Load() >= 1
-		}, pollOpts{
-			maxWait: 10 * time.Second,
-		})
-		close(settings.shutdownSig)
-	}()
 
-	err := w.Run(ctx, settings.ShutdownSig())
-	require.NoError(t, err)
+	g := errgroup.Group{}
+	g.Go(func() error {
+		return w.Run(ctx, settings.ShutdownSig())
+	})
+
+	require.Eventually(t, func() bool {
+		return fanOutCount.Load() >= 1
+	}, 10*time.Second, time.Millisecond)
+	close(settings.shutdownSig)
+
+	require.NoError(t, g.Wait())
 }
 
 // $ go test -run=XXX -bench=BenchmarkWork_Run_CircuitBreaker_BusyLoopBreaker -cpuprofile profile_cpu.out
@@ -2210,42 +2133,6 @@ type workSettings struct {
 
 func (w *workSettings) ShutdownSig() <-chan struct{} {
 	return w.shutdownSig
-}
-
-type pollOpts struct {
-	exit        func()
-	timeoutExit func()
-	pollPause   time.Duration
-	maxWait     time.Duration
-}
-
-func pollWait(f func() bool, opts pollOpts) {
-	maxWait := time.Minute
-	pollPause := time.Millisecond
-
-	if opts.pollPause != 0 {
-		pollPause = opts.pollPause
-	}
-	if opts.maxWait != 0 {
-		maxWait = opts.maxWait
-	}
-
-	start := time.Now()
-	for {
-		if f() {
-			if opts.exit != nil {
-				opts.exit()
-			}
-			return
-		}
-		if time.Since(start) > maxWait {
-			if opts.timeoutExit != nil {
-				opts.timeoutExit()
-			}
-			break
-		}
-		time.Sleep(pollPause)
-	}
 }
 
 func getFakeMessages(topic string, numMsgs int, value any, formatter zfmt.Formatter) []*zkafka.Message {

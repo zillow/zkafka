@@ -1,8 +1,10 @@
 package zkafka
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/hamba/avro/v2"
 	"github.com/zillow/zfmt"
@@ -99,11 +101,19 @@ func (f errFormatter) unmarshal(_ unmarshReq) error {
 
 type avroSchemaRegistryFormatter struct {
 	afmt avroFmt
+	// resolvedSchemas caches the resolved (target<-data) avro schema keyed by the
+	// message's 4-byte confluent schema ID. Schema compatibility resolution
+	// fingerprints the full schema (Schema.String over the whole tree), which is
+	// very expensive for large schemas; without caching it runs on every message.
+	// The target schema is fixed for a given formatter, so the schema ID alone is
+	// a sufficient key. Held by pointer so the value-copied formatter shares it.
+	resolvedSchemas *sync.Map
 }
 
 func newAvroSchemaRegistryFormatter(afmt avroFmt) avroSchemaRegistryFormatter {
 	return avroSchemaRegistryFormatter{
-		afmt: afmt,
+		afmt:            afmt,
+		resolvedSchemas: &sync.Map{},
 	}
 }
 
@@ -147,32 +157,52 @@ func (f avroSchemaRegistryFormatter) unmarshal(req unmarshReq) error {
 	if req.schema == "" {
 		return errors.New("avro schema is required for schema registry formatter")
 	}
-	inInfo, err := f.afmt.deser.GetSchema(req.topic, req.data)
+	resolvedSchema, err := f.resolveSchema(req)
 	if err != nil {
-		return fmt.Errorf("failed to get schema from message payload: %w", err)
-	}
-
-	// schema of data that exists on the wire, that is about to be marshalled into the schema of our target
-	dataSchema, err := avro.Parse(inInfo.Schema)
-	if err != nil {
-		return fmt.Errorf("failed to parse schema associated with message: %w", err)
-	}
-
-	targetSchema, err := avro.Parse(req.schema)
-	if err != nil {
-		return fmt.Errorf("failed to parse schema : %w", err)
-	}
-	sc := avro.NewSchemaCompatibility()
-
-	resolvedSchema, err := sc.Resolve(targetSchema, dataSchema)
-	if err != nil {
-		return fmt.Errorf("failed to reconcile producer/consumer schemas: %w", err)
+		return err
 	}
 	err = avro.Unmarshal(resolvedSchema, req.data[5:], req.target)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize to confluent schema registry avro type: %w", err)
 	}
 	return nil
+}
+
+// resolveSchema returns the resolved (target<-data) avro schema for req. Results
+// are cached by the message's confluent schema ID (bytes [1:5]) so the expensive
+// GetSchema + Parse + compatibility Resolve runs once per schema ID rather than
+// once per message.
+func (f avroSchemaRegistryFormatter) resolveSchema(req unmarshReq) (avro.Schema, error) {
+	haveID := len(req.data) >= 5
+	var id uint32
+	if haveID {
+		id = binary.BigEndian.Uint32(req.data[1:5])
+		if cached, ok := f.resolvedSchemas.Load(id); ok {
+			return cached.(avro.Schema), nil
+		}
+	}
+
+	inInfo, err := f.afmt.deser.GetSchema(req.topic, req.data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get schema from message payload: %w", err)
+	}
+	// schema of data that exists on the wire, that is about to be marshalled into the schema of our target
+	dataSchema, err := avro.Parse(inInfo.Schema)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse schema associated with message: %w", err)
+	}
+	targetSchema, err := avro.Parse(req.schema)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse schema : %w", err)
+	}
+	resolvedSchema, err := avro.NewSchemaCompatibility().Resolve(targetSchema, dataSchema)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reconcile producer/consumer schemas: %w", err)
+	}
+	if haveID {
+		f.resolvedSchemas.Store(id, resolvedSchema)
+	}
+	return resolvedSchema, nil
 }
 
 type protoSchemaRegistryFormatter struct {

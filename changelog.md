@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
+## 2.3.1 (Jul 24, 2026)
+
+1. Cache resolved avro schemas in the schema-registry formatter. `avroSchemaRegistryFormatter.unmarshal` previously re-parsed the writer/reader schemas and re-ran `SchemaCompatibility.Resolve` on every message; `Resolve` fingerprints the whole schema (`Schema.String` over the entire tree), which is very expensive for large schemas. The resolved schema is now cached by the message's confluent schema ID and reused, so resolution runs once per schema ID instead of once per message. Expected to significantly improve consumer decode performance (CPU and allocations) for large schemas, with no behavior change.
+
 ## 2.3.0 (May 18, 2026)
 
 1. Added `CircuitBreakerStateChanged` lifecycle hook invoked on every per-queue circuit breaker transition. The hook receives a `LifecycleCircuitBreakerStateChanged` payload carrying the previous and next `CircuitBreakerState` (`open`, `halfopen`, `closed`). Chained in `ChainLifecycleHooks`.

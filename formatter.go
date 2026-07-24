@@ -178,7 +178,9 @@ func (f avroSchemaRegistryFormatter) resolveSchema(req unmarshReq) (avro.Schema,
 	if haveID {
 		id = binary.BigEndian.Uint32(req.data[1:5])
 		if cached, ok := f.resolvedSchemas.Load(id); ok {
-			return cached.(avro.Schema), nil
+			if schema, ok := cached.(avro.Schema); ok {
+				return schema, nil
+			}
 		}
 	}
 

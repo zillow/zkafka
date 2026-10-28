@@ -9,9 +9,8 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/stretchr/testify/require"
-	mock_confluent "github.com/zillow/zkafka/v2/mocks/confluent"
+	mock_confluent "github.com/zillow/zkafka/v3/mocks/confluent"
 
-	"github.com/zillow/zfmt"
 	"go.uber.org/mock/gomock"
 )
 
@@ -26,7 +25,7 @@ func TestReader_Read_NilReturn(t *testing.T) {
 	topicConfig := ConsumerTopicConfig{
 		AutoCommitIntervalMs: new(10),
 		ReadTimeoutMillis:    new(1000),
-		Formatter:            zfmt.StringFmt,
+		MarshalerFactory:     KMarshalerShim{F: stringFormatter{}},
 	}
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
@@ -61,27 +60,26 @@ func TestReader_Read(t *testing.T) {
 	topicConfig := ConsumerTopicConfig{
 		AutoCommitIntervalMs: new(10),
 		ReadTimeoutMillis:    new(1000),
-		Formatter:            zfmt.StringFmt,
+		MarshalerFactory:     KMarshalerShim{F: stringFormatter{}},
 	}
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
 	}.NewConsumer
-	c := Client{}
-	f, err := c.getFormatter(formatterArgs{formatter: topicConfig.Formatter})
+	marshaler, err := topicConfig.MarshalerFactory.GetMarshaler()
 	require.NoError(t, err)
 
 	args := readerArgs{
 		cfg: Config{BootstrapServers: []string{"localhost:9092"}}, cCfg: topicConfig,
 		consumerProvider: m,
 		l:                &NoopLogger{},
-		f:                f,
+		marshaler:        marshaler,
 	}
 	r, err := newReader(args)
 	require.NoError(t, err)
 
 	got, err := r.Read(context.TODO())
 	require.NoError(t, err)
-	require.NotNil(t, got.fmt, "message should have formatter")
+	require.NotNil(t, got.marshaler, "message should have marshaler")
 	require.NotEmpty(t, string(got.value), "expect a non-empty value on call to read")
 }
 
@@ -108,7 +106,7 @@ func TestReader_Read_Error(t *testing.T) {
 				Topic:                "topic",
 				AutoCommitIntervalMs: new(10),
 				ReadTimeoutMillis:    new(10),
-				Formatter:            zfmt.StringFmt,
+				MarshalerFactory:     KMarshalerShim{F: stringFormatter{}},
 			}
 			m := mockConfluentConsumerProvider{
 				c: mockConsumer,
@@ -146,7 +144,7 @@ func TestReader_Read_TimeoutError(t *testing.T) {
 	topicConfig := ConsumerTopicConfig{
 		Topic:                "topic",
 		AutoCommitIntervalMs: new(10),
-		Formatter:            zfmt.StringFmt,
+		MarshalerFactory:     KMarshalerShim{F: stringFormatter{}},
 		ReadTimeoutMillis:    new(1000),
 	}
 	m := mockConfluentConsumerProvider{
@@ -174,7 +172,7 @@ func TestReader_Read_SubscriberError(t *testing.T) {
 	mockConsumer.EXPECT().SubscribeTopics(gomock.Any(), gomock.Any()).Return(errors.New("subscriber error")).Times(1)
 	topicConfig := ConsumerTopicConfig{
 		AutoCommitIntervalMs: new(10),
-		Formatter:            zfmt.ProtoRawFmt,
+		MarshalerFactory:     KMarshalerShim{F: stringFormatter{}},
 	}
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
@@ -201,7 +199,7 @@ func TestReader_Read_CloseError(t *testing.T) {
 	l := mockLogger{}
 	topicConfig := ConsumerTopicConfig{
 		AutoCommitIntervalMs: new(10),
-		Formatter:            zfmt.StringFmt,
+		MarshalerFactory:     KMarshalerShim{F: stringFormatter{}},
 	}
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
@@ -228,7 +226,7 @@ func TestReader_ReadWhenConnectionIsClosed(t *testing.T) {
 
 	topicConfig := ConsumerTopicConfig{
 		AutoCommitIntervalMs: new(10),
-		Formatter:            zfmt.StringFmt,
+		MarshalerFactory:     KMarshalerShim{F: stringFormatter{}},
 	}
 	m := mockConfluentConsumerProvider{
 		c: mockConsumer,
@@ -260,30 +258,28 @@ func Test_newReader(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "custom formatter, no error. It is implied that user will supply formatter later",
+			name: "custom marshaler, no error. It is implied that user will supply marshaler later",
 			args: args{
-				conf: Config{BootstrapServers: []string{"localhost:9092"}},
-				topicConfig: ConsumerTopicConfig{
-					Formatter: zfmt.FormatterType("custom"),
-				},
+				conf:            Config{BootstrapServers: []string{"localhost:9092"}},
+				topicConfig:     ConsumerTopicConfig{},
 				consumeProvider: defaultConfluentConsumerProvider{}.NewConsumer,
 			},
 			wantErr: false,
 		},
 		{
-			name: "valid formatter but has error when creating NewConsumer",
+			name: "valid marshaler but has error when creating NewConsumer",
 			args: args{
 				consumeProvider: mockConfluentConsumerProvider{err: true}.NewConsumer,
 			},
 			wantErr: true,
 		},
 		{
-			name: "minimum config with formatter",
+			name: "minimum config with marshaler",
 			args: args{
 				conf:            Config{BootstrapServers: []string{"localhost:9092"}},
 				consumeProvider: defaultConfluentConsumerProvider{}.NewConsumer,
 				topicConfig: ConsumerTopicConfig{
-					Formatter: zfmt.StringFmt,
+					MarshalerFactory: KMarshalerShim{F: stringFormatter{}},
 				},
 			},
 			wantErr: false,
@@ -327,7 +323,7 @@ func Test_ProcessMessage(t *testing.T) {
 	topicConfig := ConsumerTopicConfig{
 		GroupID:              "test-group",
 		AutoCommitIntervalMs: new(10),
-		Formatter:            zfmt.StringFmt,
+		MarshalerFactory:     KMarshalerShim{F: stringFormatter{}},
 	}
 	m := mockConfluentConsumerProvider{
 		c: mock_confluent.NewMockKafkaConsumer(ctrl),
@@ -367,7 +363,7 @@ func Test_ProcessMultipleMessagesFromDifferentTopics_UpdatesInternalStateProperl
 	topicConfig := ConsumerTopicConfig{
 		GroupID:              "test-group",
 		AutoCommitIntervalMs: new(10),
-		Formatter:            zfmt.StringFmt,
+		MarshalerFactory:     KMarshalerShim{F: stringFormatter{}},
 	}
 	m := mockConfluentConsumerProvider{
 		c: mock_confluent.NewMockKafkaConsumer(ctrl),
@@ -402,7 +398,7 @@ func Test_ProcessMessage_StoreOffsetError(t *testing.T) {
 		GroupID:              "test-group",
 		Topic:                "test-topic",
 		AutoCommitIntervalMs: new(10),
-		Formatter:            zfmt.StringFmt,
+		MarshalerFactory:     KMarshalerShim{F: stringFormatter{}},
 	}
 
 	dupMessage := kafka.Message{
@@ -452,7 +448,7 @@ func Test_ProcessMessage_SetError(t *testing.T) {
 		GroupID:              "test-group",
 		Topic:                "topic",
 		AutoCommitIntervalMs: new(10),
-		Formatter:            zfmt.StringFmt,
+		MarshalerFactory:     KMarshalerShim{F: stringFormatter{}},
 	}
 
 	dupMessage := kafka.Message{

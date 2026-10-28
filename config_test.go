@@ -5,8 +5,6 @@ import (
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/require"
-
-	"github.com/zillow/zfmt"
 )
 
 func Test_getDefaultConsumerTopicConfig(t *testing.T) {
@@ -103,7 +101,7 @@ func Test_getDefaultConsumerTopicConfig(t *testing.T) {
 			expectedConfig := &ConsumerTopicConfig{
 				ClientID:              tt.args.conf.ClientID,
 				GroupID:               tt.args.conf.GroupID,
-				Formatter:             zfmt.JSONFmt,
+				MarshalerFactory:      KMarshalerShim{F: JSONMarshaler{}},
 				ReadTimeoutMillis:     &defaultReadTimeoutMillis,
 				ProcessTimeoutMillis:  &defaultProcessTimeoutMillis,
 				SessionTimeoutMillis:  &defaultSessionTimeoutMillis,
@@ -156,10 +154,10 @@ func Test_getDefaultProducerTopicConfig(t *testing.T) {
 				return
 			}
 			expectedConfig := &ProducerTopicConfig{
-				ClientID:     tt.args.conf.ClientID,
-				Topic:        tt.args.conf.Topic,
-				Formatter:    zfmt.JSONFmt,
-				NagleDisable: new(true),
+				ClientID:         tt.args.conf.ClientID,
+				Topic:            tt.args.conf.Topic,
+				MarshalerFactory: KMarshalerShim{F: JSONMarshaler{}},
+				NagleDisable:     new(true),
 			}
 			assertEqual(t, tt.args.conf, expectedConfig)
 		})
@@ -187,7 +185,7 @@ func Test_getDefaultConsumerTopicConfigSpecialCase(t *testing.T) {
 				ClientID:              "test",
 				GroupID:               "test_group",
 				Topic:                 "test_topic",
-				Formatter:             zfmt.JSONFmt,
+				MarshalerFactory:      KMarshalerShim{F: JSONMarshaler{}},
 				ReadTimeoutMillis:     new(1000),
 				ProcessTimeoutMillis:  new(60000),
 				SessionTimeoutMillis:  new(61000),
@@ -205,7 +203,7 @@ func Test_getDefaultConsumerTopicConfigSpecialCase(t *testing.T) {
 				ClientID:              "test",
 				GroupID:               "test_group",
 				Topic:                 "test_topic",
-				Formatter:             zfmt.JSONFmt,
+				MarshalerFactory:      KMarshalerShim{F: JSONMarshaler{}},
 				ReadTimeoutMillis:     new(1000),
 				ProcessTimeoutMillis:  new(60000),
 				SessionTimeoutMillis:  new(61000),
@@ -228,7 +226,7 @@ func Test_getDefaultConsumerTopicConfigSpecialCase(t *testing.T) {
 				ClientID:              "test",
 				GroupID:               "test_group",
 				Topic:                 "test_topic",
-				Formatter:             zfmt.JSONFmt,
+				MarshalerFactory:      KMarshalerShim{F: JSONMarshaler{}},
 				ReadTimeoutMillis:     new(100),
 				AutoCommitIntervalMs:  new(12000),
 				ProcessTimeoutMillis:  new(60000),
@@ -249,7 +247,7 @@ func Test_getDefaultConsumerTopicConfigSpecialCase(t *testing.T) {
 				ClientID:              "test",
 				GroupID:               "test_group",
 				Topic:                 "test_topic",
-				Formatter:             zfmt.JSONFmt,
+				MarshalerFactory:      KMarshalerShim{F: JSONMarshaler{}},
 				ReadTimeoutMillis:     new(1000),
 				AutoCommitIntervalMs:  new(123),
 				ProcessTimeoutMillis:  new(60000),

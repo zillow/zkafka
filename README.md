@@ -7,7 +7,9 @@
 
 ## Install
 
-`go get -u github.com/zillow/zkafka/v2`
+`go get -u github.com/zillow/zkafka/v3`
+
+Upgrading from v2? Formatter selection changed in 3.0.0; see the migration table in [changelog.md](changelog.md).
 
 ## About
 
@@ -268,19 +270,57 @@ as well as transient errors blocking future message processing. Use dead letteri
 special processing of these messages.
 
 
-### SchemaRegistry Support:
+### Marshalers
 
-zkafka supports schema registry. It extends `zfmt` to enable this adding three `zfmt.FormatterType`:
+Every reader and writer owns a marshaler which converts between Go values and the bytes of the Kafka
+message value. It is chosen in code through the `MarshalerFactory` field of `ProducerTopicConfig` /
+`ConsumerTopicConfig`. When the field is nil, `zkafka.JSONMarshaler` (`encoding/json`) is used.
+
+zkafka itself carries no serialization dependency beyond the standard library. Any type with
+
+```go
+Marshal(v any) ([]byte, error)
+Unmarshal(b []byte, v any) error
 ```
-    AvroSchemaRegistry zfmt.FormatterType = "avro_schema_registry"
-	ProtoSchemaRegistry zfmt.FormatterType = "proto_schema_registry"
-	JSONSchemaRegistry zfmt.FormatterType = "json_schema_registry"
+
+satisfies `zkafka.Marshaler` and can be wired in with `zkafka.KMarshalerShim`. The formatters in
+[zfmt](https://github.com/zillow/zfmt) (`zfmtjson`, `zfmtproto`, `zfmtavro`, `zfmtstring`) all fit, as does
+anything you write yourself:
+
+```go
+import "github.com/zillow/zfmt/zfmtproto"
+
+pcfg := zkafka.ProducerTopicConfig{
+   ClientID:         "myclientid",
+   Topic:            "mytopic",
+   MarshalerFactory: zkafka.KMarshalerShim{F: zfmtproto.NewRawFormatter()},
+}
 ```
 
-This can be used in ProducerTopicConfig/ConsumerTopicConfig just like the others. Examples have been added 
-`example/producer_avro` and `example/worker_avro` which demonstrate the additional configuration (mostly there to enable the
-schema registry communication that's required)
+`KMarshalerShim` is also a `KMarshaler`, so the same value can override the config for a single reader or
+writer via `RMarshalerOption` / `WMarshalerOption`.
 
+#### SchemaRegistry Support
+
+zkafka ships marshalers that speak to Confluent schema registry, prefixing each payload with the registered
+schema ID: `NewAvroSchemaRegistryMarshalerFactory`, `NewProtoSchemaRegistryMarshalerFactory` and
+`NewJsonSchemaRegistryMarshalerFactory`. Each takes a `SchemaRegistryConfig` (registry URL plus
+serialization / deserialization settings such as the schema and auto-registration) and creates the registry
+client when the reader or writer is built:
+
+```go
+ccfg := zkafka.ConsumerTopicConfig{
+   ClientID: "myclientid",
+   GroupID:  "mygroup",
+   Topic:    "mytopic",
+   MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
+      URL:             "http://localhost:8081",
+      Deserialization: zkafka.DeserializationConfig{Schema: eventSchema},
+   }),
+}
+```
+
+`example/producer_avro` and `example/worker_avro` demonstrate the full configuration.
 
 ### Consumer/Producer Configuration
 

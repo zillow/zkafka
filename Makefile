@@ -1,5 +1,5 @@
 # Directories containing independent Go modules.
-MODULE_DIRS = .
+MODULE_DIRS = . example
 GOLANGCI_VERSION=2.11.4
 AVRO_CMD_PATH=github.com/hamba/avro/v2/cmd/avrogen@v2.28.0
 
@@ -20,19 +20,19 @@ test-local: setup cover
 
 .PHONY: example-producer
 example-producer:
-	go run example/producer/main.go
+	cd example && go run ./producer
 
 .PHONY: example-worker
 example-worker:
-	go run example/worker/main.go
+	cd example && go run ./worker
 
 .PHONY: example-deadletter-worker
 example-deadletter-worker:
-	go run example/worker-deadletter/main.go
+	cd example && go run ./worker-deadletter
 
 .PHONY: example-delay-worker
 example-delay-worker:
-	go run example/worker-delay/main.go
+	cd example && go run ./worker-delay
 
 .PHONY: lint
 lint: golangci-lint

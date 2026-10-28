@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	zkafka "github.com/zillow/zkafka/v2"
+	zkafka "github.com/zillow/zkafka/v3"
 	gomock "go.uber.org/mock/gomock"
 )
 

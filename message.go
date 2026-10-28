@@ -23,10 +23,9 @@ type Message struct {
 	TimeStamp      time.Time
 	value          []byte
 	topicPartition kafka.TopicPartition
-	fmt            kFormatter
+	marshaler      KMarshaler
 	doneFunc       func(ctx context.Context)
 	doneOnce       sync.Once
-	schema         string
 }
 
 // DoneWithContext is used to alert that message processing has completed.
@@ -53,18 +52,17 @@ func (m *Message) Decode(v any) error {
 	if m.value == nil {
 		return errors.New("message is empty")
 	}
-	return m.unmarshall(v)
+	return m.unmarshal(v)
 }
 
-func (m *Message) unmarshall(target any) error {
-	if m.fmt == nil {
-		return errors.New("formatter is not supplied to decode kafka message")
+func (m *Message) unmarshal(target any) error {
+	if m.marshaler == nil {
+		return errors.New("marshaler is not supplied to decode kafka message")
 	}
-	return m.fmt.unmarshal(unmarshReq{
+	return m.marshaler.Unmarshal(UnmarshReq{
 		topic:  m.Topic,
 		data:   m.value,
 		target: target,
-		schema: m.schema,
 	})
 }
 

@@ -6,8 +6,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/zillow/zfmt"
-	"github.com/zillow/zkafka/v2"
+	"github.com/zillow/zfmt/zfmtjson"
+	"github.com/zillow/zkafka/v3"
 )
 
 func main() {
@@ -15,9 +15,9 @@ func main() {
 	writer, err := zkafka.NewClient(zkafka.Config{
 		BootstrapServers: []string{"localhost:29092"},
 	}).Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  "example",
-		Topic:     "zkafka-example-topic",
-		Formatter: zfmt.JSONFmt,
+		ClientID:         "example",
+		Topic:            "zkafka-example-topic",
+		MarshalerFactory: zkafka.KMarshalerShim{F: zfmtjson.NewFormatter()},
 	})
 	randomNames := []string{"stewy", "lydia", "asif", "mike", "justin"}
 	if err != nil {

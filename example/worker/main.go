@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zillow/zfmt"
-	"github.com/zillow/zkafka/v2"
+	"github.com/zillow/zfmt/zfmtjson"
+	"github.com/zillow/zkafka/v3"
 )
 
 // Demonstrates reading from a topic via the zkafka.Work struct which is more convenient, typically, than using the consumer directly
@@ -35,10 +35,10 @@ func main() {
 		// across releases
 		GroupID: "zkafka/example/example-consumer",
 		Topic:   "zkafka-example-topic",
-		// The formatter is registered internally to the `zkafka.Message` and used when calling `msg.Decode()`
-		// string fmt can be used for both binary and pure strings encoded in the value field of the kafka message. Other options include
+		// The marshaler is registered internally to the `zkafka.Message` and used when calling `msg.Decode()`
+		// string marshaler can be used for both binary and pure strings encoded in the value field of the kafka message. Other options include
 		// json, proto, avro, etc.
-		Formatter: zfmt.JSONFmt,
+		MarshalerFactory: zkafka.KMarshalerShim{F: zfmtjson.NewFormatter()},
 		AdditionalProps: map[string]any{
 			// only important the first time a consumer group connects. Subsequent connections will start
 			// consuming messages
@@ -76,9 +76,9 @@ func (p Processor) Process(_ context.Context, msg *zkafka.Message) error {
 	if err != nil {
 		return err
 	}
-	// optionally, if you don't want to use the configured formatter at all, access the kafka message payload bytes directly.
-	// The commented out block shows accessing the byte array. In this case we're stringifying the bytes, but this could be json unmarshalled,
-	// proto unmarshalled etc., depending on the expected payload
+	// optionally, if you don't want to use the configured marshaler at all, access the kafka message payload bytes directly.
+	// The commented out block shows accessing the byte array. In this case we're stringifying the bytes, but this could be json unmarshaled,
+	// proto unmarshaled etc., depending on the expected payload
 	// data := msg.Value()
 	// str := string(data)
 

@@ -11,8 +11,7 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/zillow/zfmt"
-	"github.com/zillow/zkafka/v2"
+	"github.com/zillow/zkafka/v3"
 )
 
 // Exercises the circuit breaker lifecycle hooks against an in-process Kafka
@@ -49,9 +48,9 @@ func Test_MockCluster_CircuitBreakerLifecycleHooksInvoked(t *testing.T) {
 	// Seed the topic with enough messages to drive consecutive failures and at
 	// least one success once the breaker re-opens to half-open.
 	writer, err := client.Writer(t.Context(), zkafka.ProducerTopicConfig{
-		ClientID:  clientID + "-writer",
-		Topic:     topic,
-		Formatter: zfmt.JSONFmt,
+		ClientID:         clientID + "-writer",
+		Topic:            topic,
+		MarshalerFactory: zkafka.KMarshalerShim{F: zkafka.JSONMarshaler{}},
 	})
 	require.NoError(t, err)
 	for i := range 20 {
@@ -77,10 +76,10 @@ func Test_MockCluster_CircuitBreakerLifecycleHooksInvoked(t *testing.T) {
 	wf := zkafka.NewWorkFactory(client, zkafka.WithLogger(l))
 	w := wf.Create(
 		zkafka.ConsumerTopicConfig{
-			ClientID:  clientID + "-reader",
-			Topic:     topic,
-			GroupID:   groupID,
-			Formatter: zfmt.JSONFmt,
+			ClientID:         clientID + "-reader",
+			Topic:            topic,
+			GroupID:          groupID,
+			MarshalerFactory: zkafka.KMarshalerShim{F: zkafka.JSONMarshaler{}},
 			AdditionalProps: map[string]any{
 				"auto.offset.reset": "earliest",
 			},

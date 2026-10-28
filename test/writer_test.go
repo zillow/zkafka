@@ -9,9 +9,8 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/stretchr/testify/require"
-	"github.com/zillow/zfmt"
-	"github.com/zillow/zkafka/v2"
-	mock_confluent "github.com/zillow/zkafka/v2/mocks/confluent"
+	"github.com/zillow/zkafka/v3"
+	mock_confluent "github.com/zillow/zkafka/v3/mocks/confluent"
 	"go.uber.org/mock/gomock"
 )
 
@@ -49,9 +48,9 @@ func TestWriter_Write_LifecycleHooksCalled(t *testing.T) {
 	defer func() { _ = client.Close() }()
 
 	writer, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  "writer",
-		Topic:     "topic",
-		Formatter: zfmt.JSONFmt,
+		ClientID:         "writer",
+		Topic:            "topic",
+		MarshalerFactory: zkafka.KMarshalerShim{F: zkafka.JSONMarshaler{}},
 	})
 	require.NoError(t, err)
 

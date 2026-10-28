@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/zillow/zkafka/v2"
+	"github.com/zillow/zkafka/v3"
 )
 
 //go:embed event.avsc
@@ -18,20 +18,21 @@ func main() {
 	writer, err := zkafka.NewClient(zkafka.Config{
 		BootstrapServers: []string{"localhost:29092"},
 	}).Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  "example",
-		Topic:     "zkafka-example-topic",
-		Formatter: zkafka.AvroSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
-			URL: "http://localhost:8081",
-			Serialization: zkafka.SerializationConfig{
-				// This likely isn't needed in production. A typical workflow involves registering
-				// a schema a priori. But for the local example, to save this setup, the flag is set to true
-				AutoRegisterSchemas: true,
-				// When using avro schema registry, you must specify the schema. In this case,
-				// the schema used to generate the golang type is used.
-				Schema: eventSchema,
+		ClientID: "example",
+		Topic:    "zkafka-example-topic",
+		MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(
+			zkafka.SchemaRegistryConfig{
+				URL: "http://localhost:8081",
+				Serialization: zkafka.SerializationConfig{
+					// This likely isn't needed in production. A typical workflow involves registering
+					// a schema a priori. But for the local example, to save this setup, the flag is set to true
+					AutoRegisterSchemas: true,
+					// When using avro schema registry, you must specify the schema. In this case,
+					// the schema used to generate the golang type is used.
+					Schema: eventSchema,
+				},
 			},
-		},
+		),
 	})
 	randomNames := []string{"stewy", "lydia", "asif", "mike", "justin"}
 	if err != nil {

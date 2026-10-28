@@ -4,6 +4,54 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to Semantic Versioning.
 
+## 3.0.0 (Oct 27, 2026)
+
+Breaking: formatter selection by `zfmt.FormatterType` string is replaced by marshaler values passed in code, and the
+module path moves from `github.com/zillow/zkafka/v2` to `github.com/zillow/zkafka/v3`.
+
+1. Removed the dependency on `github.com/zillow/zfmt`. zkafka no longer pulls protobuf, gogen-avro or heetch/avro into
+   consumers that only send JSON. The default marshaler is `zkafka.JSONMarshaler` (`encoding/json`), the same wire format
+   as `zfmt.JSONFormatter`.
+2. `ConsumerTopicConfig.Formatter`, `ProducerTopicConfig.Formatter`, `SchemaID` and `SchemaRegistry` are removed, as are
+   the `CustomFmt`, `AvroSchemaRegistry`, `ProtoSchemaRegistry` and `JSONSchemaRegistry` constants. Both topic configs
+   gain `MarshalerFactory KMarshalerFactory`; nil means JSON.
+3. New `Marshaler` (`Marshal(v any) ([]byte, error)`, `Unmarshal(b []byte, v any) error`) and topic-aware `KMarshaler`
+   interfaces. `KMarshalerShim{F: m}` adapts any `Marshaler` (every zfmt 2.x formatter, or your own type) and satisfies
+   both `KMarshaler` and `KMarshalerFactory`.
+4. Schema registry support is exposed as `NewAvroSchemaRegistryMarshalerFactory`, `NewProtoSchemaRegistryMarshalerFactory`
+   and `NewJsonSchemaRegistryMarshalerFactory`, each taking the `SchemaRegistryConfig` that used to live on the topic config.
+   The avro marshaler keeps the schema-ID cache from 2.3.1 and now returns an error, rather than panicking, on payloads
+   shorter than the 5 byte confluent header.
+5. `RFormatterOption` / `WFormatterOption` are renamed `RMarshalerOption` / `WMarshalerOption` and take a `KMarshaler`.
+   `FakeMessage.Fmt` is renamed `FakeMessage.Marshaler`; `GetFakeMessage` takes a `KMarshaler`.
+6. The examples are their own module (`github.com/zillow/zkafka/v3/example`) and show zfmt formatters chosen at the call site.
+
+Migration:
+
+```go
+// before (v2)
+import "github.com/zillow/zfmt"
+cfg := zkafka.ConsumerTopicConfig{ClientID: "svc", GroupID: "g", Topic: "t", Formatter: zfmt.ProtoRawFmt}
+
+// after (v3)
+import "github.com/zillow/zfmt/zfmtproto"
+cfg := zkafka.ConsumerTopicConfig{ClientID: "svc", GroupID: "g", Topic: "t",
+	MarshalerFactory: zkafka.KMarshalerShim{F: zfmtproto.NewRawFormatter()}}
+```
+
+| v2 | v3 | Module |
+|---|---|---|
+| `zfmt.JSONFmt` (or unset) | leave `MarshalerFactory` nil, or `KMarshalerShim{F: zkafka.JSONMarshaler{}}` | built in |
+| `zfmt.StringFmt` | `KMarshalerShim{F: zfmtstring.NewStringFormatter()}` | `github.com/zillow/zfmt/zfmtstring` |
+| `zfmt.ProtoRawFmt` / `ProtoBase64Fmt` / `ProtoJSONFmt` | `KMarshalerShim{F: zfmtproto.NewRawFormatter()}` / `NewBase64Formatter()` / `NewJSONFormatter()` | `github.com/zillow/zfmt/zfmtproto` |
+| `zfmt.AvroFmt` | `KMarshalerShim{F: zfmtavro.NewFormatter()}` | `github.com/zillow/zfmt/zfmtavro` |
+| `zfmt.AvroSchemaFmt` / `JSONSchemaFmt` + `SchemaID` | `KMarshalerShim{F: zfmtavro.NewSchematizedFormatter(id)}` / `zfmtjson.NewSchematizedFormatter(id)` | `zfmtavro` / `zfmtjson` |
+| `zkafka.AvroSchemaRegistry` + `SchemaRegistry` | `zkafka.NewAvroSchemaRegistryMarshalerFactory(cfg)` | built in |
+| `zkafka.ProtoSchemaRegistry` + `SchemaRegistry` | `zkafka.NewProtoSchemaRegistryMarshalerFactory(cfg)` | built in |
+| `zkafka.JSONSchemaRegistry` + `SchemaRegistry` | `zkafka.NewJsonSchemaRegistryMarshalerFactory(cfg)` | built in |
+| `zkafka.CustomFmt` + `WFormatterOption(f)` | `WMarshalerOption(KMarshalerShim{F: f})` | built in |
+| `FakeMessage{Fmt: f}` | `FakeMessage{Marshaler: KMarshalerShim{F: f}}` | built in |
+
 ## 2.3.1 (Jul 24, 2026)
 
 1. Cache resolved avro schemas in the schema-registry formatter. `avroSchemaRegistryFormatter.unmarshal` previously re-parsed the writer/reader schemas and re-ran `SchemaCompatibility.Resolve` on every message; `Resolve` fingerprints the whole schema (`Schema.String` over the entire tree), which is very expensive for large schemas. The resolved schema is now cached by the message's confluent schema ID and reused, so resolution runs once per schema ID instead of once per message. Expected to significantly improve consumer decode performance (CPU and allocations) for large schemas, with no behavior change.

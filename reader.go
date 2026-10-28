@@ -43,7 +43,7 @@ type KReader struct {
 	topicConfig ConsumerTopicConfig
 	isClosed    bool
 
-	formatter kFormatter
+	marshaler KMarshaler
 
 	logger     Logger
 	lifecycle  LifecycleHooks
@@ -55,7 +55,7 @@ type readerArgs struct {
 	cfg              Config
 	cCfg             ConsumerTopicConfig
 	consumerProvider confluentConsumerProvider
-	f                kFormatter
+	marshaler        KMarshaler
 	l                Logger
 	prefix           string
 	hooks            LifecycleHooks
@@ -68,7 +68,7 @@ func newReader(args readerArgs) (*KReader, error) {
 	topicConfig := args.cCfg
 	prefix := args.prefix
 	provider := args.consumerProvider
-	formatter := args.f
+	marshaler := args.marshaler
 	logger := args.l
 
 	confluentConfig, err := makeConsumerConfig(conf, topicConfig, prefix)
@@ -83,7 +83,7 @@ func newReader(args readerArgs) (*KReader, error) {
 	r := &KReader{
 		consumer:    consumer,
 		topicConfig: topicConfig,
-		formatter:   formatter,
+		marshaler:   marshaler,
 		logger:      logger,
 		lifecycle:   args.hooks,
 		tCommitMgr:  newTopicCommitMgr(),
@@ -92,8 +92,8 @@ func newReader(args readerArgs) (*KReader, error) {
 	for _, opt := range args.opts {
 		opt(&s)
 	}
-	if s.formatter != nil {
-		r.formatter = s.formatter
+	if s.marshaler != nil {
+		r.marshaler = s.marshaler
 	}
 	return r, nil
 }
@@ -225,9 +225,8 @@ func (r *KReader) mapMessage(_ context.Context, msg kafka.Message) *Message {
 				r.logger.Errorw(ctx, "Error storing offsets", "topicName", topicName, "groupID", r.topicConfig.GroupID, "partition", partition, "offset", offset, "error", err)
 			}
 		},
-		value:  msg.Value,
-		fmt:    r.formatter,
-		schema: r.topicConfig.SchemaRegistry.Deserialization.Schema,
+		value:     msg.Value,
+		marshaler: r.marshaler,
 	}
 }
 
@@ -314,17 +313,17 @@ func getTopicName(topicName *string) string {
 }
 
 type ReaderSettings struct {
-	formatter kFormatter
+	marshaler KMarshaler
 }
 
 // ReaderOption is a function that modify the KReader configurations
 type ReaderOption func(*ReaderSettings)
 
-// RFormatterOption sets the formatter for this reader
-func RFormatterOption(formatter Formatter) ReaderOption {
+// RMarshalerOption sets the marshaler for this reader
+func RMarshalerOption(marshaler KMarshaler) ReaderOption {
 	return func(s *ReaderSettings) {
-		if formatter != nil {
-			s.formatter = zfmtShim{F: formatter}
+		if marshaler != nil {
+			s.marshaler = marshaler
 		}
 	}
 }

@@ -5,7 +5,7 @@ package mock_zkafka
 import (
 	"context"
 
-	"github.com/zillow/zkafka/v2"
+	"github.com/zillow/zkafka/v3"
 )
 
 var (

@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zillow/zkafka/v2"
+	"github.com/zillow/zkafka/v3"
 )
 
 // Demonstrates reading from a topic via the zkafka.Work struct which is more convenient, typically, than using the consumer directly

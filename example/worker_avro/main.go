@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/zillow/zkafka/v2"
+	"github.com/zillow/zkafka/v3"
 )
 
 //go:embed event.avsc
@@ -41,15 +41,16 @@ func main() {
 		// The formatter is registered internally to the `zkafka.Message` and used when calling `msg.Decode()`
 		// string fmt can be used for both binary and pure strings encoded in the value field of the kafka message. Other options include
 		// json, proto, avro, etc.
-		Formatter: zkafka.AvroSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
-			URL: "http://localhost:8081",
-			Deserialization: zkafka.DeserializationConfig{
-				// When using avro schema registry, you must specify the schema. In this case,
-				// the schema used to generate the golang type is used.
-				Schema: eventSchema,
+		MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(
+			zkafka.SchemaRegistryConfig{
+				URL: "http://localhost:8081",
+				Deserialization: zkafka.DeserializationConfig{
+					// When using avro schema registry, you must specify the schema. In this case,
+					// the schema used to generate the golang type is used.
+					Schema: eventSchema,
+				},
 			},
-		},
+		),
 		AdditionalProps: map[string]any{
 			// only important the first time a consumer group connects. Subsequent connections will start
 			// consuming messages

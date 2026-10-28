@@ -16,13 +16,13 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/zillow/zkafka/v2"
-	"github.com/zillow/zkafka/v2/test/evolution/avro1"
-	"github.com/zillow/zkafka/v2/test/evolution/avro2"
-	"github.com/zillow/zkafka/v2/test/evolution/json1"
-	"github.com/zillow/zkafka/v2/test/evolution/json2"
-	"github.com/zillow/zkafka/v2/test/evolution/proto1"
-	"github.com/zillow/zkafka/v2/test/evolution/proto2"
+	"github.com/zillow/zkafka/v3"
+	"github.com/zillow/zkafka/v3/test/evolution/avro1"
+	"github.com/zillow/zkafka/v3/test/evolution/avro2"
+	"github.com/zillow/zkafka/v3/test/evolution/json1"
+	"github.com/zillow/zkafka/v3/test/evolution/json2"
+	"github.com/zillow/zkafka/v3/test/evolution/proto1"
+	"github.com/zillow/zkafka/v3/test/evolution/proto2"
 )
 
 // Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasCanBeRegisteredAndReadFrom tests
@@ -58,30 +58,28 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 
 	t.Log("Created writer with auto registered schemas")
 	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.AvroSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "http://localhost:8081",
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 				Schema:              dummyEventSchema1,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
 	writer2, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.AvroSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "http://localhost:8081",
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 				Schema:              dummyEventSchema2,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 	id := uuid.NewString()
@@ -117,13 +115,12 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_BackwardCompatibleSchemasC
 	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
-		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.AvroSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL:             "http://localhost:8081",
 			Deserialization: zkafka.DeserializationConfig{Schema: dummyEventSchema1},
-		},
+		}),
 		GroupID: groupID,
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
@@ -180,16 +177,15 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_OldProducerCanBeConsumedBy
 
 	t.Log("Created writer with auto registered schemas")
 	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.AvroSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "http://localhost:8081",
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 				Schema:              dummyEventSchema1,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
@@ -210,13 +206,12 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_OldProducerCanBeConsumedBy
 	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
-		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.AvroSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL:             "http://localhost:8081",
 			Deserialization: zkafka.DeserializationConfig{Schema: dummyEventSchema2},
-		},
+		}),
 		GroupID: groupID,
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
@@ -268,16 +263,15 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_NewProducerCanBeConsumedBy
 
 	t.Log("Created writer with auto registered schemas")
 	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.AvroSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "http://localhost:8081",
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 				Schema:              dummyEventSchema2,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
@@ -299,13 +293,12 @@ func Test_SchemaRegistryReal_Avro_AutoRegisterSchemas_NewProducerCanBeConsumedBy
 	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
-		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.AvroSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewAvroSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL:             "http://localhost:8081",
 			Deserialization: zkafka.DeserializationConfig{Schema: dummyEventSchema1},
-		},
+		}),
 		GroupID: groupID,
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
@@ -357,30 +350,28 @@ func Test_SchemaRegistryReal_Proto_AutoRegisterSchemas_BackwardCompatibleSchemas
 
 	t.Log("Created writer with auto registered schemas")
 	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.ProtoSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewProtoSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "http://localhost:8081",
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 				//Schema:              dummyEventSchema1,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
 	writer2, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.ProtoSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewProtoSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "http://localhost:8081",
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 				//Schema:              dummyEventSchema2,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
@@ -407,12 +398,11 @@ func Test_SchemaRegistryReal_Proto_AutoRegisterSchemas_BackwardCompatibleSchemas
 	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
-		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.ProtoSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewProtoSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "http://localhost:8081",
-		},
+		}),
 		GroupID: groupID,
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
@@ -469,28 +459,26 @@ func Test_SchemaRegistryReal_JSON_AutoRegisterSchemas_BackwardCompatibleSchemasC
 
 	t.Log("Created writer with auto registered schemas")
 	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.JSONSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewJsonSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "http://localhost:8081",
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
 	writer2, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.JSONSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewJsonSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "http://localhost:8081",
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
@@ -517,12 +505,11 @@ func Test_SchemaRegistryReal_JSON_AutoRegisterSchemas_BackwardCompatibleSchemasC
 	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
-		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.JSONSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewJsonSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "http://localhost:8081",
-		},
+		}),
 		GroupID: groupID,
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
@@ -579,28 +566,26 @@ func Test_SchemaRegistry_Proto_AutoRegisterSchemas_BackwardCompatibleSchemasCanB
 
 	t.Log("Created writer with auto registered schemas")
 	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.ProtoSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewProtoSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "mock://",
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
 	writer2, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.ProtoSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewProtoSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "mock://",
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
@@ -627,12 +612,11 @@ func Test_SchemaRegistry_Proto_AutoRegisterSchemas_BackwardCompatibleSchemasCanB
 	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
-		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.ProtoSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewProtoSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "mock://",
-		},
+		}),
 		GroupID: groupID,
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",
@@ -689,28 +673,26 @@ func Test_SchemaRegistry_JSON_AutoRegisterSchemas_BackwardCompatibleSchemasCanBe
 
 	t.Log("Created writer with auto registered schemas")
 	writer1, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.JSONSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewJsonSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "mock://",
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
 	writer2, err := client.Writer(ctx, zkafka.ProducerTopicConfig{
-		ClientID:  fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.JSONSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("writer-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewJsonSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "mock://",
 			Serialization: zkafka.SerializationConfig{
 				AutoRegisterSchemas: true,
 			},
-		},
+		}),
 	})
 	require.NoError(t, err)
 
@@ -736,12 +718,11 @@ func Test_SchemaRegistry_JSON_AutoRegisterSchemas_BackwardCompatibleSchemasCanBe
 	require.NoError(t, err)
 
 	consumerTopicConfig := zkafka.ConsumerTopicConfig{
-		ClientID:  fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
-		Topic:     topic,
-		Formatter: zkafka.JSONSchemaRegistry,
-		SchemaRegistry: zkafka.SchemaRegistryConfig{
+		ClientID: fmt.Sprintf("reader-%s-%s", t.Name(), uuid.NewString()),
+		Topic:    topic,
+		MarshalerFactory: zkafka.NewJsonSchemaRegistryMarshalerFactory(zkafka.SchemaRegistryConfig{
 			URL: "mock://",
-		},
+		}),
 		GroupID: groupID,
 		AdditionalProps: map[string]any{
 			"auto.offset.reset": "earliest",

@@ -13,8 +13,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/require"
-	"github.com/zillow/zfmt"
-	mock_confluent "github.com/zillow/zkafka/v2/mocks/confluent"
+	mock_confluent "github.com/zillow/zkafka/v3/mocks/confluent"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -178,23 +177,6 @@ func TestClient_Reader(t *testing.T) {
 		},
 
 		{
-			name: "create new KReader with bad formatter",
-			fields: fields{
-				consumerProvider: mockConfluentConsumerProvider{err: false}.NewConsumer,
-				readers:          make(map[string]*KReader),
-			},
-			args: args{
-				topicConfig: ConsumerTopicConfig{
-					ClientID:         "test-id",
-					GroupID:          "group",
-					Topic:            "topic",
-					Formatter:        zfmt.FormatterType("nonexistantformatter"),
-					BootstrapServers: []string{"remotehost:8080"},
-				},
-			},
-			wantErr: "unsupported formatter nonexistantformatter",
-		},
-		{
 			name: "create new KReader for closed KReader",
 			fields: fields{
 				conf: Config{BootstrapServers: []string{"localhost:9092"}},
@@ -207,7 +189,7 @@ func TestClient_Reader(t *testing.T) {
 			args: args{
 				ctx:         context.TODO(),
 				topicConfig: ConsumerTopicConfig{ClientID: "test-config", GroupID: "group", Topic: "topic"},
-				opts:        []ReaderOption{RFormatterOption(&zfmt.AvroFormatter{})},
+				opts:        []ReaderOption{RMarshalerOption(KMarshalerShim{F: stringFormatter{}})},
 			},
 			want: &KReader{
 				consumer: MockKafkaConsumer{ID: "stew"},
@@ -216,14 +198,14 @@ func TestClient_Reader(t *testing.T) {
 					GroupID:  "group",
 					Topic:    "topic",
 					// some sensible default filled out by the client
-					Formatter:             zfmt.JSONFmt,
+					MarshalerFactory:      KMarshalerShim{F: JSONMarshaler{}},
 					ReadTimeoutMillis:     new(1000),
 					ProcessTimeoutMillis:  new(60000),
 					SessionTimeoutMillis:  new(61000),
 					MaxPollIntervalMillis: new(61000),
 				},
 				logger:    NoopLogger{},
-				formatter: zfmtShim{&zfmt.AvroFormatter{}},
+				marshaler: KMarshalerShim{F: stringFormatter{}},
 			},
 			wantErr: "",
 		},
@@ -240,7 +222,7 @@ func TestClient_Reader(t *testing.T) {
 			args: args{
 				ctx:         context.TODO(),
 				topicConfig: ConsumerTopicConfig{ClientID: "test-config", GroupID: "group", Topic: "topic", ReadTimeoutMillis: new(10000), ProcessTimeoutMillis: new(10000), SessionTimeoutMillis: new(20000), MaxPollIntervalMillis: new(21000)},
-				opts:        []ReaderOption{RFormatterOption(&zfmt.AvroFormatter{})},
+				opts:        []ReaderOption{RMarshalerOption(KMarshalerShim{F: stringFormatter{}})},
 			},
 			want: &KReader{
 				consumer: MockKafkaConsumer{ID: "stew"},
@@ -249,14 +231,14 @@ func TestClient_Reader(t *testing.T) {
 					GroupID:  "group",
 					Topic:    "topic",
 					// some sensible default filled out by the client
-					Formatter:             zfmt.JSONFmt,
+					MarshalerFactory:      KMarshalerShim{F: JSONMarshaler{}},
 					ReadTimeoutMillis:     new(10000),
 					ProcessTimeoutMillis:  new(10000),
 					SessionTimeoutMillis:  new(20000),
 					MaxPollIntervalMillis: new(21000),
 				},
 				logger:    NoopLogger{},
-				formatter: zfmtShim{&zfmt.AvroFormatter{}},
+				marshaler: KMarshalerShim{F: stringFormatter{}},
 			},
 			wantErr: "",
 		},
@@ -314,7 +296,7 @@ func TestClient_Reader(t *testing.T) {
 					assertEqual(t, a, b, cmpopts.IgnoreUnexported(MockKafkaConsumer{}))
 				}
 				assertEqual(t, gotReader.logger, tt.want.logger)
-				assertEqual(t, gotReader.formatter, tt.want.formatter)
+				assertEqual(t, gotReader.marshaler, tt.want.marshaler)
 			}
 		})
 	}
@@ -371,21 +353,21 @@ func TestClient_Writer(t *testing.T) {
 			},
 			args: args{
 				topicConfig: ProducerTopicConfig{ClientID: "test-id", Topic: "topic"},
-				opts:        []WriterOption{WFormatterOption(&zfmt.ProtobufRawFormatter{})},
+				opts:        []WriterOption{WMarshalerOption(KMarshalerShim{F: stringFormatter{}})},
 			},
 			want: &KWriter{
 				topicConfig: ProducerTopicConfig{
 					ClientID: "test-id",
 					Topic:    "topic",
 					// some sensible default filled out by the client
-					Formatter:    zfmt.JSONFmt,
-					NagleDisable: new(true),
-					LingerMillis: 0,
+					MarshalerFactory: KMarshalerShim{F: JSONMarshaler{}},
+					NagleDisable:     new(true),
+					LingerMillis:     0,
 				},
 				logger:    NoopLogger{},
 				tracer:    noop.TracerProvider{}.Tracer(""),
 				p:         propagation.TraceContext{},
-				formatter: zfmtShim{&zfmt.ProtobufRawFormatter{}},
+				marshaler: KMarshalerShim{F: stringFormatter{}},
 			},
 			wantErr: "",
 		},
@@ -401,21 +383,21 @@ func TestClient_Writer(t *testing.T) {
 			},
 			args: args{
 				topicConfig: ProducerTopicConfig{ClientID: "test-id", Topic: "topic", LingerMillis: 1, NagleDisable: new(false)},
-				opts:        []WriterOption{WFormatterOption(&zfmt.ProtobufRawFormatter{})},
+				opts:        []WriterOption{WMarshalerOption(KMarshalerShim{F: stringFormatter{}})},
 			},
 			want: &KWriter{
 				topicConfig: ProducerTopicConfig{
 					ClientID: "test-id",
 					Topic:    "topic",
 					// some sensible default filled out by the client
-					Formatter:    zfmt.JSONFmt,
-					NagleDisable: new(false),
-					LingerMillis: 1,
+					MarshalerFactory: KMarshalerShim{F: JSONMarshaler{}},
+					NagleDisable:     new(false),
+					LingerMillis:     1,
 				},
 				logger:    NoopLogger{},
 				tracer:    noop.TracerProvider{}.Tracer(""),
 				p:         propagation.TraceContext{},
-				formatter: zfmtShim{&zfmt.ProtobufRawFormatter{}},
+				marshaler: KMarshalerShim{F: stringFormatter{}},
 			},
 			wantErr: "",
 		},
@@ -471,7 +453,7 @@ func TestClient_Writer(t *testing.T) {
 
 			assertEqual(t, gotKWriter.topicConfig, tt.want.topicConfig)
 			assertEqual(t, gotKWriter.logger, tt.want.logger)
-			assertEqual(t, gotKWriter.formatter, tt.want.formatter)
+			assertEqual(t, gotKWriter.marshaler, tt.want.marshaler)
 		})
 	}
 }
@@ -492,20 +474,20 @@ func TestClient_Close(t *testing.T) {
 	r1, err := newReader(readerArgs{
 		cfg: Config{BootstrapServers: []string{"localhost:9092"}},
 		cCfg: ConsumerTopicConfig{
-			Formatter: zfmt.StringFmt,
+			MarshalerFactory: KMarshalerShim{F: stringFormatter{}},
 		},
 		consumerProvider: m,
-		f:                zfmtShim{F: &zfmt.StringFormatter{}},
+		marshaler:        KMarshalerShim{F: stringFormatter{}},
 		l:                &NoopLogger{},
 	})
 	require.NoError(t, err)
 	r2, err := newReader(readerArgs{
 		cfg: Config{BootstrapServers: []string{"localhost:9092"}},
 		cCfg: ConsumerTopicConfig{
-			Formatter: zfmt.StringFmt,
+			MarshalerFactory: KMarshalerShim{F: stringFormatter{}},
 		},
 		consumerProvider: m,
-		f:                zfmtShim{F: &zfmt.StringFormatter{}},
+		marshaler:        KMarshalerShim{F: stringFormatter{}},
 		l:                &NoopLogger{},
 	})
 	require.NoError(t, err)
@@ -557,135 +539,9 @@ func TestClient_Close(t *testing.T) {
 	}
 }
 
-func Test_getFormatter_Consumer(t *testing.T) {
-	type args struct {
-		topicConfig ConsumerTopicConfig
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    zfmt.Formatter
-		wantErr bool
-	}{
-		{
-			name:    "unsupported empty",
-			args:    args{topicConfig: ConsumerTopicConfig{}},
-			wantErr: true,
-		},
-		{
-			name:    "string",
-			args:    args{topicConfig: ConsumerTopicConfig{Formatter: zfmt.FormatterType("string")}},
-			want:    &zfmt.StringFormatter{},
-			wantErr: false,
-		},
-		{
-			name:    "json",
-			args:    args{topicConfig: ConsumerTopicConfig{Formatter: zfmt.FormatterType("json")}},
-			want:    &zfmt.JSONFormatter{},
-			wantErr: false,
-		},
-		{
-			name:    "protocol buffer",
-			args:    args{topicConfig: ConsumerTopicConfig{Formatter: zfmt.FormatterType("proto_raw")}},
-			want:    &zfmt.ProtobufRawFormatter{},
-			wantErr: false,
-		},
-		{
-			name:    "apache avro",
-			args:    args{topicConfig: ConsumerTopicConfig{Formatter: zfmt.FormatterType("avro")}},
-			want:    &zfmt.AvroFormatter{},
-			wantErr: false,
-		},
-		{
-			name:    "confluent avro with inferred schema ClientID",
-			args:    args{topicConfig: ConsumerTopicConfig{Formatter: zfmt.FormatterType("avro_schema"), SchemaID: 10}},
-			want:    &zfmt.SchematizedAvroFormatter{SchemaID: 10},
-			wantErr: false,
-		},
-		{
-			name:    "confluent json with schema ID",
-			args:    args{topicConfig: ConsumerTopicConfig{Formatter: zfmt.FormatterType("json_schema")}},
-			want:    &zfmt.SchematizedJSONFormatter{},
-			wantErr: false,
-		},
-		{
-			name:    "confluent json with inferred schema ID",
-			args:    args{topicConfig: ConsumerTopicConfig{Formatter: zfmt.FormatterType("json_schema"), SchemaID: 10}},
-			want:    &zfmt.SchematizedJSONFormatter{SchemaID: 10},
-			wantErr: false,
-		},
-		{
-			name:    "confluent json with schema ID",
-			args:    args{topicConfig: ConsumerTopicConfig{Formatter: zfmt.FormatterType("proto_schema_deprecated")}},
-			want:    &zfmt.SchematizedProtoFormatterDeprecated{},
-			wantErr: false,
-		},
-		{
-			name:    "unsupported",
-			args:    args{topicConfig: ConsumerTopicConfig{Formatter: zfmt.FormatterType("what"), SchemaID: 10}},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			defer recoverThenFail(t)
-			args := formatterArgs{
-				formatter: tt.args.topicConfig.Formatter,
-				schemaID:  tt.args.topicConfig.SchemaID,
-			}
-			c := Client{}
-			got, err := c.getFormatter(args)
-			if tt.wantErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, zfmtShim{tt.want}, got)
-			}
-		})
-	}
-}
-
-func Test_getFormatter_Producer(t *testing.T) {
-	type args struct {
-		topicConfig ProducerTopicConfig
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    zfmt.Formatter
-		wantErr bool
-	}{
-		{
-			name:    "confluent avro with schema ClientID",
-			args:    args{topicConfig: ProducerTopicConfig{Formatter: zfmt.FormatterType("avro_schema")}},
-			want:    &zfmt.SchematizedAvroFormatter{},
-			wantErr: false,
-		},
-		{
-			name:    "confluent json with inferred schema ID",
-			args:    args{topicConfig: ProducerTopicConfig{Formatter: zfmt.FormatterType("proto_schema_deprecated"), SchemaID: 10}},
-			want:    &zfmt.SchematizedProtoFormatterDeprecated{SchemaID: 10},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			defer recoverThenFail(t)
-			args := formatterArgs{
-				formatter: tt.args.topicConfig.Formatter,
-				schemaID:  tt.args.topicConfig.SchemaID,
-			}
-			c := Client{}
-			got, err := c.getFormatter(args)
-			if tt.wantErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, zfmtShim{tt.want}, got)
-			}
-		})
-	}
-}
+// Test_getFormatter_Consumer and Test_getFormatter_Producer tests have been removed
+// because the getFormatter function no longer exists. The config API has changed to use
+// MarshalerFactory instead of Formatter.
 
 func TestClient_ConsumerProviderOptionAllowsForInjectionOfCustomConsumer(t *testing.T) {
 	defer recoverThenFail(t)
@@ -817,12 +673,11 @@ func Test_makeConfig_Consumer(t *testing.T) {
 			args: args{
 				conf: Config{},
 				topicConfig: ConsumerTopicConfig{
-					ClientID:    "clientid",
-					GroupID:     "group",
-					Topic:       "",
-					Formatter:   "",
-					SchemaID:    0,
-					Transaction: true,
+					ClientID:         "clientid",
+					GroupID:          "group",
+					Topic:            "",
+					MarshalerFactory: KMarshalerShim{F: stringFormatter{}},
+					Transaction:      true,
 				},
 			},
 			wantErr: "invalid consumer config, missing bootstrap server addresses",
@@ -835,12 +690,11 @@ func Test_makeConfig_Consumer(t *testing.T) {
 					BootstrapServers: []string{"http://localhost:8080", "https://localhost:8081"},
 				},
 				topicConfig: ConsumerTopicConfig{
-					ClientID:    "clientid",
-					GroupID:     "group",
-					Topic:       "",
-					Formatter:   "",
-					SchemaID:    0,
-					Transaction: true,
+					ClientID:         "clientid",
+					GroupID:          "group",
+					Topic:            "",
+					MarshalerFactory: KMarshalerShim{F: stringFormatter{}},
+					Transaction:      true,
 				},
 			},
 			want: kafka.ConfigMap{
